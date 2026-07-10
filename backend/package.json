@@ -1,0 +1,36 @@
+{
+  "name": "@imobiliaria/backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Backend (monólito modular) — módulos por domínio, gateway HTTP e libs compartilhadas",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "node --import tsx --test 'src/**/*.test.ts'"
+  },
+  "dependencies": {
+    "@fastify/cors": "^10.0.1",
+    "amqplib": "^0.10.5",
+    "fastify": "^5.1.0",
+    "ioredis": "^5.4.1",
+    "pg": "^8.13.1",
+    "pino": "^9.5.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.15.0",
+    "@types/amqplib": "^0.10.5",
+    "@types/node": "^22.9.0",
+    "@types/pg": "^8.11.10",
+    "eslint": "^9.15.0",
+    "pino-pretty": "^13.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.15.0"
+  }
+}

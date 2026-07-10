@@ -1,0 +1,49 @@
+# Infraestrutura de desenvolvimento local.
+# Sobe PostgreSQL (multi-tenant via RLS), Redis e RabbitMQ.
+# Uso: docker compose up -d   (ou: npm run infra:up)
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: imobiliaria-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-imobiliaria}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-imobiliaria}
+      POSTGRES_DB: ${POSTGRES_DB:-imobiliaria}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # init.sql roda apenas na primeira criação do volume (banco vazio).
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-imobiliaria} -d ${POSTGRES_DB:-imobiliaria}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: imobiliaria-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: imobiliaria-rabbitmq
+    ports:
+      - "5672:5672"    # AMQP
+      - "15672:15672"  # painel de gestão (guest/guest)
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:

@@ -1,0 +1,19 @@
+{
+  "url": "https://dental-clinic-11.aura.build/",
+  "date": "2026-07-10T17:07:02.693Z",
+  "totalAssets": 376,
+  "totalSize": "11.7 MB",
+  "assetBreakdown": {
+    "svg": 1,
+    "css": 16,
+    "images": 27,
+    "js": 46,
+    "fonts": 286
+  },
+  "options": {
+    "extractDesignTokens": true,
+    "screenshots": true,
+    "scrollToBottom": true,
+    "timeout": 30000
+  }
+}
