@@ -1,6 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { healthRoutes } from "../modules/health/health.routes.js";
 import { propertyRoutes } from "../modules/property/property.routes.js";
+import { propertyTypeRoutes } from "../modules/property-type/property-type.routes.js";
+import { guarantorRoutes } from "../modules/guarantor/guarantor.routes.js";
 import { tenantRoutes } from "../modules/tenant/tenant.routes.js";
 import { validateTenantHook } from "../modules/tenant/tenant.hook.js";
 import { tenantContextHook } from "../shared/tenant-context.js";
@@ -28,6 +30,8 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       v1.addHook("onRequest", validateTenantHook);
       v1.addHook("onRequest", tenantContextHook);
       await v1.register(propertyRoutes, { prefix: "/properties" });
+      await v1.register(propertyTypeRoutes, { prefix: "/property-types" });
+      await v1.register(guarantorRoutes, { prefix: "/guarantors" });
       // Próximos módulos entram aqui:
       // await v1.register(ownerRoutes,    { prefix: "/owners" });
       // await v1.register(customerRoutes, { prefix: "/customers" });

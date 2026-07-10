@@ -50,23 +50,37 @@
 |---|---|---|---|---|
 | owners | tenant_id, id | String | ✓ | Isolamento / PK |
 | owners | person_type | Enum | ✓ | PF, PJ |
-| owners | cpf_cnpj | String (criptografado) | ✓ | Único por tenant |
+| owners | cpf_cnpj | String (criptografado) | ✓ | Único por tenant (CPF ou CNPJ/"CGC") |
 | owners | full_name | String | ✓ | Nome/razão social |
-| owners | email, phone | String (criptografado) | — | Contato |
+| owners | rg, rg_issuer | String (criptografado) | — | RG + órgão expedidor (PF) |
+| owners | gender | Enum | — | M, F, OUTRO (campo "Sexo" do legado) |
+| owners | birth_date | Date | — | Data de nascimento |
+| owners | marital_status | Enum | — | SOLTEIRO, CASADO, DIVORCIADO, VIUVO, UNIAO_ESTAVEL |
+| owners | nationality | String | — | Nacionalidade (default BRASILEIRA) |
+| owners | occupation | String | — | Profissão |
+| owners | email, phone, mobile, fax | String (criptografado) | — | Contatos |
+| owners | receipt_authorization | Text | — | "Autorização de Recebimento" (quem pode receber o repasse) |
+| owners | notes, references | Text | — | Observações e Referências |
 | owners | status | Enum | ✓ | ATIVO, INATIVO |
+| owner_spouse | owner_id, name, occupation, birth_date, cpf, rg | — | — | Dados do **cônjuge** (criptografado onde aplicável) |
+| owner_addresses | owner_id, kind, street, number, district, city, state, zip | — | ✓ | kind: RESIDENCIAL / COMERCIAL (dois blocos, como no legado) |
 | owner_bank_accounts | owner_id | String | ✓ | FK |
 | owner_bank_accounts | bank, agency, account (criptografado) | String | ✓ | Dados bancários |
+| owner_bank_accounts | holder_name (criptografado) | String | — | Titular da conta ("Titular" do legado) |
 | owner_bank_accounts | pix_key (criptografado) | String | — | Chave PIX |
 | owner_bank_accounts | is_default | Boolean | ✓ | Conta de repasse padrão |
 | owner_consents | owner_id, purpose, granted, granted_at, ip | — | ✓ | Consentimento LGPD |
+
+> **Ficha cadastral de pessoa (compat. legado):** os campos pessoais + cônjuge + endereços (residencial/comercial) acima formam a **"ficha de pessoa" PF/PJ** reutilizada de forma idêntica por [[clientes_04]] (locatário) e [[fiadores_21]] (fiador). Recomenda-se um **tipo compartilhado** (`PersonRecord` em `@move-ai/shared`) para os três cadastros.
 
 ### Campos com Criptografia AES-256-GCM
 
 | Campo | Tabela | Justificativa |
 |---|---|---|
-| cpf_cnpj | owners | Dado pessoal identificável (LGPD) |
-| email, phone | owners | Dado pessoal |
-| account, agency, pix_key | owner_bank_accounts | Dado financeiro sensível |
+| cpf_cnpj, rg | owners | Dado pessoal identificável (LGPD) |
+| email, phone, mobile, fax | owners | Dado pessoal |
+| cpf, rg (cônjuge) | owner_spouse | Dado pessoal de terceiro |
+| account, agency, pix_key, holder_name | owner_bank_accounts | Dado financeiro sensível |
 
 ### Índices
 

@@ -29,6 +29,7 @@
 | MOD-AGENDA-04 | Disponibilidade do corretor | Blocos de indisponibilidade + janela de atendimento | Must Have |
 | MOD-AGENDA-05 | Recorrência (RRULE) | Turmas/blocos recorrentes padrão iCal | Should Have |
 | MOD-AGENDA-06 | Checklist de vistoria | Itens vistoriados com estado e fotos | Should Have |
+| MOD-AGENDA-08 | Catálogo de itens de vistoria | Lista editável por tenant (Pintura externa, Piso…) que alimenta o checklist | Should Have |
 | MOD-AGENDA-07 | Export .ics | Exportar evento para calendário externo | Nice to Have |
 
 ## 3. Critérios de Aceite
@@ -60,7 +61,8 @@
 | appointments | rrule | String | — | Recorrência RFC 5545 |
 | appointment_participants | appointment_id, participant_type, participant_id | — | ✓ | Owner/customer/broker |
 | calendar_blocks | broker_id, starts_at, ends_at, reason | — | ✓ | Indisponibilidade |
-| inspection_items | appointment_id, item, condition, photos[] | — | — | Checklist de vistoria |
+| inspection_items | appointment_id, catalog_item_id, item, condition, photos[] | — | — | Checklist de vistoria (item pode vir do catálogo) |
+| inspection_item_catalog | tenant_id, id, description, active | — | ✓ | **Catálogo editável por tenant** de itens padrão de vistoria (Pintura externa, Piso, Louças…). Espelha a tela legada "Itens de Vistoria" |
 
 ### Índices
 ```sql

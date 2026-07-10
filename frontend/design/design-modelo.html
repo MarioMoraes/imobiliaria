@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="scroll-smooth">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema de Design — Imobiliária AI</title>
+
+  <!-- Fonts (mesmo par tipográfico do template de referência) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700;800&display=swap"
+    rel="stylesheet">
+
+  <!-- Icons (Lucide — mesmo sistema do original) -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Tailwind (Play CDN) + config EXATO do template de referência -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            surface: '#f8fafc',           // slate 50
+            surfacehighlight: '#eff6ff',  // blue 50
+            primary: '#2563eb',           // vibrant royal blue
+            primarydark: '#1d4ed8',
+            accent: '#06b6d4',            // cyan
+            dark: '#0f172a',
+            darktext: '#1e293b',
+            muted: '#64748b',
+            border: '#e2e8f0',
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            heading: ['Poppins', 'sans-serif'],
+          },
+          boxShadow: {
+            'soft': '0 10px 40px -10px rgba(37, 99, 235, 0.1)',
+            'lift': '0 20px 40px -15px rgba(37, 99, 235, 0.15)',
+            'glow': '0 0 20px rgba(6, 182, 212, 0.3)',
+          },
+          backgroundImage: {
+            'hero-gradient': 'linear-gradient(135deg, #eff6ff 0%, #ffffff 100%)',
+            'card-gradient': 'linear-gradient(to bottom right, #ffffff, #f8fafc)',
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Custom styles do template original (reveal-on-scroll, inputs, scrollbar) + mínimo p/ nav fixo -->
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .font-heading {
+      font-family: 'Poppins', sans-serif;
+    }
+
+    /* Floating label inputs */
+    .input-group {
+      position: relative;
+    }
+
+    .input-field {
+      width: 100%;
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+      padding: 1rem 0.75rem 0.5rem;
+      border-radius: 0.5rem;
+      outline: none;
+      transition: all 0.2s ease;
+      font-size: 0.95rem;
+      color: #1e293b;
+    }
+
+    .input-field:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    .input-label {
+      position: absolute;
+      left: 0.75rem;
+      top: 0.8rem;
+      color: #64748b;
+      pointer-events: none;
+      transition: all 0.2s ease;
+    }
+
+    .input-field:focus~.input-label,
+    .input-field:not(:placeholder-shown)~.input-label {
+      top: 0.2rem;
+      font-size: 0.7rem;
+      font-weight: 500;
+      color: #2563eb;
+    }
+
+    .input-field.is-error {
+      border-color: #ef4444;
+      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+    }
+
+    /* Reveal on scroll */
+    .reveal-on-scroll {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .reveal-on-scroll.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #f8fafc;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #64748b;
+    }
+
+    /* Doc-only helpers (não fazem parte do sistema; só organizam a documentação) */
+    .ds-nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 9999;
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .ds-nav a {
+      color: #64748b;
+      font-size: 0.8rem;
+      font-weight: 500;
+      padding: 0.35rem 0.6rem;
+      border-radius: 9999px;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .ds-nav a:hover {
+      color: #2563eb;
+      background: #eff6ff;
+    }
+
+    .ds-section-label {
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 600;
+      color: #2563eb;
+    }
+
+    .ds-note {
+      border-left: 2px solid #06b6d4;
+      background: #f8fafc;
+    }
+
+    .ds-swatch {
+      height: 88px;
+      border-radius: 0.75rem;
+      border: 1px solid rgba(15, 23, 42, 0.06);
+    }
+
+    .ds-chip {
+      font-family: 'Inter', monospace;
+      font-size: 0.72rem;
+    }
+  </style>
+</head>
+
+<body class="antialiased text-darktext bg-surface overflow-x-hidden">
+
+  <!-- NAV FIXO -->
+  <nav class="ds-nav">
+    <div class="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
+      <a href="#hero" class="flex items-center gap-2 !px-0 !bg-transparent">
+        <span
+          class="w-7 h-7 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center text-white shadow-lg">
+          <i data-lucide="layout-grid" class="w-4 h-4"></i>
+        </span>
+        <span class="font-heading font-semibold text-dark tracking-tight text-sm">Design System</span>
+      </a>
+      <div class="flex items-center gap-1 overflow-x-auto">
+        <a href="#hero">Hero</a>
+        <a href="#tipografia">Tipografia</a>
+        <a href="#cores">Cores</a>
+        <a href="#componentes">Componentes</a>
+        <a href="#layout">Layout</a>
+        <a href="#motion">Motion</a>
+        <a href="#iconografia">Iconografia</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ============================================================= -->
+  <!-- SEÇÃO 0 · HERO (clone adaptado — estrutura/classes/motion do original, só o texto muda) -->
+  <!-- ============================================================= -->
+  <section id="hero" class="relative pt-32 pb-20 lg:pt-40 lg:pb-32 overflow-hidden bg-hero-gradient">
+    <!-- Decoração abstrata -->
+    <div
+      class="absolute top-0 right-0 -translate-y-1/3 translate-x-1/4 w-[800px] h-[800px] bg-gradient-to-br from-accent/20 to-primary/10 rounded-full blur-3xl -z-10">
+    </div>
+    <div
+      class="absolute bottom-0 left-0 translate-y-1/3 -translate-x-1/4 w-[600px] h-[600px] bg-gradient-to-tr from-blue-100 to-transparent rounded-full blur-3xl -z-10">
+    </div>
+
+    <div class="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center">
+      <!-- Coluna texto -->
+      <div class="relative z-10 reveal-on-scroll is-visible">
+        <span
+          class="inline-flex items-center gap-2 px-3 py-1 bg-surfacehighlight border border-primary/20 rounded-full text-primary text-xs font-medium mb-6 shadow-sm">
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+          </span>
+          Padrão visual oficial · v1.0
+        </span>
+        <h1 class="font-heading text-4xl lg:text-6xl font-bold leading-[1.1] text-dark">
+          O sistema por trás de uma
+          <br>
+          <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">interface confiável</span>
+        </h1>
+        <p class="mt-6 text-lg text-muted mb-8 max-w-lg leading-relaxed">
+          A linguagem visual da Move AI Imobiliária: tipografia, cores, componentes e motion documentados a partir do
+          template de referência — para toda tela nova nascer consistente.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-4">
+          <a href="#componentes"
+            class="inline-flex items-center justify-center gap-2 bg-primary text-white px-8 py-3.5 rounded-full font-medium hover:bg-primarydark shadow-soft transition-colors">
+            Ver componentes
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+          </a>
+          <a href="#cores"
+            class="inline-flex items-center justify-center gap-2 border border-border px-8 py-3.5 rounded-full font-medium text-dark hover:border-primary hover:text-primary transition-colors">
+            Explorar tokens
+          </a>
+        </div>
+        <div class="flex items-center gap-4 mt-10">
+          <div class="flex -space-x-2">
+            <img
+              src="https://hoirqrkdgbmvpwutwuwj.supabase.co/storage/v1/object/public/assets/assets/917d6f93-fb36-439a-8c48-884b67b35381_1600w.jpg"
+              alt="" class="w-10 h-10 rounded-full border-2 border-white object-cover">
+            <img
+              src="https://hoirqrkdgbmvpwutwuwj.supabase.co/storage/v1/object/public/assets/assets/4734259a-bad7-422f-981e-ce01e79184f2_1600w.jpg"
+              alt="" class="w-10 h-10 rounded-full border-2 border-white object-cover">
+            <img
+              src="https://hoirqrkdgbmvpwutwuwj.supabase.co/storage/v1/object/public/assets/assets/c543a9e1-f226-4ced-80b0-feb8445a75b9_1600w.jpg"
+              alt="" class="w-10 h-10 rounded-full border-2 border-white object-cover">
+          </div>
+          <p class="text-sm text-muted">Base para <span class="text-dark font-semibold">todos os 20 módulos</span></p>
+        </div>
+      </div>
+
+      <!-- Coluna imagem (mesma composição do hero original: imagem + badge flutuante) -->
+      <div class="relative reveal-on-scroll is-visible">
+        <div
+          class="absolute inset-0 bg-gradient-to-br from-primary to-accent opacity-10 rounded-[2.5rem] rotate-3 scale-95 translate-y-4">
+        </div>
+        <div class="relative rounded-[2.5rem] overflow-hidden shadow-2xl h-[500px] group border-4 border-white">
+          <img
+            src="https://hoirqrkdgbmvpwutwuwj.supabase.co/storage/v1/object/public/assets/assets/5bab247f-35d9-400d-a82b-fd87cfe913d2_1600w.webp"
+            alt="Referência visual"
+            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000 ease-out">
+        </div>
+        <div
+          class="absolute bottom-6 left-6 right-6 bg-white/80 backdrop-blur rounded-xl p-4 flex items-center justify-between shadow-lift border border-white/50">
+          <div class="flex items-center gap-3">
+            <span class="w-10 h-10 rounded-lg bg-surfacehighlight flex items-center justify-center text-primary">
+              <i data-lucide="shield-check" class="w-5 h-5"></i>
+            </span>
+            <div>
+              <p class="text-xs text-muted uppercase tracking-wider font-semibold">Consistência</p>
+              <p class="text-sm text-dark font-semibold">100% tokenizada</p>
+            </div>
+          </div>
+          <i data-lucide="sparkles" class="w-5 h-5 text-accent"></i>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================= -->
+  <!-- SEÇÃO 1 · TIPOGRAFIA -->
+  <!-- ============================================================= -->
+  <section id="tipografia" class="py-20 lg:py-28 bg-white border-t border-border">
+    <div class="max-w-5xl mx-auto px-6">
+      <span class="ds-section-label">01 · Tipografia</span>
+      <h2 class="font-heading text-3xl lg:text-4xl font-bold text-dark tracking-tight mt-2 mb-4">Poppins para títulos,
+        Inter para leitura</h2>
+      <div class="ds-note rounded-r-lg px-4 py-3 text-sm text-muted max-w-2xl mb-12">
+        <strong class="text-darktext">Nota editorial:</strong> pareamento clássico e seguro — Poppins (geométrica
+        humanista) dá presença aos títulos sem gritar; Inter (grotesca neutra, altíssima legibilidade em telas densas de
+        dados) carrega parágrafos e tabelas. A hierarquia salta do <span
+          class="font-heading font-semibold text-dark">display 6xl</span> direto para o corpo <em>base</em>, deixando o
+        espaço negativo fazer o trabalho de ritmo.
+      </div>
+
+      <div class="divide-y divide-border">
+        <!-- Título 1 -->
+        <div class="py-6 flex flex-col md:flex-row md:items-end md:justify-between gap-2">
+          <h1 class="font-heading text-4xl lg:text-6xl font-bold leading-[1.1] text-dark">Título 1 · Display</h1>
+          <code
+            class="ds-chip text-muted md:text-right shrink-0">font-heading · text-4xl→6xl · 700 · leading-[1.1]</code>
+        </div>
+        <!-- Título 2 -->
+        <div class="py-6 flex flex-col md:flex-row md:items-end md:justify-between gap-2">
+          <h2 class="font-heading text-3xl lg:text-4xl font-bold text-dark tracking-tight">Título 2 · Seção</h2>
+          <code
+            class="ds-chip text-muted md:text-right shrink-0">font-heading · text-3xl→4xl · 700 · tracking-tight</code>
+        </div>
+        <!-- Título 3 -->
+        <div class="py-6 flex flex-col md:flex-row md:items-end md:justify-between gap-2">
+          <h3 class="font-heading text-xl font-bold text-dark">Título 3 · Card</h3>
+          <code class="ds-chip text-muted md:text-right shrink-0">font-heading · text-xl · 700</code>
+        </div>
+        <!-- Título 4 -->
+        <div class="py-6 flex flex-col md:flex-row md:items-end md:justify-between gap-2">
+          <h4 class="font-heading text-lg font-semibold text-dark">Título 4 · Sub-item</h4>
+          <code class="ds-chip text-muted md:text-right shrink-0">font-heading · text-lg · 600</code>
+        </div>
+        <!-- Gradiente de texto -->
+        <div class="py-6 flex flex-col md:flex-row md:items-end md:justify-between gap-2">
+          <span
+            class="font-heading text-3xl lg:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">Título
+            em gradiente</span>
+          <code class="ds-chip text-muted md:text-right shrink-0">bg-clip-text · from-primary → to-accent</code>
+        </div>
+        <!-- Label / eyebrow -->
+        <div class="py-6 flex flex-col md:flex-row md:items-end md:justify-between gap-2">
+          <span class="ds-section-label">Eyebrow · Label de seção</span>
+          <code class="ds-chip text-muted md:text-right shrink-0">text-xs · uppercase · tracking-wider · primary</code>
+        </div>
+        <!-- Parágrafo -->
+        <div class="py-6 flex flex-col md:flex-row md:justify-between gap-4">
+          <p class="text-lg text-muted max-w-lg leading-relaxed">Parágrafo grande — usado em subtítulos de hero e
+            aberturas de seção. Line-height relaxado para respiro.</p>
+          <code class="ds-chip text-muted md:text-right shrink-0">text-lg · muted · leading-relaxed</code>
+        </div>
+        <div class="py-6 flex flex-col md:flex-row md:justify-between gap-4">
+          <p class="text-base text-muted max-w-lg">Parágrafo padrão — corpo de cards e descrições. Inter em <code
+              class="ds-chip">text-base</code> mantém legibilidade em blocos densos de informação imobiliária.</p>
+          <code class="ds-chip text-muted md:text-right shrink-0">text-base · muted</code>
+        </div>
+        <div class="py-6 flex flex-col md:flex-row md:justify-between gap-4">
+          <p class="text-sm text-muted max-w-lg">Texto pequeno — metadados, legendas e rótulos de tabela.</p>
+          <code class="ds-chip text-muted md:text-right shrink-0">text-sm · muted</code>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================= -->
+  <!-- SEÇÃO 2 · CORES E SUPERFÍCIES -->
+  <!-- ============================================================= -->
+  <section id="cores" class="py-20 lg:py-28 bg-surface border-t border-border">
+    <div class="max-w-6xl mx-auto px-6">
+      <span class="ds-section-label">02 · Cores &amp; Superfícies</span>
+      <h2 class="font-heading text-3xl lg:text-4xl font-bold text-dark tracking-tight mt-2 mb-4">Um sistema cool, limpo
+        e confiável</h2>
+      <div class="ds-note rounded-r-lg px-4 py-3 text-sm text-muted max-w-2xl mb-12">
+        <strong class="text-darktext">Teoria de cor:</strong> a paleta é <em>análoga fria</em> — royal blue <span
+          class="font-mono">#2563eb</span> como âncora e cyan <span class="font-mono">#06b6d4</span> como respiração
+        luminosa. Azul→ciano adjacentes no círculo comunicam <strong>confiança + tecnologia + higiene</strong> sem a
+        agressividade de um complementar quente. Os neutros são slate (levemente frios) em luminosidade progressiva
+        50→900 — profundidade sem sujar o branco.
+      </div>
+
+      <!-- Marca -->
+      <h3 class="font-heading text-lg font-semibold text-dark mb-4">Marca</h3>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+        <div>
+          <div class="ds-swatch bg-primary"></div>
+          <p class="mt-2 text-sm font-semibold text-dark">primary</p>
+          <code class="ds-chip text-muted">#2563eb</code>
+        </div>
+        <div>
+          <div class="ds-swatch bg-primarydark"></div>
+          <p class="mt-2 text-sm font-semibold text-dark">primarydark</p>
+          <code class="ds-chip text-muted">#1d4ed8</code>
+        </div>
+        <div>
+          <div class="ds-swatch bg-accent"></div>
+          <p class="mt-2 text-sm font-semibold text-dark">accent</p>
+          <code class="ds-chip text-muted">#06b6d4</code>
+        </div>
+        <div>
+          <div class="ds-swatch bg-gradient-to-r from-primary to-accent"></div>
+          <p class="mt-2 text-sm font-semibold text-dark">gradiente marca</p>
+          <code class="ds-chip text-muted">primary → accent</code>
+        </div>
+      </div>
+
+      <!-- Superfícies / Texto -->
+      <h3 class="font-heading text-lg font-semibold text-dark mb-4">Superfícies &amp; Texto</h3>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+        <div>
+          <div class="ds-swatch bg-surface"></div>
+          <p class="mt-2 text-sm font-semibold text-dark">surface</p>
+          <code class="ds-chip text-muted">#f8fafc</code>
+        </div>
+        <div>
+          <div class="ds-swatch bg-surfacehighlight"></div>
+          <p class="mt-2 text-sm font-semibold text-dark">surfacehighlight</p>
+          <code class="ds-chip text-muted">#eff6ff</code>
+        </div>
+        <div>
+          <div class="ds-swatch bg-dark"></div>
+          <p class="mt-2 text-sm font-semibold text-dark">dark</p>
+          <code class="ds-chip text-muted">#0f172a</code>
+        </div>
+        <div>
+          <div class="ds-swatch bg-darktext"></div>
+          <p class="mt-2 text-sm font-semibold text-dark">darktext</p>
+          <code class="ds-chip text-muted">#1e293b</code>
+        </div>
+        <div>
+          <div class="ds-swatch" style="background:#64748b"></div>
+          <p class="mt-2 text-sm font-semibold text-dark">muted</p>
+          <code class="ds-chip text-muted">#64748b</code>
+        </div>
+        <div>
+          <div class="ds-swatch bg-white border border-border"></div>
+          <p class="mt-2 text-sm font-semibold text-dark">white</p>
+          <code class="ds-chip text-muted">#ffffff</code>
+        </div>
+        <div>
+          <div class="ds-swatch bg-border"></div>
+          <p class="mt-2 text-sm font-semibold text-dark">border</p>
+          <code class="ds-chip text-muted">#e2e8f0</code>
+        </div>
+        <div>
+          <div class="ds-swatch bg-hero-gradient border border-border"></div>
+          <p class="mt-2 text-sm font-semibold text-dark">hero-gradient</p>
+          <code class="ds-chip text-muted">135° · #eff6ff→#fff</code>
+        </div>
+      </div>
+
+      <!-- Sombras -->
+      <h3 class="font-heading text-lg font-semibold text-dark mb-4">Sombras <span
+          class="text-muted font-normal text-sm">(tingidas de azul — coesão com a marca)</span></h3>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="bg-white rounded-2xl p-6 shadow-soft">
+          <p class="text-sm font-semibold text-dark">shadow-soft</p>
+          <code class="ds-chip text-muted">0 10px 40px -10px rgba(37,99,235,.1)</code>
+        </div>
+        <div class="bg-white rounded-2xl p-6 shadow-lift">
+          <p class="text-sm font-semibold text-dark">shadow-lift</p>
+          <code class="ds-chip text-muted">0 20px 40px -15px rgba(37,99,235,.15)</code>
+        </div>
+        <div class="bg-white rounded-2xl p-6 shadow-glow">
+          <p class="text-sm font-semibold text-dark">shadow-glow</p>
+          <code class="ds-chip text-muted">0 0 20px rgba(6,182,212,.3)</code>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================= -->
+  <!-- SEÇÃO 3 · COMPONENTES -->
+  <!-- ============================================================= -->
+  <section id="componentes" class="py-20 lg:py-28 bg-white border-t border-border">
+    <div class="max-w-6xl mx-auto px-6">
+      <span class="ds-section-label">03 · Componentes</span>
+      <h2 class="font-heading text-3xl lg:text-4xl font-bold text-dark tracking-tight mt-2 mb-12">Blocos de interface
+      </h2>
+
+      <!-- Botões -->
+      <h3 class="font-heading text-lg font-semibold text-dark mb-6">Botões</h3>
+      <div class="flex flex-wrap items-center gap-4 mb-4">
+        <button
+          class="inline-flex items-center justify-center gap-2 bg-primary text-white px-8 py-3.5 rounded-full font-medium hover:bg-primarydark shadow-soft transition-colors">
+          Primário <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </button>
+        <button
+          class="inline-flex items-center justify-center gap-2 bg-primarydark text-white px-8 py-3.5 rounded-full font-medium shadow-soft">
+          Primário · hover
+        </button>
+        <button
+          class="inline-flex items-center justify-center gap-2 border border-border px-8 py-3.5 rounded-full font-medium text-dark hover:border-primary hover:text-primary transition-colors">
+          Secundário (outline)
+        </button>
+        <button
+          class="inline-flex items-center justify-center gap-2 border border-primary text-primary px-8 py-3.5 rounded-full font-medium">
+          Secundário · hover
+        </button>
+        <button disabled
+          class="inline-flex items-center justify-center gap-2 bg-primary text-white px-8 py-3.5 rounded-full font-medium opacity-50 cursor-not-allowed">
+          Desabilitado
+        </button>
+      </div>
+      <div class="flex flex-wrap items-center gap-4 mb-14">
+        <button class="text-primary font-medium inline-flex items-center gap-1 group">
+          Link com ícone <i data-lucide="arrow-right"
+            class="w-4 h-4 group-hover:translate-x-1 transition-transform"></i>
+        </button>
+        <button
+          class="inline-flex items-center gap-2 bg-white text-primary px-6 py-2.5 rounded-full font-medium shadow-glow">
+          Ênfase (glow cyan)
+        </button>
+      </div>
+
+      <!-- Badges -->
+      <h3 class="font-heading text-lg font-semibold text-dark mb-6">Badges &amp; Pills</h3>
+      <div class="flex flex-wrap items-center gap-4 mb-14">
+        <span
+          class="inline-flex items-center gap-2 px-3 py-1 bg-surfacehighlight border border-primary/20 rounded-full text-primary text-xs font-medium shadow-sm">
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+          </span>
+          Disponível
+        </span>
+        <span
+          class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-accent/10 text-accent">Reservado</span>
+        <span
+          class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-dark text-white">Vendido</span>
+        <span
+          class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-surface border border-border text-muted">Inativo</span>
+      </div>
+
+      <!-- Inputs (floating label) -->
+      <h3 class="font-heading text-lg font-semibold text-dark mb-6">Campos de formulário <span
+          class="text-muted font-normal text-sm">(floating label)</span></h3>
+      <div class="grid md:grid-cols-3 gap-6 mb-14 max-w-4xl">
+        <div class="input-group">
+          <input type="text" class="input-field" placeholder=" ">
+          <label class="input-label">Nome completo</label>
+        </div>
+        <div class="input-group">
+          <input type="text" class="input-field" value="ana@cliente.com" placeholder=" ">
+          <label class="input-label">E-mail · preenchido</label>
+        </div>
+        <div class="input-group">
+          <input type="text" class="input-field is-error" value="000" placeholder=" ">
+          <label class="input-label" style="color:#ef4444">CPF · erro</label>
+        </div>
+      </div>
+
+      <!-- Card de imóvel (adaptação do "service card" do template) -->
+      <h3 class="font-heading text-lg font-semibold text-dark mb-6">Card (grupo com hover-lift &amp; zoom de imagem)
+      </h3>
+      <div class="grid md:grid-cols-3 gap-8">
+        <div
+          class="group bg-card-gradient rounded-2xl overflow-hidden border border-border hover:shadow-lift transition-all duration-300 hover:-translate-y-1">
+          <div class="h-48 overflow-hidden relative">
+            <div class="absolute inset-0 bg-gradient-to-t from-dark/40 to-transparent z-10"></div>
+            <img
+              src="https://hoirqrkdgbmvpwutwuwj.supabase.co/storage/v1/object/public/assets/assets/917d6f93-fb36-439a-8c48-884b67b35381_1600w.jpg"
+              alt="" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700">
+            <span
+              class="absolute top-3 left-3 z-20 inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-white/90 text-primary shadow-sm">Locação</span>
+          </div>
+          <div class="p-6">
+            <h4 class="font-heading text-lg font-semibold text-dark mb-1">Apartamento · Jardins</h4>
+            <p class="text-sm text-muted mb-4">2 quartos · 1 vaga · 68m². Reformado, próximo ao metrô.</p>
+            <div class="flex items-center justify-between">
+              <span class="font-heading text-xl font-bold text-primary">R$ 3.200<span
+                  class="text-sm text-muted font-normal">/mês</span></span>
+              <button class="text-primary font-medium inline-flex items-center gap-1 group/link">Ver <i
+                  data-lucide="arrow-right"
+                  class="w-4 h-4 group-hover/link:translate-x-1 transition-transform"></i></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Highlight card com ícone -->
+        <div
+          class="group p-8 rounded-2xl bg-surface hover:bg-surfacehighlight border border-transparent hover:border-blue-100 transition-all duration-300">
+          <div
+            class="w-12 h-12 rounded-xl bg-white shadow-sm flex items-center justify-center text-primary mb-4 group-hover:scale-110 transition-transform">
+            <i data-lucide="shield-check" class="w-6 h-6"></i>
+          </div>
+          <h4 class="font-heading text-lg font-semibold text-dark mb-2">Feature card</h4>
+          <p class="text-sm text-muted">Ícone em contêiner branco, título Poppins e descrição Inter. Hover troca a
+            superfície para o azul 50 e escala o ícone.</p>
+        </div>
+
+        <!-- Testimonial / quote card -->
+        <div class="bg-white p-8 rounded-2xl shadow-soft border border-border relative">
+          <div class="flex text-yellow-400 mb-4">
+            <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+            <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+            <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+            <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+            <i data-lucide="star" class="w-4 h-4 fill-current"></i>
+          </div>
+          <p class="text-darktext italic mb-6">"O corretor respondeu em minutos e agendou a visita pelo WhatsApp. Fechei
+            o contrato sem sair de casa."</p>
+          <div class="flex items-center gap-3">
+            <span
+              class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold">JD</span>
+            <div>
+              <p class="text-sm font-semibold text-dark">João Dias</p>
+              <p class="text-xs text-muted">Inquilino</p>
+            </div>
+            <i data-lucide="quote" class="w-8 h-8 text-border ml-auto opacity-50"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================= -->
+  <!-- SEÇÃO 4 · LAYOUT E ESPAÇAMENTO -->
+  <!-- ============================================================= -->
+  <section id="layout" class="py-20 lg:py-28 bg-surface border-t border-border">
+    <div class="max-w-6xl mx-auto px-6">
+      <span class="ds-section-label">04 · Layout &amp; Espaçamento</span>
+      <h2 class="font-heading text-3xl lg:text-4xl font-bold text-dark tracking-tight mt-2 mb-12">Ritmo estrutural</h2>
+
+      <!-- Container / padding -->
+      <div class="grid md:grid-cols-2 gap-6 mb-12">
+        <div class="bg-white rounded-2xl p-6 border border-border">
+          <h4 class="font-heading font-semibold text-dark mb-2">Container</h4>
+          <p class="text-sm text-muted mb-3">Largura máxima e respiro lateral padrão de toda seção.</p>
+          <code class="ds-chip text-primary">max-w-7xl · mx-auto · px-6</code>
+        </div>
+        <div class="bg-white rounded-2xl p-6 border border-border">
+          <h4 class="font-heading font-semibold text-dark mb-2">Padding de seção</h4>
+          <p class="text-sm text-muted mb-3">Vertical generoso, escalando no desktop.</p>
+          <code class="ds-chip text-primary">py-20 · lg:py-28 · (hero pt-32 lg:pt-40)</code>
+        </div>
+      </div>
+
+      <!-- Escala de espaçamento -->
+      <h3 class="font-heading text-lg font-semibold text-dark mb-4">Escala de espaçamento <span
+          class="text-muted font-normal text-sm">(ritmo base-4 do Tailwind)</span></h3>
+      <div class="flex flex-wrap items-end gap-4 mb-12">
+        <div class="text-center">
+          <div class="bg-primary/80 rounded" style="width:4px;height:4px"></div><code
+            class="ds-chip text-muted">1</code>
+        </div>
+        <div class="text-center">
+          <div class="bg-primary/80 rounded" style="width:8px;height:8px"></div><code
+            class="ds-chip text-muted">2</code>
+        </div>
+        <div class="text-center">
+          <div class="bg-primary/80 rounded" style="width:16px;height:16px"></div><code
+            class="ds-chip text-muted">4</code>
+        </div>
+        <div class="text-center">
+          <div class="bg-primary/80 rounded" style="width:24px;height:24px"></div><code
+            class="ds-chip text-muted">6</code>
+        </div>
+        <div class="text-center">
+          <div class="bg-primary/80 rounded" style="width:32px;height:32px"></div><code
+            class="ds-chip text-muted">8</code>
+        </div>
+        <div class="text-center">
+          <div class="bg-primary/80 rounded" style="width:48px;height:48px"></div><code
+            class="ds-chip text-muted">12</code>
+        </div>
+        <div class="text-center">
+          <div class="bg-primary/80 rounded" style="width:64px;height:64px"></div><code
+            class="ds-chip text-muted">16</code>
+        </div>
+        <div class="text-center">
+          <div class="bg-primary/80 rounded" style="width:96px;height:96px"></div><code
+            class="ds-chip text-muted">24</code>
+        </div>
+      </div>
+
+      <!-- Composição: grid split (hero) -->
+      <h3 class="font-heading text-lg font-semibold text-dark mb-4">Composição · grid dividido (hero)</h3>
+      <div class="grid lg:grid-cols-2 gap-12 items-center mb-12 bg-white rounded-2xl p-6 border border-border">
+        <div class="space-y-3">
+          <div class="h-4 w-24 bg-surfacehighlight rounded-full"></div>
+          <div class="h-8 w-3/4 bg-border rounded"></div>
+          <div class="h-8 w-1/2 bg-border rounded"></div>
+          <div class="h-3 w-full bg-surface rounded"></div>
+          <div class="h-3 w-5/6 bg-surface rounded"></div>
+          <div class="flex gap-3 pt-2">
+            <div class="h-10 w-32 bg-primary rounded-full"></div>
+            <div class="h-10 w-32 border border-border rounded-full"></div>
+          </div>
+        </div>
+        <div class="h-56 rounded-[2rem] bg-hero-gradient border border-border"></div>
+        <code class="ds-chip text-primary lg:col-span-2">grid · lg:grid-cols-2 · gap-12 · items-center</code>
+      </div>
+
+      <!-- Composição: grid de cards -->
+      <h3 class="font-heading text-lg font-semibold text-dark mb-4">Composição · grid de cards</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div class="h-32 bg-white rounded-2xl border border-border shadow-soft"></div>
+        <div class="h-32 bg-white rounded-2xl border border-border shadow-soft"></div>
+        <div class="h-32 bg-white rounded-2xl border border-border shadow-soft"></div>
+        <div class="h-32 bg-white rounded-2xl border border-border shadow-soft"></div>
+      </div>
+      <code class="ds-chip text-primary block mt-4">grid-cols-1 · md:grid-cols-2 · lg:grid-cols-4 · gap-8</code>
+    </div>
+  </section>
+
+  <!-- ============================================================= -->
+  <!-- SEÇÃO 5 · MOTION -->
+  <!-- ============================================================= -->
+  <section id="motion" class="py-20 lg:py-28 bg-dark text-white relative overflow-hidden border-t border-border">
+    <div class="absolute inset-0 bg-gradient-to-br from-primarydark/40 to-transparent -z-0"></div>
+    <div class="max-w-6xl mx-auto px-6 relative z-10">
+      <span class="ds-section-label !text-accent">05 · Motion</span>
+      <h2 class="font-heading text-3xl lg:text-4xl font-bold tracking-tight mt-2 mb-4">Movimento com física, não
+        mecânico</h2>
+      <p class="text-white/70 max-w-2xl mb-12 leading-relaxed">
+        <strong class="text-white">Nota do motion director:</strong> a curva assinatura é <code
+          class="ds-chip text-accent">cubic-bezier(0.16, 1, 0.3, 1)</code> — um <em>ease-out expo</em>: o elemento chega
+        rápido e pousa com leveza, jamais linear. Entradas revelam de baixo (translateY 20px→0) conforme o scroll;
+        hovers respondem com escala sutil e elevação tingida de azul.
+      </p>
+
+      <div class="grid md:grid-cols-3 gap-6">
+        <!-- reveal loop -->
+        <div
+          class="bg-white/5 border border-white/10 rounded-2xl p-8 flex flex-col items-center justify-center gap-4 min-h-[180px]">
+          <div class="ds-demo-reveal w-16 h-16 rounded-xl bg-gradient-to-br from-primary to-accent"></div>
+          <div class="text-center">
+            <p class="text-sm font-semibold">reveal-on-scroll</p>
+            <code class="ds-chip text-white/50">0.8s · cubic-bezier(.16,1,.3,1)</code>
+          </div>
+        </div>
+        <!-- pulse/ping -->
+        <div
+          class="bg-white/5 border border-white/10 rounded-2xl p-8 flex flex-col items-center justify-center gap-4 min-h-[180px]">
+          <span class="relative flex h-8 w-8">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-8 w-8 bg-accent"></span>
+          </span>
+          <div class="text-center">
+            <p class="text-sm font-semibold">animate-ping</p>
+            <code class="ds-chip text-white/50">status "disponível" / live</code>
+          </div>
+        </div>
+        <!-- spin -->
+        <div
+          class="bg-white/5 border border-white/10 rounded-2xl p-8 flex flex-col items-center justify-center gap-4 min-h-[180px]">
+          <i data-lucide="loader-2" class="w-10 h-10 text-accent animate-spin"></i>
+          <div class="text-center">
+            <p class="text-sm font-semibold">animate-spin</p>
+            <code class="ds-chip text-white/50">loading / processando</code>
+          </div>
+        </div>
+        <!-- hover scale image -->
+        <div class="bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col gap-3 min-h-[180px]">
+          <div class="rounded-xl overflow-hidden group flex-1">
+            <img
+              src="https://hoirqrkdgbmvpwutwuwj.supabase.co/storage/v1/object/public/assets/assets/c543a9e1-f226-4ced-80b0-feb8445a75b9_1600w.jpg"
+              alt=""
+              class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out">
+          </div>
+          <div class="text-center">
+            <p class="text-sm font-semibold">hover zoom</p>
+            <code class="ds-chip text-white/50">group-hover:scale-105 · duration-700</code>
+          </div>
+        </div>
+        <!-- lift on hover -->
+        <div
+          class="bg-white/5 border border-white/10 rounded-2xl p-8 flex flex-col items-center justify-center gap-4 min-h-[180px]">
+          <div
+            class="w-full bg-white rounded-xl h-16 shadow-soft hover:shadow-lift hover:-translate-y-1 transition-all duration-300 cursor-pointer">
+          </div>
+          <div class="text-center">
+            <p class="text-sm font-semibold">hover lift</p>
+            <code class="ds-chip text-white/50">-translate-y-1 · shadow-lift</code>
+          </div>
+        </div>
+        <!-- counter -->
+        <div
+          class="bg-white/5 border border-white/10 rounded-2xl p-8 flex flex-col items-center justify-center gap-2 min-h-[180px]">
+          <span class="font-heading text-4xl font-bold text-accent"><span class="counter"
+              data-target="5000">0</span>+</span>
+          <div class="text-center">
+            <p class="text-sm font-semibold">count-up</p>
+            <code class="ds-chip text-white/50">IntersectionObserver · ~2s</code>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================= -->
+  <!-- SEÇÃO 6 · ICONOGRAFIA -->
+  <!-- ============================================================= -->
+  <section id="iconografia" class="py-20 lg:py-28 bg-white border-t border-border">
+    <div class="max-w-6xl mx-auto px-6">
+      <span class="ds-section-label">06 · Iconografia</span>
+      <h2 class="font-heading text-3xl lg:text-4xl font-bold text-dark tracking-tight mt-2 mb-4">Lucide — traço fino,
+        herda a cor</h2>
+      <div class="ds-note rounded-r-lg px-4 py-3 text-sm text-muted max-w-2xl mb-12">
+        Sistema <strong class="text-darktext">Lucide</strong> (via web component <code
+          class="ds-chip">data-lucide</code>). Traço consistente de 2px, herda <code class="ds-chip">currentColor</code>
+        e escala por classes utilitárias <code class="ds-chip">w-*/h-*</code>. Uso comum no produto: navegação, status e
+        ações.
+      </div>
+
+      <!-- Tamanhos -->
+      <h3 class="font-heading text-lg font-semibold text-dark mb-4">Tamanhos &amp; herança de cor</h3>
+      <div class="flex items-end gap-8 mb-12">
+        <div class="text-center text-muted"><i data-lucide="home" class="w-4 h-4"></i><code
+            class="ds-chip block mt-2">w-4</code></div>
+        <div class="text-center text-dark"><i data-lucide="home" class="w-6 h-6"></i><code
+            class="ds-chip block mt-2">w-6</code></div>
+        <div class="text-center text-primary"><i data-lucide="home" class="w-8 h-8"></i><code
+            class="ds-chip block mt-2">w-8 · primary</code></div>
+        <div class="text-center text-accent"><i data-lucide="home" class="w-10 h-10"></i><code
+            class="ds-chip block mt-2">w-10 · accent</code></div>
+      </div>
+
+      <!-- Grid de ícones do produto -->
+      <h3 class="font-heading text-lg font-semibold text-dark mb-4">Ícones em uso</h3>
+      <div class="grid grid-cols-3 sm:grid-cols-6 gap-4">
+        <!-- cada tile -->
+        <div class="flex flex-col items-center gap-2 p-4 rounded-xl bg-surface border border-border text-primary"><i
+            data-lucide="home" class="w-6 h-6"></i><code class="ds-chip text-muted">home</code></div>
+        <div class="flex flex-col items-center gap-2 p-4 rounded-xl bg-surface border border-border text-primary"><i
+            data-lucide="building-2" class="w-6 h-6"></i><code class="ds-chip text-muted">building-2</code></div>
+        <div class="flex flex-col items-center gap-2 p-4 rounded-xl bg-surface border border-border text-primary"><i
+            data-lucide="key-round" class="w-6 h-6"></i><code class="ds-chip text-muted">key-round</code></div>
+        <div class="flex flex-col items-center gap-2 p-4 rounded-xl bg-surface border border-border text-primary"><i
+            data-lucide="users" class="w-6 h-6"></i><code class="ds-chip text-muted">users</code></div>
+        <div class="flex flex-col items-center gap-2 p-4 rounded-xl bg-surface border border-border text-primary"><i
+            data-lucide="calendar-days" class="w-6 h-6"></i><code class="ds-chip text-muted">calendar</code></div>
+        <div class="flex flex-col items-center gap-2 p-4 rounded-xl bg-surface border border-border text-primary"><i
+            data-lucide="file-text" class="w-6 h-6"></i><code class="ds-chip text-muted">file-text</code></div>
+        <div class="flex flex-col items-center gap-2 p-4 rounded-xl bg-surface border border-border text-primary"><i
+            data-lucide="wallet" class="w-6 h-6"></i><code class="ds-chip text-muted">wallet</code></div>
+        <div class="flex flex-col items-center gap-2 p-4 rounded-xl bg-surface border border-border text-primary"><i
+            data-lucide="wrench" class="w-6 h-6"></i><code class="ds-chip text-muted">wrench</code></div>
+        <div class="flex flex-col items-center gap-2 p-4 rounded-xl bg-surface border border-border text-primary"><i
+            data-lucide="message-circle" class="w-6 h-6"></i><code class="ds-chip text-muted">message</code></div>
+        <div class="flex flex-col items-center gap-2 p-4 rounded-xl bg-surface border border-border text-primary"><i
+            data-lucide="bot" class="w-6 h-6"></i><code class="ds-chip text-muted">bot (IA)</code></div>
+        <div class="flex flex-col items-center gap-2 p-4 rounded-xl bg-surface border border-border text-primary"><i
+            data-lucide="shield-check" class="w-6 h-6"></i><code class="ds-chip text-muted">shield-check</code></div>
+        <div class="flex flex-col items-center gap-2 p-4 rounded-xl bg-surface border border-border text-primary"><i
+            data-lucide="arrow-right" class="w-6 h-6"></i><code class="ds-chip text-muted">arrow-right</code></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Rodapé mínimo -->
+  <footer class="bg-dark text-white/40 py-10 text-center text-sm">
+    <div class="max-w-6xl mx-auto px-6">
+      <span class="font-heading font-semibold text-white">Move AI Imobiliária</span> · Sistema de Design v1.0 — extraído
+      de <code class="ds-chip">frontend/design/index.html</code>
+    </div>
+  </footer>
+
+  <!-- Scripts do template original: Lucide + reveal-on-scroll + count-up -->
+  <script>
+    // Ícones
+    lucide.createIcons();
+
+    // Reveal on scroll (mesma lógica e curva do original)
+    const observerOptions = { threshold: 0.15, rootMargin: "0px 0px -50px 0px" };
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+          // count-up quando o container entra em cena
+          const counters = entry.target.querySelectorAll('.counter');
+          counters.forEach(counter => {
+            const target = +counter.getAttribute('data-target');
+            const duration = 2000;
+            const increment = target / (duration / 16);
+            let current = 0;
+            const update = () => {
+              current += increment;
+              if (current < target) { counter.innerText = Math.ceil(current); requestAnimationFrame(update); }
+              else { counter.innerText = target; }
+            };
+            update();
+          });
+          observer.unobserve(entry.target);
+        }
+      });
+    }, observerOptions);
+    document.querySelectorAll('.reveal-on-scroll, #motion').forEach(el => observer.observe(el));
+
+    // Demo-only: loop infinito da entrada "reveal" na galeria de motion
+    const demo = document.querySelector('.ds-demo-reveal');
+    if (demo) {
+      setInterval(() => {
+        demo.style.transition = 'none';
+        demo.style.opacity = '0';
+        demo.style.transform = 'translateY(20px)';
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            demo.style.transition = 'all 0.8s cubic-bezier(0.16, 1, 0.3, 1)';
+            demo.style.opacity = '1';
+            demo.style.transform = 'translateY(0)';
+          });
+        });
+      }, 1800);
+    }
+  </script>
+</body>
+
+</html>

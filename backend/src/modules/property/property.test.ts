@@ -18,6 +18,8 @@ test("um imóvel criado no tenant demo não é visível por outro tenant", async
   const created = await insertProperty(DEMO_TENANT, {
     title: "Imóvel de teste de isolamento",
     kind: "sale",
+    purpose: "sale",
+    isDevelopment: false,
     status: "available",
   });
 

@@ -29,6 +29,9 @@
 | MOD-CLIENTE-04 | Deduplicação | Detecta duplicata por CPF/telefone/email na criação | Must Have |
 | MOD-CLIENTE-05 | Consentimento LGPD | Consentimento e canais de contato permitidos | Must Have |
 | MOD-CLIENTE-06 | Documentos | Vínculo com MOD-DOC (RG, comprovante de renda) | Should Have |
+| MOD-CLIENTE-07 | Ficha cadastral de locatário | Ficha PF/PJ completa (cônjuge, RG, estado civil, endereços, banco) exigida para virar INQUILINO | Must Have |
+
+> **Dois níveis de completude (compat. legado):** o cliente nasce **leve** como lead (só contato + perfil de busca — bom para a IA). Ao fechar locação e virar **INQUILINO**, exige-se a **ficha cadastral completa** (MOD-CLIENTE-07), equivalente à tela "Cadastro de Locatários" do sistema legado. Essa ficha usa a mesma estrutura de [[proprietarios_03]] (`PersonRecord` compartilhado).
 
 ## 3. Critérios de Aceite
 
@@ -62,6 +65,16 @@
 | customer_search_profiles | bedrooms_min, parking_min | Int | — | Requisitos |
 | customer_interactions | customer_id, channel, actor, summary, payload, created_at | — | ✓ | Append-only |
 | customer_consents | customer_id, purpose, granted, channels[] | — | ✓ | LGPD |
+| customer_registration | customer_id | String | — | Ficha cadastral (1:1), preenchida ao virar INQUILINO/COMPRADOR |
+| customer_registration | person_type | Enum | — | PF, PJ |
+| customer_registration | rg, rg_issuer (cript.) | String | — | RG + órgão expedidor |
+| customer_registration | gender, birth_date, marital_status, nationality, occupation | — | — | Dados pessoais (Sexo, Dt Nasc, Estado Civil, Nacionalidade, Profissão) |
+| customer_registration | mobile, fax (cript.) | String | — | Contatos adicionais |
+| customer_registration | dependents, household_size | Int | — | Dependentes / Nº de pessoas |
+| customer_registration | bank, agency, account, holder_name (cript.) | String | — | Dados bancários |
+| customer_registration | notes, references | Text | — | Observações e Referências |
+| customer_spouse | customer_id, name, occupation, birth_date, cpf, rg | — | — | Cônjuge (cript. onde aplicável) |
+| customer_addresses | customer_id, kind, street, number, district, city, state, zip | — | — | kind: RESIDENCIAL / COMERCIAL |
 
 ### Campos com Criptografia AES-256-GCM
 

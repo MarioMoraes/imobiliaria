@@ -12,6 +12,9 @@ interface Row {
   tenant_id: string;
   title: string;
   kind: string;
+  purpose: string;
+  property_type_id: string | null;
+  is_development: boolean;
   status: string;
   price_cents: string | null;
   city: string | null;
@@ -27,6 +30,9 @@ function toProperty(row: Row): Property {
     tenantId: row.tenant_id,
     title: row.title,
     kind: row.kind,
+    purpose: row.purpose,
+    propertyTypeId: row.property_type_id,
+    isDevelopment: row.is_development,
     status: row.status,
     priceCents: row.price_cents === null ? null : Number(row.price_cents),
     city: row.city,
@@ -65,13 +71,17 @@ export async function insertProperty(
 ): Promise<Property> {
   return withTenant(tenantId, async (client) => {
     const { rows } = await client.query<Row>(
-      `INSERT INTO properties (tenant_id, title, kind, status, price_cents, city, state, bedrooms)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO properties
+         (tenant_id, title, kind, purpose, property_type_id, is_development, status, price_cents, city, state, bedrooms)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
       [
         tenantId,
         input.title,
         input.kind,
+        input.purpose,
+        input.propertyTypeId ?? null,
+        input.isDevelopment,
         input.status,
         input.priceCents ?? null,
         input.city ?? null,

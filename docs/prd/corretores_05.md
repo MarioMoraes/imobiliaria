@@ -51,6 +51,10 @@
 | brokers | tenant_id, id | String | ✓ | Isolamento / PK |
 | brokers | user_id | String | ✓ | FK users (papel CORRETOR) |
 | brokers | creci | String | ✓ | Registro CRECI |
+| brokers | cpf, rg (cript.) | String | — | Documentos (campos do legado) |
+| brokers | phone, mobile (cript.) | String | — | Telefone e Celular diretos do corretor |
+| brokers | street, district, city, state, zip | String | — | Endereço do corretor (campos do legado) |
+| brokers | default_commission_pct | Decimal | — | Comissão padrão (%), usada se não houver `commission_rules` |
 | brokers | team_id | String | — | FK equipe |
 | brokers | availability | Enum | ✓ | DISPONIVEL, INDISPONIVEL |
 | broker_teams | id, tenant_id, name, manager_id | — | ✓ | Equipe + gerente |

@@ -25,7 +25,8 @@
 
 | ID | Nome | Descrição | Must/Should/Nice |
 |---|---|---|---|
-| MOD-IMOVEL-01 | CRUD de imóvel | Cadastro completo por tipo, com validação por tipo | Must Have |
+| MOD-IMOVEL-01 | CRUD de imóvel | Cadastro completo por finalidade, com validação por finalidade | Must Have |
+| MOD-IMOVEL-10 | Tipo de imóvel (lookup) | Catálogo editável por tenant (Apartamento, Casa, Sala, Terreno…), **distinto da finalidade** venda/locação | Must Have |
 | MOD-IMOVEL-02 | Gestão de mídia | Upload/ordenação de fotos, vídeos, tour 360°, planta | Must Have |
 | MOD-IMOVEL-03 | Histórico de preço | Registro imutável de cada alteração de valor | Must Have |
 | MOD-IMOVEL-04 | Histórico/máquina de status | Disponível → Reservado → Alugado/Vendido → Inativo | Must Have |
@@ -62,7 +63,9 @@
 | properties | tenant_id | String | ✓ | Isolamento |
 | properties | id | String | ✓ | PK |
 | properties | code | String | ✓ | Código interno legível (ex.: `AP-0042`), único por tenant |
-| properties | type | Enum | ✓ | VENDA, LOCACAO, TEMPORADA, COMERCIAL, RURAL, TERRENO, EMPREENDIMENTO |
+| properties | purpose | Enum | ✓ | **Finalidade** do negócio: VENDA, LOCACAO, TEMPORADA (um imóvel pode ter mais de uma — ver `property_purposes`) |
+| properties | property_type_id | String | ✓ | **Tipo do imóvel** (FK → `property_types`): Apartamento, Casa, Sala, Terreno, Galpão, Rural… (lookup editável por tenant) |
+| properties | is_development | Boolean | ✓ | Se é um empreendimento-pai (unidades via `parent_id`) |
 | properties | parent_id | String | — | FK para empreendimento-pai (unidade) |
 | properties | status | Enum | ✓ | DISPONIVEL, RESERVADO, ALUGADO, VENDIDO, INATIVO |
 | properties | address_json | JSONB | ✓ | Logradouro, número, bairro, cidade, UF, CEP |
@@ -78,6 +81,10 @@
 | property_price_history | property_id, field, old_value, new_value, changed_by, changed_at | — | ✓ | Imutável |
 | property_status_history | property_id, from_status, to_status, reason, changed_at | — | ✓ | Imutável |
 | property_owners | property_id, owner_id, share_pct | — | ✓ | N:N com % de participação |
+| property_types | tenant_id, id, name, active | — | ✓ | **Lookup editável por tenant** (Apartamento, Casa, Sala, Terreno, Galpão, Rural…). Espelha a tela legada "Tipo de Imóvel" |
+| property_purposes | property_id, purpose | — | — | Permite imóvel com múltiplas finalidades (ex.: venda **e** locação) |
+
+> **Modelagem — finalidade × tipo (compat. sistema legado):** o cadastro legado separa a **finalidade** (venda/locação) do **tipo do imóvel** (apartamento, casa, sala, terreno…). Por isso `purpose` (enum fixo) é distinto de `property_type_id` (lookup editável por tenant). COMERCIAL/RURAL/TERRENO deixam de ser "tipo de negócio" e passam a ser **tipos de imóvel** no lookup. EMPREENDIMENTO vira a flag `is_development` + `parent_id`.
 
 ### Campos com Criptografia AES-256-GCM
 

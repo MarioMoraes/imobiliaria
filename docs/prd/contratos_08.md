@@ -30,6 +30,8 @@
 | MOD-CONTRATO-05 | Geração de PDF | HTML template → Gotenberg → PDF versionado | Must Have |
 | MOD-CONTRATO-06 | Versionamento imutável | Cada versão gravada (create-only), comparação | Must Have |
 | MOD-CONTRATO-07 | Renovação automática (opt-out) | Renova ao vencimento salvo cancelamento prévio | Must Have |
+| MOD-CONTRATO-08 | Biblioteca de cláusulas | Catálogo reutilizável (nome + texto) para montar contratos | Must Have |
+| MOD-CONTRATO-09 | Cadastro de fiadores | Vínculo de fiador(es) ao contrato (ver [[fiadores_21]]) | Must Have |
 
 ## 3. Critérios de Aceite
 
@@ -63,9 +65,10 @@
 | contracts | readjust_index | Enum | — | IPCA (default), IGP_M, INPC, FIXO |
 | contracts | auto_renew | Boolean | ✓ | Opt-out (default true) |
 | contracts | current_version | Int | ✓ | Versão vigente |
-| contract_parties | contract_id, role, party_type, party_id, signed_at | — | ✓ | LOCADOR/LOCATARIO/CORRETOR/FIADOR |
-| contract_guarantees | contract_id, kind, details_json | — | — | FIADOR, CAUCAO, SEGURO_FIANCA, TITULO_CAP |
-| contract_clauses | contract_id, key, content | — | ✓ | Cláusulas resolvidas |
+| contract_parties | contract_id, role, party_type, party_id, signed_at | — | ✓ | LOCADOR/LOCATARIO/CORRETOR/FIADOR (party_type FIADOR → FK `guarantors` do [[fiadores_21]]) |
+| contract_guarantees | contract_id, kind, guarantor_id, details_json | — | — | FIADOR (→ `guarantors`), CAUCAO, SEGURO_FIANCA, TITULO_CAP |
+| contract_clauses | contract_id, key, content, clause_library_id | — | ✓ | Cláusulas resolvidas (opcionalmente originadas do catálogo) |
+| clause_library | tenant_id, id, name, content, active | — | ✓ | **Catálogo reutilizável de cláusulas** (nome + descrição). Espelha a tela legada "Cadastro de Cláusulas" |
 | contract_versions | contract_id, version, snapshot_json, pdf_url, created_at | — | ✓ | Imutável |
 | contract_templates | tenant_id, id, name, html, variables[] | — | ✓ | Template do tenant |
 
