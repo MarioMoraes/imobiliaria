@@ -37,9 +37,16 @@ test("assertActive permite tenant ativo e bloqueia tenant suspenso", async () =>
   await assert.doesNotReject(() => assertActive(tenant.id));
 
   await update(tenant.id, { status: "suspended" });
-  await assert.rejects(() => assertActive(tenant.id), /inativo ou inexistente/);
+  await assert.rejects(() => assertActive(tenant.id), /suspenso/);
+});
+
+test("assertActive permite tenant em trial", async () => {
+  const slug = `t-${randomUUID().slice(0, 8)}`;
+  const tenant = await create({ name: "Trial", slug, plan: "free" });
+  await update(tenant.id, { status: "trial" });
+  await assert.doesNotReject(() => assertActive(tenant.id));
 });
 
 test("assertActive bloqueia tenant inexistente", async () => {
-  await assert.rejects(() => assertActive(randomUUID()), /inativo ou inexistente/);
+  await assert.rejects(() => assertActive(randomUUID()), /não encontrado/);
 });

@@ -30,12 +30,58 @@ CREATE TABLE IF NOT EXISTS tenants (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name         TEXT NOT NULL,
   slug         TEXT NOT NULL UNIQUE,        -- subdomínio: <slug>.moveai.com.br
+  cnpj         TEXT UNIQUE,                 -- CNPJ da imobiliária (único global). TODO: cifrar em repouso (AES-256-GCM, PRD §4/9)
+  creci        TEXT,                        -- registro CRECI da imobiliária
+  clerk_org_id TEXT UNIQUE,                 -- Organização Clerk correspondente (org = tenant); nulo no dev-mode
   domain       TEXT UNIQUE,                 -- domínio próprio (opcional)
+  logo_url     TEXT,                        -- logo/ícone da imobiliária (data URL na Fase 0)
   plan         TEXT NOT NULL DEFAULT 'free',
-  status       TEXT NOT NULL DEFAULT 'active', -- active | suspended | inactive
+  -- status: trial | active | suspended | inactive | canceled (validado no Zod; sem CHECK rígido)
+  status       TEXT NOT NULL DEFAULT 'active',
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- ── Usuários & papéis (MOD-AUTH) — tabelas de domínio, protegidas por RLS ──
+-- Fase 0: o usuário é criado sem credencial local; login/JWT vêm via Clerk
+-- (MOD-AUTH-05). clerk_external_id vincula o usuário à identidade do Clerk depois.
+-- TODO: cifrar email em repouso (AES-256-GCM, PRD §4/9).
+CREATE TABLE IF NOT EXISTS users (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id         UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  clerk_external_id TEXT,                          -- vínculo com Clerk (nulo na Fase 0)
+  email             TEXT NOT NULL,
+  full_name         TEXT NOT NULL,
+  status            TEXT NOT NULL DEFAULT 'active', -- invited | active | disabled
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_users_tenant ON users (tenant_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_tenant_email ON users (tenant_id, lower(email));
+
+CREATE TABLE IF NOT EXISTS user_roles (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  -- SUPER_ADMIN | ADMIN | GESTOR | CORRETOR | FINANCEIRO | PROPRIETARIO | CLIENTE | AI_AGENT
+  role        TEXT NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_user_roles_user ON user_roles (user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_user_roles_user_role ON user_roles (user_id, role);
+
+ALTER TABLE users      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE users      FORCE  ROW LEVEL SECURITY;
+ALTER TABLE user_roles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_roles FORCE  ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON users
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+CREATE POLICY tenant_isolation ON user_roles
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON users      TO app_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON user_roles TO app_user;
 
 -- ── Imóveis (tabela de domínio, protegida por RLS) ───────────────
 CREATE TABLE IF NOT EXISTS properties (
@@ -75,8 +121,11 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON tenants    TO app_user;
 GRANT SELECT, INSERT, UPDATE, DELETE ON properties TO app_user;
 
 -- ── Seed de demonstração ─────────────────────────────────────────
-INSERT INTO tenants (id, name, slug, plan)
-VALUES ('00000000-0000-0000-0000-000000000001', 'Imobiliária Demo', 'demo', 'pro')
+-- logo_url: SVG (mark da marca) embutido como data URL — demonstra o logo do
+-- tenant na sidebar sem depender de object storage na Fase 0.
+INSERT INTO tenants (id, name, slug, cnpj, plan, logo_url)
+VALUES ('00000000-0000-0000-0000-000000000001', 'Imobiliária Demo', 'demo', '00000000000191', 'pro',
+  'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCIgdmlld0JveD0iMCAwIDY0IDY0Ij48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwIiB5MT0iMCIgeDI9IjEiIHkyPSIxIj48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiM3YzNhZWQiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMyNTYzZWIiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHJ4PSIxNiIgZmlsbD0idXJsKCNnKSIvPjxwYXRoIGQ9Ik0xOSAzMyBMMzIgMjEgTDQ1IDMzIiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iMy40IiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48cGF0aCBkPSJNMjIgMzEgVjQ1IGExIDEgMCAwIDAgMSAxIEg0MSBhMSAxIDAgMCAwIDEtMSBWMzEiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIzLjQiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjxwYXRoIGQ9Ik0yOCA0NiBWMzcgaDggdjkiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIzLjQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48L3N2Zz4=')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO properties (tenant_id, title, kind, purpose, status, price_cents, city, state, bedrooms)
@@ -84,6 +133,16 @@ VALUES
   ('00000000-0000-0000-0000-000000000001', 'Apartamento 2 quartos no Centro', 'rent', 'rent', 'available', 250000, 'São Paulo', 'SP', 2),
   ('00000000-0000-0000-0000-000000000001', 'Casa com quintal na Zona Sul',    'sale', 'sale', 'available', 85000000, 'São Paulo', 'SP', 3)
 ON CONFLICT DO NOTHING;
+
+-- Usuário admin demo do tenant demo (id fixo p/ testes/idempotência).
+INSERT INTO users (id, tenant_id, email, full_name, status)
+VALUES ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-000000000001',
+        'admin@demo.moveai.com.br', 'Admin Demo', 'active')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO user_roles (tenant_id, user_id, role)
+VALUES ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a1', 'ADMIN')
+ON CONFLICT (user_id, role) DO NOTHING;
 
 -- ─────────────────────────────────────────────────────────────
 -- Tipo de Imóvel (lookup editável por tenant) — compat. tela legada

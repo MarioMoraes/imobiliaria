@@ -1,11 +1,12 @@
 import type { FastifyInstance } from "fastify";
 import { healthRoutes } from "../modules/health/health.routes.js";
+import { authRoutes } from "../modules/auth/auth.routes.js";
 import { propertyRoutes } from "../modules/property/property.routes.js";
 import { propertyTypeRoutes } from "../modules/property-type/property-type.routes.js";
 import { guarantorRoutes } from "../modules/guarantor/guarantor.routes.js";
 import { tenantRoutes } from "../modules/tenant/tenant.routes.js";
-import { validateTenantHook } from "../modules/tenant/tenant.hook.js";
-import { tenantContextHook } from "../shared/tenant-context.js";
+import { userRoutes } from "../modules/user/user.routes.js";
+import { authContextHook } from "./auth-context.hook.js";
 
 /**
  * Gateway / composição de rotas (SPEC seção 4.3). Ponto único que agrega
@@ -23,15 +24,21 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   // tenant. TODO: proteger com autorização de Super Admin.
   await app.register(tenantRoutes, { prefix: "/admin/tenants" });
 
-  // API versionada, isolada por tenant
+  // Auth público: onboarding cria o tenant (ainda não há tenant a resolver),
+  // por isso fica FORA do escopo /v1 tenant-scoped abaixo. Paths não colidem
+  // com as rotas de domínio (/v1/auth/* vs /v1/properties, etc.).
+  await app.register(authRoutes, { prefix: "/v1/auth" });
+
+  // API versionada, isolada por tenant e autenticada
   await app.register(
     async (v1) => {
-      // 1) resolve e valida o tenant (existe + ativo); 2) entra no AsyncLocalStorage.
-      v1.addHook("onRequest", validateTenantHook);
-      v1.addHook("onRequest", tenantContextHook);
+      // Resolve identidade (Clerk/dev) + tenant ativo + papéis, e entra no
+      // AsyncLocalStorage. As rotas usam `requirePermission(...)` para o RBAC.
+      v1.addHook("onRequest", authContextHook);
       await v1.register(propertyRoutes, { prefix: "/properties" });
       await v1.register(propertyTypeRoutes, { prefix: "/property-types" });
       await v1.register(guarantorRoutes, { prefix: "/guarantors" });
+      await v1.register(userRoutes, { prefix: "/users" });
       // Próximos módulos entram aqui:
       // await v1.register(ownerRoutes,    { prefix: "/owners" });
       // await v1.register(customerRoutes, { prefix: "/customers" });

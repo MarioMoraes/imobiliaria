@@ -1,11 +1,14 @@
 import { buildApp } from "./app.js";
 import { env } from "./config/env.js";
 import { logger } from "./shared/logger.js";
-import { pool } from "./shared/db.js";
+import { assertNotSuperuser, pool } from "./shared/db.js";
 import { connectRedis, redis } from "./shared/redis.js";
 import { connectEvents } from "./shared/events.js";
 
 async function main(): Promise<void> {
+  // Fail-fast: nunca conectar como superusuário (RLS seria ignorado — RN-01).
+  await assertNotSuperuser();
+
   // Dependências opcionais em dev: conectam de forma tolerante a falha.
   await Promise.all([connectRedis(), connectEvents()]);
 

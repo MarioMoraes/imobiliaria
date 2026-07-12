@@ -7,7 +7,7 @@
 **Serviço Backend:** auth-service + tenant-service (no monólito modular: `backend/src/modules/{auth,tenant}`, porta 3001)
 **Tabelas Principais:** tenants, users, roles, user_roles, tenant_config, feature_flags, audit_logs, sessions
 **Data:** 2026-07-10
-**Status:** Draft
+**Status:** Em implementação — MOD-AUTH-01, 02, 03 e 04 concluídos (2026-07-11); MOD-AUTH-05 (Clerk) implementado, pendente de validação com chaves Clerk; demais pendentes
 
 > **Nota de arquitetura:** o SPEC descreve `auth-service`/`tenant-service` como microserviços. Este repositório os implementa como módulos de um **monólito modular** (`backend/src/modules/`), promovíveis a serviço depois. Onde este PRD diz "serviço X", leia "módulo X". A resolução de tenant hoje (Fase 0) usa o header `x-tenant-id`; a migração para Clerk altera apenas `resolveTenantId` em `shared/tenant-context.ts`.
 
@@ -25,11 +25,11 @@
 
 | ID | Nome | Descrição | Must/Should/Nice |
 |---|---|---|---|
-| MOD-AUTH-01 | Modelo de Tenant + RLS | Tabela `tenants` + Row-Level Security em toda tabela de domínio | Must Have |
-| MOD-AUTH-02 | Resolução de tenant | Middleware que resolve `tenant_id` (header Fase 0 → JWT Clerk) e injeta no AsyncLocalStorage | Must Have |
-| MOD-AUTH-03 | RBAC (8 papéis + matriz) | Papéis-padrão e verificação de permissão por operação | Must Have |
-| MOD-AUTH-04 | Onboarding wizard (5 etapas) | Fluxo self-service de criação de tenant e primeiro admin | Must Have |
-| MOD-AUTH-05 | Ciclo de vida de JWT | Access 15min + refresh 30d com rotação a cada refresh | Must Have |
+| MOD-AUTH-01 | Modelo de Tenant + RLS | Tabela `tenants` + Row-Level Security em toda tabela de domínio | Must Have ✅ |
+| MOD-AUTH-02 | Resolução de tenant | Middleware que resolve `tenant_id` (header Fase 0 → JWT Clerk) e injeta no AsyncLocalStorage | Must Have ✅ |
+| MOD-AUTH-03 | RBAC (8 papéis + matriz) | Papéis-padrão e verificação de permissão por operação | Must Have ✅ |
+| MOD-AUTH-04 | Onboarding wizard (5 etapas) | Fluxo self-service de criação de tenant e primeiro admin | Must Have ✅ (Fase 0: submissão em 1 passo; retomada de rascunho/AC-03 = TODO) |
+| MOD-AUTH-05 | Ciclo de vida de JWT | Access 15min + refresh 30d com rotação a cada refresh | Must Have ✅ (via Clerk; refresh/rotação geridos pelo Clerk — pendente validação com chaves) |
 | MOD-AUTH-06 | Convite de membros | Admin convida usuários por e-mail com papel pré-definido | Must Have |
 | MOD-AUTH-07 | Audit log | Registro imutável de login, mudança de papel, criação/suspensão de usuário | Must Have |
 | MOD-AUTH-08 | MFA | TOTP/SMS via Clerk para usuários internos | Should Have |
@@ -334,3 +334,31 @@ Ações que DEVEM gerar registro imutável: `login`, `logout`, `role.changed`, `
 | 1 | Papéis customizados por tenant entram em qual fase? | RBAC, todos | PM/Tech Lead | Fase 2 |
 | 2 | MFA obrigatório para ADMIN/FINANCEIRO ou opcional? | Segurança | PM/Compliance | Antes Fase 1 |
 | 3 | Período exato do TRIAL (7 vs 14 dias) | Billing, ativação | PM | Antes go-live |
+
+## 12. Setup Clerk (necessário para o login ao vivo)
+
+O login (MOD-AUTH-05) está implementado. Para ativar o caminho Clerk real (fora do dev-mode):
+
+**Arquitetura adotada:** Clerk = **autenticação** (quem é + qual tenant, via claims do JWT);
+nosso banco (`user_roles`) = **autorização** (RBAC). Troca de provedor = trocar
+`backend/src/shared/clerk.ts` + `resolveAuth` em `shared/tenant-context.ts` (contrato de
+`getTenantId()`/`getAuthUser()` imutável — RN-06).
+
+**Automatizado pelo onboarding** (`modules/auth/`, fluxo Clerk): ao submeter o onboarding com a
+sessão Clerk, o backend **cria a Organização** (`createdBy` = usuário → vira admin da org), cria o
+tenant + admin no banco vinculando `users.clerk_external_id` e `tenants.clerk_org_id`, e grava
+`org.public_metadata.tenant_id`. O frontend (`/onboarding`) chama `setActive(org)` e segue ao painel.
+
+**Checklist (você) — só o que depende do dashboard:**
+1. Criar app no [Clerk Dashboard](https://dashboard.clerk.com) e **habilitar Organizations**
+   (Configure → Organizations). Sem isso a API retorna `organization_not_enabled_in_instance`.
+2. Em **API Keys**, copiar `CLERK_SECRET_KEY` (→ `backend/.env`) e
+   `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` + `CLERK_SECRET_KEY` (→ `frontend/.env.local`).
+   **Nunca** commitar a chave secreta (os `.env.example` têm só placeholders).
+3. **Sessions → Customize session token**: adicionar o claim
+   `"tenant_id": "{{org.public_metadata.tenant_id}}"`. É esse claim que o backend lê em
+   `verifyClerkToken` para as rotas /v1. (Os passos 4–5 do fluxo anterior agora são automáticos.)
+4. Definir `AUTH_DEV_MODE=false` em produção (o boot falha se ficar `true`).
+
+**Sem chaves (dev):** `AUTH_DEV_MODE=true` — o backend aceita `x-tenant-id` + `x-dev-roles`
+(csv) e o frontend roda em keyless mode; o `lib/api.ts` cai no fallback do tenant demo.

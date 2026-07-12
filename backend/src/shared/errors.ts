@@ -10,7 +10,14 @@ export type ErrorCode =
   | "NOT_FOUND"
   | "TENANT_REQUIRED"
   | "CONFLICT"
-  | "INTERNAL";
+  | "INTERNAL"
+  // Códigos canônicos do MOD-AUTH (PRD seção 5). São a referência herdada por
+  // todos os módulos; emitidos no campo `code` do corpo de erro.
+  | "ERR_AUTH_003" // papel insuficiente para a operação
+  | "ERR_AUTH_004" // conflito (CNPJ/slug/email duplicado)
+  | "ERR_AUTH_005" // tenant não resolvido
+  | "ERR_AUTH_006" // tenant suspenso/inativo
+  | "ERR_AUTH_007"; // usuário sem papel ativo
 
 export class AppError extends Error {
   constructor(
@@ -33,6 +40,21 @@ export class AppError extends Error {
 
   static tenantRequired(message = "Contexto de tenant ausente") {
     return new AppError("TENANT_REQUIRED", 400, message);
+  }
+
+  /** Header/JWT ausente ou tenant inexistente — não foi possível resolver o tenant. */
+  static tenantNotResolved(message = "Tenant não resolvido") {
+    return new AppError("ERR_AUTH_005", 401, message);
+  }
+
+  /** Tenant existe mas está suspenso/inativo/cancelado. */
+  static tenantSuspended(message = "Tenant suspenso") {
+    return new AppError("ERR_AUTH_006", 403, message);
+  }
+
+  /** Conflito de unicidade (CNPJ, slug ou e-mail já cadastrado). */
+  static conflict(message = "Recurso já cadastrado", details?: unknown) {
+    return new AppError("ERR_AUTH_004", 409, message, details);
   }
 }
 

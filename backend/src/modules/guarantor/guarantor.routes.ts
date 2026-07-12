@@ -1,21 +1,22 @@
 import type { FastifyInstance } from "fastify";
 import { getTenantId } from "../../shared/tenant-context.js";
 import { AppError } from "../../shared/errors.js";
+import { requirePermission } from "../rbac/authorize.js";
 import { createGuarantorSchema } from "./guarantor.schema.js";
 import * as service from "./guarantor.service.js";
 
-/** Rotas de Fiadores. Montadas sob /v1/guarantors (escopo tenant). */
+/** Rotas de Fiadores. Montadas sob /v1/guarantors (escopo tenant + RBAC). */
 export async function guarantorRoutes(app: FastifyInstance): Promise<void> {
-  app.get("/", async () => {
+  app.get("/", { preHandler: requirePermission("contract:read") }, async () => {
     return { data: await service.list(getTenantId()) };
   });
 
-  app.get("/:id", async (req) => {
+  app.get("/:id", { preHandler: requirePermission("contract:read") }, async (req) => {
     const { id } = req.params as { id: string };
     return { data: await service.getById(getTenantId(), id) };
   });
 
-  app.post("/", async (req, reply) => {
+  app.post("/", { preHandler: requirePermission("contract:write") }, async (req, reply) => {
     const parsed = createGuarantorSchema.safeParse(req.body);
     if (!parsed.success) {
       throw AppError.badRequest(

@@ -14,6 +14,7 @@
     "test": "node --import tsx --test 'src/**/*.test.ts'"
   },
   "dependencies": {
+    "@clerk/backend": "^3.11.4",
     "@fastify/cors": "^10.0.1",
     "amqplib": "^0.10.5",
     "fastify": "^5.1.0",

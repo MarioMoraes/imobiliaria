@@ -6,6 +6,8 @@ interface TopbarProps {
   contextSub: string;
   avatar: string;
   live?: string;
+  /** Menu de conta (ex.: <UserButton/> do Clerk). Renderizado à direita. */
+  accountSlot?: React.ReactNode;
 }
 
 export function Topbar({
@@ -14,6 +16,7 @@ export function Topbar({
   contextSub,
   avatar,
   live,
+  accountSlot,
 }: TopbarProps) {
   return (
     <header className="topbar">
@@ -46,6 +49,7 @@ export function Topbar({
           </span>
           <Icon name="chevronDown" size={15} />
         </button>
+        {accountSlot}
       </div>
     </header>
   );

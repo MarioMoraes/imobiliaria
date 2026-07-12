@@ -39,6 +39,22 @@ export async function withTenant<T>(
   }
 }
 
+/**
+ * Guard de fundação (PRD MOD-AUTH-01/AC-03, RN-01): o RLS é IGNORADO por
+ * superusuários do Postgres. Se o backend conectar como superusuário, o
+ * isolamento multi-tenant vaza silenciosamente. Falhamos o boot (fail-fast).
+ */
+export async function assertNotSuperuser(): Promise<void> {
+  const { rows } = await pool.query<{ rolsuper: boolean }>(
+    "SELECT rolsuper FROM pg_roles WHERE rolname = current_user",
+  );
+  if (rows[0]?.rolsuper) {
+    throw new Error(
+      "DATABASE_URL conecta como SUPERUSUÁRIO: o RLS seria ignorado e vazaria dados entre tenants. Use o papel app_user (não-superusuário).",
+    );
+  }
+}
+
 export async function checkDatabase(): Promise<boolean> {
   try {
     await pool.query("SELECT 1");

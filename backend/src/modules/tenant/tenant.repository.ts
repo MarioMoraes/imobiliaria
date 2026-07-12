@@ -17,7 +17,10 @@ interface Row {
   id: string;
   name: string;
   slug: string;
+  cnpj: string | null;
+  creci: string | null;
   domain: string | null;
+  logo_url: string | null;
   plan: string;
   status: TenantStatus;
   created_at: Date;
@@ -29,7 +32,10 @@ function toTenant(row: Row): Tenant {
     id: row.id,
     name: row.name,
     slug: row.slug,
+    cnpj: row.cnpj,
+    creci: row.creci,
     domain: row.domain,
+    logoUrl: row.logo_url,
     plan: row.plan,
     status: row.status,
     createdAt: row.created_at.toISOString(),
@@ -54,12 +60,17 @@ export async function findTenantBySlug(slug: string): Promise<Tenant | null> {
   return rows[0] ? toTenant(rows[0]) : null;
 }
 
+export async function findTenantByCnpj(cnpj: string): Promise<Tenant | null> {
+  const { rows } = await pool.query<Row>("SELECT * FROM tenants WHERE cnpj = $1", [cnpj]);
+  return rows[0] ? toTenant(rows[0]) : null;
+}
+
 export async function insertTenant(input: CreateTenantInput): Promise<Tenant> {
   const { rows } = await pool.query<Row>(
-    `INSERT INTO tenants (name, slug, domain, plan)
-     VALUES ($1, $2, $3, $4)
+    `INSERT INTO tenants (name, slug, domain, logo_url, plan)
+     VALUES ($1, $2, $3, $4, $5)
      RETURNING *`,
-    [input.name, input.slug, input.domain ?? null, input.plan],
+    [input.name, input.slug, input.domain ?? null, input.logoUrl ?? null, input.plan],
   );
   return toTenant(rows[0]!);
 }
@@ -79,6 +90,10 @@ export async function updateTenant(
   if (patch.domain !== undefined) {
     sets.push(`domain = $${i++}`);
     values.push(patch.domain);
+  }
+  if (patch.logoUrl !== undefined) {
+    sets.push(`logo_url = $${i++}`);
+    values.push(patch.logoUrl);
   }
   if (patch.plan !== undefined) {
     sets.push(`plan = $${i++}`);

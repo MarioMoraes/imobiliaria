@@ -9,6 +9,8 @@ interface SidebarProps {
   variant?: "tenant" | "platform";
   brandName: string;
   brandSub: string;
+  /** Logo do tenant (data URL / URL). Quando ausente, mostra o ícone padrão. */
+  brandLogo?: string | null;
   groups: NavGroup[];
   footItems?: NavItem[];
 }
@@ -17,6 +19,7 @@ export function Sidebar({
   variant = "tenant",
   brandName,
   brandSub,
+  brandLogo,
   groups,
   footItems = [],
 }: SidebarProps) {
@@ -30,8 +33,12 @@ export function Sidebar({
   return (
     <aside className={`sidebar${variant === "platform" ? " sidebar--platform" : ""}`}>
       <div className="sidebar-brand">
-        <span className="brand-mark">
-          <Icon name={variant === "platform" ? "shield" : "home"} size={18} />
+        <span className={`brand-mark${brandLogo ? " brand-mark--logo" : ""}`}>
+          {brandLogo ? (
+            <img src={brandLogo} alt={brandName} />
+          ) : (
+            <Icon name={variant === "platform" ? "shield" : "home"} size={18} />
+          )}
         </span>
         <span>
           <span className="brand-name" style={variant === "platform" ? { color: "#fff" } : undefined}>

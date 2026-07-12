@@ -15,7 +15,7 @@ import type { CreateTenantInput, Tenant, UpdateTenantInput } from "./tenant.sche
  */
 
 const CACHE_TTL_MS = 30_000;
-const activeCache = new Map<string, { active: boolean; expiresAt: number }>();
+const activeCache = new Map<string, { state: ResolveState; expiresAt: number }>();
 
 export function list(): Promise<Tenant[]> {
   return repo.listTenants();
@@ -64,20 +64,33 @@ export async function update(id: string, patch: UpdateTenantInput): Promise<Tena
 }
 
 /**
- * Garante que o tenant existe e está ativo. Lança FORBIDDEN caso contrário.
- * Usado na resolução de tenant de todo request /v1.
+ * Garante que o tenant existe e pode operar. Usado na resolução de tenant de
+ * todo request /v1 (PRD MOD-AUTH-02). Semântica dos erros:
+ *  - tenant inexistente → 401 ERR_AUTH_005 (não foi possível resolver);
+ *  - tenant existe mas suspenso/inativo/cancelado → 403 ERR_AUTH_006.
+ * Estados que podem usar o produto: `active` e `trial`.
  */
+type ResolveState = "ok" | "not_found" | "suspended";
+
+function stateFor(tenant: { status: string } | null): ResolveState {
+  if (tenant === null) return "not_found";
+  return tenant.status === "active" || tenant.status === "trial" ? "ok" : "suspended";
+}
+
+function raise(state: ResolveState): void {
+  if (state === "not_found") throw AppError.tenantNotResolved("Tenant não encontrado");
+  if (state === "suspended") throw AppError.tenantSuspended();
+}
+
 export async function assertActive(id: string): Promise<void> {
   const now = Date.now();
   const cached = activeCache.get(id);
   if (cached && cached.expiresAt > now) {
-    if (!cached.active) throw new AppError("FORBIDDEN", 403, "Tenant inativo ou inexistente");
-    return;
+    return raise(cached.state);
   }
 
   const tenant = await repo.findTenantById(id);
-  const active = tenant !== null && tenant.status === "active";
-  activeCache.set(id, { active, expiresAt: now + CACHE_TTL_MS });
-
-  if (!active) throw new AppError("FORBIDDEN", 403, "Tenant inativo ou inexistente");
+  const state = stateFor(tenant);
+  activeCache.set(id, { state, expiresAt: now + CACHE_TTL_MS });
+  return raise(state);
 }

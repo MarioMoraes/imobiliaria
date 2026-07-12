@@ -1,27 +1,35 @@
+import { UserButton } from "@clerk/nextjs";
 import { Sidebar } from "../../components/Sidebar";
 import { Topbar } from "../../components/Topbar";
 import { adminNav, adminFootNav } from "../../lib/nav";
+import { fetchCurrentTenant } from "../../lib/api";
 
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const tenant = await fetchCurrentTenant();
+  const brandName = tenant?.name ?? "Move AI";
+  const initials = brandName.slice(0, 2).toUpperCase();
+
   return (
     <div className="app-shell">
       <Sidebar
         variant="tenant"
-        brandName="Move AI"
+        brandName={brandName}
         brandSub="Imobiliária"
+        brandLogo={tenant?.logoUrl ?? null}
         groups={adminNav}
         footItems={adminFootNav}
       />
       <div className="main">
         <Topbar
-          contextLabel="Imobiliária Demo"
-          contextSub="Plano Pro · Gestor"
-          avatar="ID"
+          contextLabel={brandName}
+          contextSub={tenant ? `Plano ${tenant.plan} · Gestor` : "Plano Pro · Gestor"}
+          avatar={initials}
           live="IA online"
+          accountSlot={<UserButton />}
         />
         <div className="content">{children}</div>
       </div>
