@@ -7,7 +7,7 @@
 **Serviço Backend:** customer-service (`backend/src/modules/customer`, monólito porta 3001)
 **Tabelas Principais:** customers, customer_search_profiles, customer_interactions, customer_documents, customer_consents
 **Data:** 2026-07-10
-**Status:** Draft
+**Status:** Em implementação — MOD-CLIENTE-01 (CRUD unificado + soft delete), 02 (perfil de busca), 03 (interações append-only + timeline) e 04 (deduplicação por CPF/telefone/email → 409 com `existingId`) concluídos (2026-07-12). Transição para INQUILINO/COMPRADOR bloqueada manualmente (RN-05). Pendentes: 05 (consentimento LGPD), 06 (documentos), 07 (ficha cadastral de locatário/cônjuge/endereços). Merge-200 do fluxo de IA (AC-01 dedup) é TODO (depende do MOD-AI).
 
 ---
 
@@ -23,10 +23,10 @@
 
 | ID | Nome | Descrição | Must/Should/Nice |
 |---|---|---|---|
-| MOD-CLIENTE-01 | CRUD cliente unificado | Lead/cliente/inquilino no mesmo registro, com `stage` | Must Have |
-| MOD-CLIENTE-02 | Perfil de busca | Preferências estruturadas (tipo, faixa, região, quartos) | Must Have |
-| MOD-CLIENTE-03 | Histórico de interações | Timeline append-only (humano + IA + canal) | Must Have |
-| MOD-CLIENTE-04 | Deduplicação | Detecta duplicata por CPF/telefone/email na criação | Must Have |
+| MOD-CLIENTE-01 | CRUD cliente unificado | Lead/cliente/inquilino no mesmo registro, com `stage` | Must Have ✅ |
+| MOD-CLIENTE-02 | Perfil de busca | Preferências estruturadas (tipo, faixa, região, quartos) | Must Have ✅ |
+| MOD-CLIENTE-03 | Histórico de interações | Timeline append-only (humano + IA + canal) | Must Have ✅ |
+| MOD-CLIENTE-04 | Deduplicação | Detecta duplicata por CPF/telefone/email na criação | Must Have ✅ |
 | MOD-CLIENTE-05 | Consentimento LGPD | Consentimento e canais de contato permitidos | Must Have |
 | MOD-CLIENTE-06 | Documentos | Vínculo com MOD-DOC (RG, comprovante de renda) | Should Have |
 | MOD-CLIENTE-07 | Ficha cadastral de locatário | Ficha PF/PJ completa (cônjuge, RG, estado civil, endereços, banco) exigida para virar INQUILINO | Must Have |

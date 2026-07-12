@@ -7,7 +7,7 @@
 **Serviço Backend:** employee-service (`backend/src/modules/employee`, monólito porta 3001)
 **Tabelas Principais:** employees, employee_roles, employee_permissions, employee_access_log
 **Data:** 2026-07-10
-**Status:** Draft
+**Status:** Em implementação — MOD-FUNC-01 (CRUD), 02 (atribuição de papéis) e 03 (gestão de acesso ATIVO/SUSPENSO/REVOGADO com sync de `users.status` + regra do último ADMIN) concluídos (2026-07-12). MOD-FUNC-04 (permissões finas) e 05 (log de acesso — junto do MOD-AUTH-07 audit log) pendentes. Convite por e-mail nasce como TODO (depende do MOD-AUTH-06).
 
 ---
 
@@ -23,9 +23,9 @@
 
 | ID | Nome | Descrição | Must/Should/Nice |
 |---|---|---|---|
-| MOD-FUNC-01 | CRUD funcionário | Cadastro, cargo, dados de admissão | Must Have |
-| MOD-FUNC-02 | Atribuição de papéis | Vincular um ou mais papéis-padrão RBAC | Must Have |
-| MOD-FUNC-03 | Gestão de acesso | Ativar/suspender/revogar acesso do colaborador | Must Have |
+| MOD-FUNC-01 | CRUD funcionário | Cadastro, cargo, dados de admissão | Must Have ✅ |
+| MOD-FUNC-02 | Atribuição de papéis | Vincular um ou mais papéis-padrão RBAC | Must Have ✅ |
+| MOD-FUNC-03 | Gestão de acesso | Ativar/suspender/revogar acesso do colaborador | Must Have ✅ |
 | MOD-FUNC-04 | Permissões finas | Overrides pontuais além do papel (Should) | Should Have |
 | MOD-FUNC-05 | Log de acesso | Histórico de login/ações administrativas | Should Have |
 

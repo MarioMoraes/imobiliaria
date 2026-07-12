@@ -17,7 +17,15 @@ export type ErrorCode =
   | "ERR_AUTH_004" // conflito (CNPJ/slug/email duplicado)
   | "ERR_AUTH_005" // tenant não resolvido
   | "ERR_AUTH_006" // tenant suspenso/inativo
-  | "ERR_AUTH_007"; // usuário sem papel ativo
+  | "ERR_AUTH_007" // usuário sem papel ativo
+  // Códigos do MOD-FUNC (PRD funcionarios §5).
+  | "ERR_FUNC_001" // funcionário não encontrado
+  | "ERR_FUNC_004" // identidade duplicada (CPF/e-mail)
+  | "ERR_FUNC_005" // último ADMIN não pode ser removido
+  // Códigos do MOD-CLIENTE (PRD clientes §5).
+  | "ERR_CLIENTE_001" // cliente não encontrado
+  | "ERR_CLIENTE_002" // inválido / sem contato / transição de stage manual proibida
+  | "ERR_CLIENTE_004"; // duplicata (retorna existingId)
 
 export class AppError extends Error {
   constructor(

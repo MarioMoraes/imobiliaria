@@ -237,3 +237,129 @@ CREATE POLICY tenant_isolation ON guarantor_addresses
   WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
 GRANT SELECT, INSERT, UPDATE, DELETE ON guarantors          TO app_user;
 GRANT SELECT, INSERT, UPDATE, DELETE ON guarantor_addresses TO app_user;
+
+-- ─────────────────────────────────────────────────────────────
+-- Funcionários / colaboradores internos (MOD-FUNC) — recepção,
+-- financeiro, administrativo. NÃO é folha de pagamento: o foco é
+-- identidade + acesso (RBAC). Todo funcionário é um `users` (MOD-AUTH)
+-- com papel(is); esta tabela guarda os metadados de RH e o estado de
+-- acesso. Tabela de domínio, protegida por RLS.
+-- TODO: cifrar cpf em repouso (AES-256-GCM, PRD funcionarios §4).
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS employees (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id     UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  cpf           TEXT NOT NULL,
+  position      TEXT NOT NULL,                    -- cargo
+  hired_at      DATE,                             -- admissão (opcional)
+  -- access_status: ATIVO | SUSPENSO | REVOGADO (máquina de estados MOD-FUNC §6).
+  -- É a fonte da verdade do acesso; sincroniza users.status (active/disabled).
+  access_status TEXT NOT NULL DEFAULT 'ATIVO',
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX        IF NOT EXISTS idx_employees_tenant   ON employees (tenant_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_user     ON employees (user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_employees_cpf      ON employees (tenant_id, cpf);
+
+ALTER TABLE employees ENABLE ROW LEVEL SECURITY;
+ALTER TABLE employees FORCE  ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON employees
+  USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON employees TO app_user;
+
+-- ─────────────────────────────────────────────────────────────
+-- Clientes / cliente unificado (MOD-CLIENTE) — lead, cliente,
+-- inquilino e comprador no MESMO registro, distinguidos por `stage`.
+-- customers = ficha-base; perfis de busca (1:N) e interações
+-- (append-only) em tabelas filhas. Tabelas de domínio, com RLS.
+-- TODO: cifrar cpf/email/phone em repouso (AES-256-GCM, PRD clientes §4).
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS customers (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id          UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  full_name          TEXT NOT NULL,
+  cpf                TEXT,                          -- único por tenant quando presente
+  email              TEXT,
+  phone              TEXT,                          -- ao menos email OU phone (validado no Zod)
+  -- stage: LEAD | CLIENTE | INQUILINO | COMPRADOR | INATIVO (máquina de estados §6)
+  stage              TEXT NOT NULL DEFAULT 'LEAD',
+  -- source: WHATSAPP | INSTAGRAM | SITE | PORTAL | INDICACAO | MANUAL
+  source             TEXT NOT NULL DEFAULT 'MANUAL',
+  assigned_broker_id UUID,                          -- corretor responsável (FK lógica → brokers, módulo futuro)
+  notes              TEXT,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX        IF NOT EXISTS idx_customers_tenant       ON customers (tenant_id);
+CREATE INDEX        IF NOT EXISTS idx_customers_stage        ON customers (tenant_id, stage);
+CREATE INDEX        IF NOT EXISTS idx_customers_broker       ON customers (assigned_broker_id);
+-- Unicidade de contato por tenant (só quando presente) — base da deduplicação.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_cpf   ON customers (tenant_id, cpf)          WHERE cpf   IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_phone ON customers (tenant_id, phone)        WHERE phone IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_email ON customers (tenant_id, lower(email)) WHERE email IS NOT NULL;
+
+-- Perfil de busca (1:N): um cliente pode ter várias intenções de compra/locação.
+CREATE TABLE IF NOT EXISTS customer_search_profiles (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id      UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  customer_id    UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  intent         TEXT NOT NULL,                     -- COMPRA | LOCACAO
+  min_price_cents BIGINT,
+  max_price_cents BIGINT,
+  property_types TEXT[] NOT NULL DEFAULT '{}',
+  districts      TEXT[] NOT NULL DEFAULT '{}',
+  bedrooms_min   INT,
+  parking_min    INT,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_cust_profiles_customer ON customer_search_profiles (customer_id);
+
+-- Interações (append-only): timeline de contatos humano/IA por canal. Nunca
+-- editar/apagar (RN-02) — correção = nova interação.
+CREATE TABLE IF NOT EXISTS customer_interactions (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  channel     TEXT NOT NULL,                        -- WHATSAPP | INSTAGRAM | SITE | PORTAL | EMAIL | TELEFONE | MANUAL
+  actor       TEXT NOT NULL,                        -- HUMANO | IA
+  summary     TEXT NOT NULL,
+  payload     JSONB,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_cust_interactions_customer ON customer_interactions (customer_id, created_at DESC);
+
+ALTER TABLE customers                ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customers                FORCE  ROW LEVEL SECURITY;
+ALTER TABLE customer_search_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customer_search_profiles FORCE  ROW LEVEL SECURITY;
+ALTER TABLE customer_interactions    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customer_interactions    FORCE  ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON customers
+  USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
+CREATE POLICY tenant_isolation ON customer_search_profiles
+  USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
+CREATE POLICY tenant_isolation ON customer_interactions
+  USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON customers                TO app_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON customer_search_profiles TO app_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON customer_interactions    TO app_user;
+
+-- Seed de clientes demo (ids fixos p/ idempotência). Roda como superusuário do
+-- init (bypassa RLS, como o seed de imóveis). Dá dado real à página /clientes.
+INSERT INTO customers (id, tenant_id, full_name, email, phone, stage, source) VALUES
+  ('00000000-0000-0000-0000-0000000c0001', '00000000-0000-0000-0000-000000000001', 'Ana Lima',        'ana.lima@example.com',  '11990001111', 'LEAD',      'WHATSAPP'),
+  ('00000000-0000-0000-0000-0000000c0002', '00000000-0000-0000-0000-000000000001', 'Pedro Nogueira',  'pedro.n@example.com',   '11990002222', 'CLIENTE',   'SITE'),
+  ('00000000-0000-0000-0000-0000000c0003', '00000000-0000-0000-0000-000000000001', 'Família Ribeiro', NULL,                    '11990003333', 'INQUILINO', 'INDICACAO')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO customer_search_profiles (tenant_id, customer_id, intent, min_price_cents, max_price_cents, districts) VALUES
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000c0001', 'LOCACAO', NULL, 300000,    '{Centro}'),
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000c0002', 'COMPRA',  NULL, 90000000,  '{"Zona Sul"}'),
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000c0003', 'LOCACAO', NULL, 320000,    '{Centro}')
+ON CONFLICT DO NOTHING;

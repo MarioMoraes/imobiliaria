@@ -7,7 +7,8 @@
  * aceita esse fallback com AUTH_DEV_MODE ligado, nunca em produção).
  *
  * Endpoints REAIS hoje: /v1/properties, /v1/property-types, /v1/guarantors,
- * /v1/users, /admin/tenants. Os demais módulos usam lib/sample.ts.
+ * /v1/employees, /v1/customers, /v1/users, /admin/tenants. Os demais módulos
+ * usam lib/sample.ts.
  */
 import { auth } from "@clerk/nextjs/server";
 
@@ -89,6 +90,38 @@ export interface Guarantor {
   addresses: GuarantorAddress[];
 }
 
+export interface Employee {
+  id: string;
+  userId: string;
+  fullName: string;
+  email: string;
+  cpf: string;
+  position: string;
+  hiredAt: string | null;
+  accessStatus: "ATIVO" | "SUSPENSO" | "REVOGADO";
+  roles: string[];
+}
+
+export interface CustomerSearchProfile {
+  id: string;
+  intent: "COMPRA" | "LOCACAO";
+  minPriceCents: number | null;
+  maxPriceCents: number | null;
+  propertyTypes: string[];
+  districts: string[];
+}
+
+export interface Customer {
+  id: string;
+  fullName: string;
+  email: string | null;
+  phone: string | null;
+  stage: "LEAD" | "CLIENTE" | "INQUILINO" | "COMPRADOR" | "INATIVO";
+  source: string;
+  assignedBrokerId: string | null;
+  searchProfiles: CustomerSearchProfile[];
+}
+
 /* ------------------------------------------------------------- Helpers */
 async function get<T>(
   path: string,
@@ -135,6 +168,16 @@ export function fetchPropertyTypes(): Promise<PropertyType[] | null> {
 /** Fiadores do tenant da sessão. */
 export function fetchGuarantors(): Promise<Guarantor[] | null> {
   return get<Guarantor[]>("/v1/guarantors");
+}
+
+/** Funcionários (colaboradores internos) do tenant da sessão. */
+export function fetchEmployees(): Promise<Employee[] | null> {
+  return get<Employee[]>("/v1/employees");
+}
+
+/** Clientes do tenant da sessão (lista com perfil de busca primário). */
+export function fetchCustomers(): Promise<Customer[] | null> {
+  return get<Customer[]>("/v1/customers");
 }
 
 type JsonResult = { ok: true; data: unknown } | { ok: false; error: string };

@@ -20,6 +20,10 @@ export async function connectEvents(): Promise<void> {
     const conn = await amqp.connect(env.RABBITMQ_URL);
     channel = await conn.createChannel();
     await channel.assertExchange(EXCHANGE, "topic", { durable: true });
+    // Se o canal cair (broker reiniciado etc.), zera a referência para que
+    // publish() volte ao caminho offline em vez de lançar "Channel closed".
+    channel.on("error", () => (channel = null));
+    channel.on("close", () => (channel = null));
     logger.info("rabbitmq conectado");
   } catch (err) {
     logger.warn({ err }, "não foi possível conectar ao rabbitmq (eventos desabilitados)");
@@ -41,10 +45,17 @@ export async function publish<T>(event: DomainEvent<T>): Promise<void> {
     logger.debug({ type: event.type }, "evento não publicado (rabbitmq offline)");
     return;
   }
-  channel.publish(
-    EXCHANGE,
-    event.type,
-    Buffer.from(JSON.stringify(event)),
-    { persistent: true, messageId: event.eventId },
-  );
+  // Publicar evento é best-effort (SPEC 4.1): uma falha do barramento NUNCA pode
+  // derrubar a escrita de domínio que já foi confirmada. Um canal fechado faz
+  // channel.publish lançar de forma síncrona — por isso o try/catch.
+  try {
+    channel.publish(
+      EXCHANGE,
+      event.type,
+      Buffer.from(JSON.stringify(event)),
+      { persistent: true, messageId: event.eventId },
+    );
+  } catch (err) {
+    logger.warn({ err, type: event.type }, "falha ao publicar evento (ignorada)");
+  }
 }

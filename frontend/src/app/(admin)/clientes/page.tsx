@@ -1,5 +1,6 @@
 import { PageHeader, StatCard, Section, BackendNote } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
+import { fetchCustomers, formatPrice, type Customer } from "../../../lib/api";
 import { sampleCustomers } from "../../../lib/sample";
 
 const stageBadge: Record<string, string> = {
@@ -10,7 +11,68 @@ const stageBadge: Record<string, string> = {
   INATIVO: "badge-slate",
 };
 
-export default function ClientesPage() {
+const intentLabel: Record<string, string> = { COMPRA: "Compra", LOCACAO: "Locação" };
+const sourceLabel: Record<string, string> = {
+  WHATSAPP: "WhatsApp",
+  INSTAGRAM: "Instagram",
+  SITE: "Site",
+  PORTAL: "Portal",
+  INDICACAO: "Indicação",
+  MANUAL: "Manual",
+};
+
+/** Linha de exibição unificada (dado real do backend ou amostra de fallback). */
+interface Row {
+  id: string;
+  name: string;
+  stage: string;
+  intent: string;
+  budget: string;
+  source: string;
+  broker: string;
+}
+
+/** Deriva "orçamento" do perfil de busca primário (faixa min/max). */
+function budgetOf(c: Customer): string {
+  const p = c.searchProfiles[0];
+  if (!p) return "—";
+  if (p.maxPriceCents && p.minPriceCents) {
+    return `${formatPrice(p.minPriceCents)} – ${formatPrice(p.maxPriceCents)}`;
+  }
+  if (p.maxPriceCents) return `até ${formatPrice(p.maxPriceCents)}`;
+  if (p.minPriceCents) return `a partir de ${formatPrice(p.minPriceCents)}`;
+  return "—";
+}
+
+export default async function ClientesPage() {
+  const live = await fetchCustomers();
+  const isLive = live !== null;
+
+  const rows: Row[] = isLive
+    ? live.map((c) => ({
+        id: c.id,
+        name: c.fullName,
+        stage: c.stage,
+        intent: c.searchProfiles[0] ? intentLabel[c.searchProfiles[0].intent] ?? "—" : "—",
+        budget: budgetOf(c),
+        source: sourceLabel[c.source] ?? c.source,
+        broker: "—", // vínculo de corretor vem com o módulo broker (futuro)
+      }))
+    : sampleCustomers.map((c) => ({
+        id: c.id,
+        name: c.name,
+        stage: c.stage,
+        intent: c.intent,
+        budget: c.budget,
+        source: c.source,
+        broker: c.broker,
+      }));
+
+  const count = (...stages: string[]) => rows.filter((r) => stages.includes(r.stage)).length;
+  const leads = count("LEAD");
+  const ativos = count("CLIENTE", "INQUILINO", "COMPRADOR");
+  const inativos = count("INATIVO");
+
   return (
     <>
       <PageHeader
@@ -21,20 +83,27 @@ export default function ClientesPage() {
       />
 
       <div className="grid grid-4 mb-4">
-        <StatCard icon="target" label="Leads no mês" value="147" trend="+23%" tone="accent" />
-        <StatCard icon="users" label="Clientes ativos" value="1.284" tone="blue" />
-        <StatCard icon="trendingUp" label="Conversão lead→cliente" value="34%" trend="+5pp" tone="success" />
-        <StatCard icon="bot" label="Qualificados por IA" value="62%" tone="blue" />
+        <StatCard icon="users" label="Total na base" value={String(rows.length)} tone="blue" />
+        <StatCard icon="target" label="Leads" value={String(leads)} tone="accent" />
+        <StatCard icon="trendingUp" label="Clientes ativos" value={String(ativos)} tone="success" />
+        <StatCard icon="x" label="Inativos" value={String(inativos)} tone="warning" />
       </div>
 
-      <Section title="Base de clientes" action={<BackendNote endpoint="/v1/customers" />}>
+      <Section
+        title="Base de clientes"
+        action={
+          isLive
+            ? <span className="badge badge-green"><span className="dot" /> ao vivo · /v1/customers</span>
+            : <BackendNote endpoint="/v1/customers" />
+        }
+      >
         <div className="table-wrap">
           <table className="table">
             <thead>
               <tr><th>Cliente</th><th>Estágio</th><th>Intenção</th><th>Orçamento</th><th>Origem</th><th>Corretor</th><th></th></tr>
             </thead>
             <tbody>
-              {sampleCustomers.map((c) => (
+              {rows.map((c) => (
                 <tr key={c.id}>
                   <td>
                     <div className="cell-main">
