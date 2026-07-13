@@ -19,10 +19,10 @@ export const adminNav: NavGroup[] = [
     label: "Cadastros",
     items: [
       { label: "Imóveis", href: "/imoveis", icon: "building" },
-      { label: "Proprietários", href: "/proprietarios", icon: "user" },
-      { label: "Clientes", href: "/clientes", icon: "users" },
-      { label: "Corretores", href: "/corretores", icon: "broker" },
+      { label: "Locadores", href: "/proprietarios", icon: "user" },
+      { label: "Locatários", href: "/clientes", icon: "users" },
       { label: "Fiadores", href: "/fiadores", icon: "shield" },
+      { label: "Corretores", href: "/corretores", icon: "broker" },
       { label: "Funcionários", href: "/funcionarios", icon: "creci" },
     ],
   },

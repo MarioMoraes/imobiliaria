@@ -28,7 +28,7 @@ export default function AgentesPage() {
         actions={
           <>
             <span className="badge badge-cyan"><span className="pulse-dot"><span /><span /></span> online</span>
-            <button className="btn btn-primary btn-sm"><Icon name="settings" /> Configurar agentes</button>
+            <button className="btn btn-primary btn-sm"><Icon name="settings" /> Configurar Agentes</button>
           </>
         }
       />

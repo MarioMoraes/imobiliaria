@@ -33,7 +33,7 @@ export default async function FiadoresPage() {
             ) : (
               <span className="badge badge-amber"><Icon name="database" size={13} /> backend offline</span>
             )}
-            <PersonFormButton defaultRoles={["FIADOR"]} label="Novo fiador" title="Novo fiador" />
+            <PersonFormButton defaultRoles={["FIADOR"]} label="Novo Fiador" title="Novo Fiador" />
           </div>
         }
       />

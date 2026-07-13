@@ -17,7 +17,7 @@ export default function FinanceiroPage() {
         actions={
           <>
             <button className="btn btn-outline btn-sm"><Icon name="receipt" /> Exportar</button>
-            <button className="btn btn-primary btn-sm"><Icon name="plus" /> Nova cobrança</button>
+            <button className="btn btn-primary btn-sm"><Icon name="plus" /> Nova Cobrança</button>
           </>
         }
       />

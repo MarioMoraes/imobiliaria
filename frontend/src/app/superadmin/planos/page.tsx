@@ -16,7 +16,7 @@ export default function PlanosPage() {
         eyebrow="Plataforma · Billing"
         title="Planos & Billing"
         lead="Assinaturas dos tenants via Stripe/Asaas. Enforcement de limites por plano e faturas da plataforma."
-        actions={<button className="btn btn-primary btn-sm"><Icon name="plus" /> Novo plano</button>}
+        actions={<button className="btn btn-primary btn-sm"><Icon name="plus" /> Novo Plano</button>}
       />
 
       <div className="grid grid-4 mb-4">

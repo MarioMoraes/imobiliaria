@@ -12,7 +12,7 @@ export default function ContratosPage() {
         actions={
           <>
             <button className="btn btn-outline btn-sm"><Icon name="contract" /> Templates</button>
-            <button className="btn btn-primary btn-sm"><Icon name="plus" /> Novo contrato</button>
+            <button className="btn btn-primary btn-sm"><Icon name="plus" /> Novo Contrato</button>
           </>
         }
       />

@@ -55,7 +55,7 @@ export default async function FuncionariosPage() {
         eyebrow="Cadastros · Módulo 7.5"
         title="Funcionários"
         lead="Colaboradores internos, cargos e permissões (RBAC). Foco em identidade e acesso — não folha de pagamento."
-        actions={<button className="btn btn-primary btn-sm"><Icon name="plus" /> Convidar membro</button>}
+        actions={<button className="btn btn-primary btn-sm"><Icon name="plus" /> Convidar Membro</button>}
       />
 
       <div className="grid grid-4 mb-4">

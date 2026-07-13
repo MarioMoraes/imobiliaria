@@ -15,21 +15,21 @@ export default async function ProprietariosPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Cadastros · Proprietários (role LOCADOR)"
-        title="Proprietários"
-        lead="Dados, contas de repasse e documentos dos proprietários. Repasse liberado após compensação do pagamento do inquilino. Vincule imóveis a donos na tela de Imóveis."
-        actions={<PersonFormButton defaultRoles={["LOCADOR"]} label="Novo proprietário" title="Novo proprietário" />}
+        eyebrow="Cadastros · Locadores (role LOCADOR)"
+        title="Locadores"
+        lead="Dados, contas de repasse e documentos dos locadores. Repasse liberado após compensação do pagamento do inquilino. Vincule imóveis a donos na tela de Imóveis."
+        actions={<PersonFormButton defaultRoles={["LOCADOR"]} label="Novo Locador" title="Novo Locador" />}
       />
 
       <div className="grid grid-4 mb-4">
-        <StatCard icon="user" label="Proprietários" value={String(owners.length)} tone="blue" />
+        <StatCard icon="user" label="Locadores" value={String(owners.length)} tone="blue" />
         <StatCard icon="check" label="Ativos" value={String(owners.filter((o) => o.status === "active").length)} tone="success" />
         <StatCard icon="building" label="Pessoa Física" value={String(owners.filter((o) => o.personType === "PF").length)} tone="accent" />
         <StatCard icon="shield" label="Pessoa Jurídica" value={String(owners.filter((o) => o.personType === "PJ").length)} tone="warning" />
       </div>
 
       <Section
-        title="Proprietários"
+        title="Locadores"
         action={
           isLive
             ? <span className="badge badge-green"><span className="dot" /> ao vivo · /v1/persons?role=LOCADOR</span>
@@ -39,8 +39,8 @@ export default async function ProprietariosPage() {
         {owners.length === 0 ? (
           <EmptyState
             icon="user"
-            title={isLive ? "Nenhum proprietário ainda" : "Backend offline"}
-            hint={isLive ? "Cadastre o primeiro proprietário no botão acima." : "Suba a infra e o backend (npm run dev)."}
+            title={isLive ? "Nenhum locador ainda" : "Backend offline"}
+            hint={isLive ? "Cadastre o primeiro locador no botão acima." : "Suba a infra e o backend (npm run dev)."}
           />
         ) : (
           <div className="table-wrap">

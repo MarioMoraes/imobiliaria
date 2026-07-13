@@ -11,8 +11,8 @@ export default function CrmPage() {
         lead="Kanban configurável por tenant. Atribuição automática por rodízio e SLA de primeira resposta — a IA cobre o horário fora do expediente."
         actions={
           <>
-            <button className="btn btn-outline btn-sm"><Icon name="settings" /> Configurar funil</button>
-            <button className="btn btn-primary btn-sm"><Icon name="plus" /> Novo negócio</button>
+            <button className="btn btn-outline btn-sm"><Icon name="settings" /> Configurar Funil</button>
+            <button className="btn btn-primary btn-sm"><Icon name="plus" /> Novo Negócio</button>
           </>
         }
       />

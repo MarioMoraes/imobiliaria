@@ -9,7 +9,7 @@ export default function PublicacaoPage() {
         eyebrow="Presença Digital · Módulo 7.16"
         title="Publicação em portais"
         lead="Exportação de feed para Viva Real, ZAP, OLX e Imovelweb, com sincronização de status — imóveis alugados/vendidos saem automaticamente."
-        actions={<button className="btn btn-primary btn-sm"><Icon name="megaphone" /> Publicar imóveis</button>}
+        actions={<button className="btn btn-primary btn-sm"><Icon name="megaphone" /> Publicar Imóveis</button>}
       />
 
       <div className="grid grid-4 mb-4">

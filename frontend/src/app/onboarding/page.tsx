@@ -93,7 +93,7 @@ export default function OnboardingPage() {
           )}
 
           <button type="submit" className="btn btn-primary" disabled={pending} style={{ marginTop: ".5rem" }}>
-            {pending ? "Criando…" : "Criar imobiliária"}
+            {pending ? "Criando…" : "Criar Imobiliária"}
           </button>
         </form>
       </div>

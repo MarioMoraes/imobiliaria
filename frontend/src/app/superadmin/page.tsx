@@ -14,7 +14,7 @@ export default async function SuperadminHome() {
         eyebrow="Plataforma · Módulo 7.18"
         title="Visão geral da plataforma"
         lead="Saúde, uso e receita de toda a base de imobiliárias. Acesso cross-tenant — toda ação aqui é auditada."
-        actions={<button className="btn btn-primary btn-sm"><Icon name="plus" /> Novo tenant</button>}
+        actions={<button className="btn btn-primary btn-sm"><Icon name="plus" /> Novo Tenant</button>}
       />
 
       <div className="grid grid-4 mb-4">

@@ -9,7 +9,7 @@ export default function DocumentosPage() {
         eyebrow="Operação · Módulo 7.12"
         title="Documentos"
         lead="Repositório central por entidade, com versionamento, controle de expiração e extração de dados por OCR. Retenção alinhada à LGPD."
-        actions={<button className="btn btn-primary btn-sm"><Icon name="plus" /> Enviar documento</button>}
+        actions={<button className="btn btn-primary btn-sm"><Icon name="plus" /> Enviar Documento</button>}
       />
 
       <div className="grid grid-4 mb-4">

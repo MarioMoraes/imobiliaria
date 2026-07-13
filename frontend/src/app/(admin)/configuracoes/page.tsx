@@ -26,7 +26,7 @@ export default function ConfiguracoesPage() {
             <div className="field"><label>CNPJ</label><input className="input" defaultValue="00.000.000/0001-00" /></div>
             <div className="field"><label>CRECI da imobiliária</label><input className="input" defaultValue="J-12345" /></div>
             <div className="field"><label>Subdomínio</label><input className="input" defaultValue="demo.moveai.com.br" readOnly /></div>
-            <button className="btn btn-primary btn-sm" style={{ alignSelf: "flex-start" }}>Salvar alterações</button>
+            <button className="btn btn-primary btn-sm" style={{ alignSelf: "flex-start" }}>Salvar Alterações</button>
           </div>
         </Section>
 

@@ -9,7 +9,7 @@ import { formatCpf, formatCpfCnpj, validateCpfCnpj } from "../../../lib/br-doc";
 import { createPersonAction, type NewPersonInput, type PersonRole } from "./actions";
 
 const ROLES: { value: PersonRole; label: string }[] = [
-  { value: "LOCADOR", label: "Locador (proprietário)" },
+  { value: "LOCADOR", label: "Locador" },
   { value: "LOCATARIO", label: "Locatário" },
   { value: "FIADOR", label: "Fiador" },
 ];
@@ -17,10 +17,10 @@ const ROLES: { value: PersonRole; label: string }[] = [
 type TabKey = "pessoais" | "bancarios" | "residenciais" | "comerciais" | "observacoes";
 
 const TABS: { key: TabKey; label: string }[] = [
-  { key: "pessoais", label: "Dados pessoais" },
-  { key: "bancarios", label: "Dados bancários" },
-  { key: "residenciais", label: "Dados residenciais" },
-  { key: "comerciais", label: "Dados comerciais" },
+  { key: "pessoais", label: "Dados Pessoais" },
+  { key: "bancarios", label: "Dados Bancários" },
+  { key: "residenciais", label: "Dados Residenciais" },
+  { key: "comerciais", label: "Dados Comerciais" },
   { key: "observacoes", label: "Observações" },
 ];
 
@@ -70,8 +70,8 @@ function makeEmpty(defaultRoles: PersonRole[]): NewPersonInput {
  */
 export function PersonFormButton({
   defaultRoles = [],
-  label = "Novo cadastro",
-  title = "Novo cadastro de pessoa",
+  label = "Novo Cadastro",
+  title = "Novo Cadastro de Pessoa",
 }: {
   defaultRoles?: PersonRole[];
   label?: string;
@@ -412,7 +412,7 @@ export function PersonFormButton({
             Cancelar
           </button>
           <button className="btn btn-primary btn-sm" type="button" onClick={submit} disabled={pending}>
-            {pending ? "Salvando…" : "Salvar cadastro"}
+            {pending ? "Salvando…" : "Salvar Cadastro"}
           </button>
         </div>
       </div>

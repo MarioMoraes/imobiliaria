@@ -37,7 +37,7 @@ export default async function ImoveisPage() {
         actions={
           <>
             <button className="btn btn-outline btn-sm"><Icon name="filter" /> Filtros</button>
-            <button className="btn btn-primary btn-sm"><Icon name="plus" /> Novo imóvel</button>
+            <button className="btn btn-primary btn-sm"><Icon name="plus" /> Novo Imóvel</button>
           </>
         }
       />

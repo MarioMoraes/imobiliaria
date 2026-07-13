@@ -9,7 +9,7 @@ export default function FlagsPage() {
         eyebrow="Plataforma · Configuração"
         title="Feature Flags"
         lead="Ligue ou desligue funcionalidades por escopo (global, plano ou tenant). A resolução mais específica vence."
-        actions={<button className="btn btn-primary btn-sm"><Icon name="plus" /> Nova flag</button>}
+        actions={<button className="btn btn-primary btn-sm"><Icon name="plus" /> Nova Flag</button>}
       />
 
       <Section title="Flags da plataforma" action={<BackendNote endpoint="/admin/feature-flags" />}>

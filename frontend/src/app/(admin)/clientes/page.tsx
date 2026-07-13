@@ -91,20 +91,20 @@ export default async function ClientesPage() {
     <>
       <PageHeader
         eyebrow="Cadastros · Módulo 7.3"
-        title="Clientes"
-        lead="Jornada unificada lead → cliente → inquilino/comprador. O perfil de busca alimenta a recomendação por IA."
-        actions={<PersonFormButton defaultRoles={["LOCATARIO"]} label="Novo cliente" title="Novo cliente" />}
+        title="Locatários"
+        lead="Locatários e interessados: jornada lead → cliente → inquilino. O perfil de busca alimenta a recomendação por IA."
+        actions={<PersonFormButton defaultRoles={["LOCATARIO"]} label="Novo Locatário" title="Novo Locatário" />}
       />
 
       <div className="grid grid-4 mb-4">
         <StatCard icon="users" label="Total na base" value={String(rows.length)} tone="blue" />
         <StatCard icon="target" label="Leads" value={String(leads)} tone="accent" />
-        <StatCard icon="trendingUp" label="Clientes ativos" value={String(ativos)} tone="success" />
+        <StatCard icon="trendingUp" label="Locatários ativos" value={String(ativos)} tone="success" />
         <StatCard icon="x" label="Inativos" value={String(inativos)} tone="warning" />
       </div>
 
       <Section
-        title="Base de clientes"
+        title="Base de locatários"
         action={
           isLive
             ? <span className="badge badge-green"><span className="dot" /> ao vivo · /v1/persons</span>
@@ -114,7 +114,7 @@ export default async function ClientesPage() {
         <div className="table-wrap">
           <table className="table">
             <thead>
-              <tr><th>Cliente</th><th>Papéis</th><th>Estágio</th><th>Intenção</th><th>Orçamento</th><th>Origem</th><th>Corretor</th><th></th></tr>
+              <tr><th>Locatário</th><th>Papéis</th><th>Estágio</th><th>Intenção</th><th>Orçamento</th><th>Origem</th><th>Corretor</th><th></th></tr>
             </thead>
             <tbody>
               {rows.map((c) => (

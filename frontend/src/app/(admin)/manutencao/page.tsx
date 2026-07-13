@@ -15,7 +15,7 @@ export default function ManutencaoPage() {
         eyebrow="Operação · Módulo 7.11"
         title="Manutenção"
         lead="Chamados abertos pelo inquilino (portal/IA) ou internamente, com aprovação do proprietário acima da alçada e histórico por imóvel."
-        actions={<button className="btn btn-primary btn-sm"><Icon name="plus" /> Abrir chamado</button>}
+        actions={<button className="btn btn-primary btn-sm"><Icon name="plus" /> Abrir Chamado</button>}
       />
 
       <div className="grid grid-4 mb-4">

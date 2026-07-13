@@ -107,7 +107,7 @@ export function TenantsManager({ tenants }: { tenants: TenantRow[] }) {
       {open && (
         <div className="card card-pad mb-4 stack" style={{ gap: 16 }}>
           <div className="row" style={{ justifyContent: "space-between" }}>
-            <strong>{editingId ? "Editar tenant" : "Novo tenant"}</strong>
+            <strong>{editingId ? "Editar Tenant" : "Novo Tenant"}</strong>
             <button className="icon-btn" type="button" aria-label="Fechar" onClick={() => setOpen(false)}>
               <Icon name="x" size={15} />
             </button>
@@ -138,7 +138,7 @@ export function TenantsManager({ tenants }: { tenants: TenantRow[] }) {
             <div className="stack" style={{ gap: 6 }}>
               <div className="row" style={{ gap: 8 }}>
                 <button className="btn btn-ghost btn-sm" type="button" onClick={() => fileRef.current?.click()}>
-                  <Icon name="upload" /> {form.logoUrl ? "Trocar logo" : "Enviar logo"}
+                  <Icon name="upload" /> {form.logoUrl ? "Trocar Logo" : "Enviar Logo"}
                 </button>
                 {form.logoUrl && (
                   <button className="btn btn-ghost btn-sm" type="button" onClick={() => set({ logoUrl: "" })}>
@@ -211,7 +211,7 @@ export function TenantsManager({ tenants }: { tenants: TenantRow[] }) {
             </button>
             <button className="btn btn-primary" type="button" onClick={submit} disabled={pending}>
               {pending ? <Icon name="loader" className="spin" /> : <Icon name="check" />}
-              {pending ? "Salvando…" : "Salvar tenant"}
+              {pending ? "Salvando…" : "Salvar Tenant"}
             </button>
           </div>
         </div>

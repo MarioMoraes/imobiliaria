@@ -16,7 +16,7 @@ export default function AluguelPage() {
         eyebrow="Operação · Módulo 7.10"
         title="Gestão de Aluguel"
         lead="Ciclos mensais, reajuste anual (IPCA padrão · IGP-M opcional), inadimplência com régua automatizada e vistorias de entrada/saída."
-        actions={<button className="btn btn-primary btn-sm"><Icon name="key" /> Gerar cobranças do mês</button>}
+        actions={<button className="btn btn-primary btn-sm"><Icon name="key" /> Gerar Cobranças do Mês</button>}
       />
 
       <div className="grid grid-4 mb-4">

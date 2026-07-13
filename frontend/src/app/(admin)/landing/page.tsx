@@ -67,7 +67,7 @@ export default function LandingPage() {
               <input className="input" defaultValue="#2563EB" />
             </div>
           </div>
-          <button className="btn btn-primary btn-sm mt-4" style={{ width: "100%" }}>Salvar branding</button>
+          <button className="btn btn-primary btn-sm mt-4" style={{ width: "100%" }}>Salvar Branding</button>
         </Section>
       </div>
     </>

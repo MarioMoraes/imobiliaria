@@ -12,7 +12,7 @@ export default function CorretoresPage() {
         eyebrow="Cadastros · Módulo 7.4"
         title="Corretores"
         lead="Equipes, metas e comissionamento. Leads chegam por rodízio automático (round-robin) entre corretores disponíveis."
-        actions={<button className="btn btn-primary btn-sm"><Icon name="plus" /> Novo corretor</button>}
+        actions={<button className="btn btn-primary btn-sm"><Icon name="plus" /> Novo Corretor</button>}
       />
 
       <div className="grid grid-4 mb-4">
