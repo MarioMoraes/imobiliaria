@@ -38,7 +38,6 @@ const roleLabel: Record<string, string> = {
   LOCADOR: "Locador",
   LOCATARIO: "Locatário",
   FIADOR: "Fiador",
-  COMPRADOR: "Comprador",
 };
 
 /** Deriva "orçamento" do perfil de busca primário (faixa min/max). */
@@ -56,9 +55,10 @@ function budgetOf(c: Person): string {
 export default async function ClientesPage() {
   const all = await fetchPersons();
   const isLive = all !== null;
-  // "Clientes" = pessoas com papel de locatário/comprador (a mesma tabela
-  // `persons`; proprietários/fiadores aparecem nas suas próprias views).
-  const live = all?.filter((p) => p.roles.some((r) => r === "LOCATARIO" || r === "COMPRADOR")) ?? null;
+  // "Clientes" = pessoas com papel de locatário (a mesma tabela `persons`;
+  // proprietários/fiadores aparecem nas suas próprias views). O interesse em
+  // comprar é distinguido pelo perfil de busca (intent = COMPRA), não por papel.
+  const live = all?.filter((p) => p.roles.some((r) => r === "LOCATARIO")) ?? null;
 
   const rows: Row[] = isLive && live
     ? live.map((c) => ({

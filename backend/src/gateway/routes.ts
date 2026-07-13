@@ -40,7 +40,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       await v1.register(propertyTypeRoutes, { prefix: "/property-types" });
       await v1.register(userRoutes, { prefix: "/users" });
       await v1.register(employeeRoutes, { prefix: "/employees" });
-      // Cadastro unificado de pessoas (locador/locatário/fiador/comprador).
+      // Cadastro unificado de pessoas (locador/locatário/fiador).
       // Substitui os antigos /v1/customers e /v1/guarantors — a tela /fiadores
       // consome /v1/persons?role=FIADOR.
       await v1.register(personRoutes, { prefix: "/persons" });

@@ -5,13 +5,23 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "../../../components/Icon";
 import { AddressBlock } from "./AddressBlock";
+import { formatCpf, formatCpfCnpj, validateCpfCnpj } from "../../../lib/br-doc";
 import { createPersonAction, type NewPersonInput, type PersonRole } from "./actions";
 
 const ROLES: { value: PersonRole; label: string }[] = [
   { value: "LOCADOR", label: "Locador (proprietário)" },
   { value: "LOCATARIO", label: "Locatário" },
   { value: "FIADOR", label: "Fiador" },
-  { value: "COMPRADOR", label: "Comprador" },
+];
+
+type TabKey = "pessoais" | "bancarios" | "residenciais" | "comerciais" | "observacoes";
+
+const TABS: { key: TabKey; label: string }[] = [
+  { key: "pessoais", label: "Dados pessoais" },
+  { key: "bancarios", label: "Dados bancários" },
+  { key: "residenciais", label: "Dados residenciais" },
+  { key: "comerciais", label: "Dados comerciais" },
+  { key: "observacoes", label: "Observações" },
 ];
 
 function makeEmpty(defaultRoles: PersonRole[]): NewPersonInput {
@@ -74,10 +84,18 @@ export function PersonFormButton({
   const empty = useMemo(() => makeEmpty(defaultRoles), [defaultRoles]);
   const [form, setForm] = useState<NewPersonInput>(empty);
   const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<TabKey>("pessoais");
 
   useEffect(() => setMounted(true), []);
 
   const set = (patch: Partial<NewPersonInput>) => setForm((f) => ({ ...f, ...patch }));
+
+  // Validação inline do documento (CPF/CNPJ) — null = válido ou vazio (opcional).
+  const docError = validateCpfCnpj(form.cpfCnpj ?? "", form.personType);
+
+  /** Troca PF/PJ e reaplica a máscara correta ao documento já digitado. */
+  const setPersonType = (personType: "PF" | "PJ") =>
+    setForm((f) => ({ ...f, personType, cpfCnpj: formatCpfCnpj(f.cpfCnpj ?? "", personType) }));
 
   const toggleRole = (r: PersonRole) =>
     setForm((f) => ({
@@ -88,10 +106,16 @@ export function PersonFormButton({
   function close() {
     setOpen(false);
     setError(null);
+    setTab("pessoais");
   }
 
   function submit() {
     setError(null);
+    if (docError) {
+      setError(docError);
+      setTab("pessoais"); // o campo com erro (CPF/CNPJ) fica nessa aba
+      return;
+    }
     startTransition(async () => {
       const res = await createPersonAction(form);
       if (!res.ok) {
@@ -99,6 +123,7 @@ export function PersonFormButton({
         return;
       }
       setForm(makeEmpty(defaultRoles));
+      setTab("pessoais");
       setOpen(false);
       router.refresh();
     });
@@ -122,7 +147,7 @@ export function PersonFormButton({
       <div
         className="card card-pad stack"
         onClick={(e) => e.stopPropagation()}
-        style={{ gap: 14, width: 680, maxWidth: "96vw", boxShadow: "0 20px 60px rgba(0,0,0,.30)" }}
+        style={{ gap: 14, width: 780, maxWidth: "96vw", boxShadow: "0 20px 60px rgba(0,0,0,.30)" }}
       >
         <div className="row" style={{ justifyContent: "space-between" }}>
           <strong>{title}</strong>
@@ -152,107 +177,150 @@ export function PersonFormButton({
           </div>
         </div>
 
-        {/* Identificação */}
-        <div className="grid grid-3" style={{ gap: 12 }}>
-          <div className="field">
-            <label>Tipo</label>
-            <select className="input" value={form.personType} onChange={(e) => set({ personType: e.target.value as "PF" | "PJ" })}>
-              <option value="PF">Pessoa Física</option>
-              <option value="PJ">Pessoa Jurídica</option>
-            </select>
-          </div>
-          <div className="field" style={{ gridColumn: "span 2" }}>
-            <label>Nome / Razão social *</label>
-            <input className="input" value={form.fullName} onChange={(e) => set({ fullName: e.target.value })} placeholder="Ana Lima" />
-          </div>
+        {/* Abas — cada grupo de campos numa aba (evita rolar a tela). Os painéis
+            ficam sempre montados (display:none) para preservar estado local do
+            AddressBlock (trava do CEP) ao alternar. */}
+        <div
+          className="row"
+          style={{ gap: 2, borderBottom: "1px solid var(--border)", overflowX: "auto", flexWrap: "nowrap" }}
+        >
+          {TABS.map((t) => {
+            const active = tab === t.key;
+            return (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => setTab(t.key)}
+                className="text-sm"
+                style={{
+                  padding: "8px 12px",
+                  whiteSpace: "nowrap",
+                  background: "none",
+                  border: "none",
+                  borderBottom: active ? "2px solid var(--primary)" : "2px solid transparent",
+                  color: active ? "var(--primary)" : "var(--muted)",
+                  fontWeight: active ? 600 : 500,
+                  cursor: "pointer",
+                  marginBottom: -1,
+                }}
+              >
+                {t.label}
+              </button>
+            );
+          })}
         </div>
 
-        <div className="grid grid-3" style={{ gap: 12 }}>
-          <div className="field">
-            <label>CPF / CNPJ</label>
-            <input className="input" value={form.cpfCnpj} onChange={(e) => set({ cpfCnpj: e.target.value })} placeholder="Somente números" inputMode="numeric" />
-          </div>
-          <div className="field">
-            <label>RG</label>
-            <input className="input" value={form.rg} onChange={(e) => set({ rg: e.target.value })} />
-          </div>
-          <div className="field">
-            <label>Órgão emissor</label>
-            <input className="input" value={form.rgIssuer} onChange={(e) => set({ rgIssuer: e.target.value })} placeholder="SSP/MG" />
-          </div>
-        </div>
-
-        <div className="grid grid-3" style={{ gap: 12 }}>
-          <div className="field">
-            <label>Nascimento</label>
-            <input className="input" type="date" value={form.birthDate} onChange={(e) => set({ birthDate: e.target.value })} />
-          </div>
-          <div className="field">
-            <label>Sexo</label>
-            <select className="input" value={form.gender} onChange={(e) => set({ gender: e.target.value as NewPersonInput["gender"] })}>
-              <option value="">—</option>
-              <option value="M">Masculino</option>
-              <option value="F">Feminino</option>
-              <option value="OUTRO">Outro</option>
-            </select>
-          </div>
-          <div className="field">
-            <label>Nacionalidade</label>
-            <input className="input" value={form.nationality} onChange={(e) => set({ nationality: e.target.value })} />
-          </div>
-        </div>
-
-        <div className="grid grid-2" style={{ gap: 12 }}>
-          <div className="field">
-            <label>Estado civil</label>
-            <select className="input" value={form.maritalStatus} onChange={(e) => set({ maritalStatus: e.target.value })}>
-              <option value="">—</option>
-              <option value="SOLTEIRO">Solteiro(a)</option>
-              <option value="CASADO">Casado(a)</option>
-              <option value="DIVORCIADO">Divorciado(a)</option>
-              <option value="VIUVO">Viúvo(a)</option>
-              <option value="UNIAO_ESTAVEL">União estável</option>
-            </select>
-          </div>
-          <div className="field">
-            <label>Profissão</label>
-            <input className="input" value={form.occupation} onChange={(e) => set({ occupation: e.target.value })} />
-          </div>
-        </div>
-
-        {form.maritalStatus === "CASADO" && (
-          <div className="stack" style={{ gap: 10, borderLeft: "3px solid var(--border, #e5e7eb)", paddingLeft: 12 }}>
-            <span className="text-sm strong">Cônjuge</span>
-            <div className="grid grid-2" style={{ gap: 12 }}>
-              <div className="field">
-                <label>Nome *</label>
-                <input className="input" value={form.spouseName} onChange={(e) => set({ spouseName: e.target.value })} />
-              </div>
-              <div className="field">
-                <label>CPF</label>
-                <input className="input" value={form.spouseCpf} onChange={(e) => set({ spouseCpf: e.target.value })} inputMode="numeric" />
-              </div>
+        {/* Dados pessoais */}
+        <div className="stack" style={{ gap: 14, display: tab === "pessoais" ? "flex" : "none" }}>
+          <div className="grid grid-3" style={{ gap: 12 }}>
+            <div className="field">
+              <label>Tipo</label>
+              <select className="input" value={form.personType} onChange={(e) => setPersonType(e.target.value as "PF" | "PJ")}>
+                <option value="PF">Pessoa Física</option>
+                <option value="PJ">Pessoa Jurídica</option>
+              </select>
             </div>
-            <div className="grid grid-3" style={{ gap: 12 }}>
-              <div className="field">
-                <label>RG</label>
-                <input className="input" value={form.spouseRg} onChange={(e) => set({ spouseRg: e.target.value })} />
-              </div>
-              <div className="field">
-                <label>Profissão</label>
-                <input className="input" value={form.spouseOccupation} onChange={(e) => set({ spouseOccupation: e.target.value })} />
-              </div>
-              <div className="field">
-                <label>Nascimento</label>
-                <input className="input" type="date" value={form.spouseBirthDate} onChange={(e) => set({ spouseBirthDate: e.target.value })} />
-              </div>
+            <div className="field" style={{ gridColumn: "span 2" }}>
+              <label>Nome / Razão social *</label>
+              <input className="input" value={form.fullName} onChange={(e) => set({ fullName: e.target.value })} placeholder="Ana Lima" />
             </div>
           </div>
-        )}
 
-        {/* Dados bancários */}
-        <div className="stack" style={{ gap: 10 }}>
-          <span className="text-sm strong">Dados bancários (repasse)</span>
+          <div className="grid grid-3" style={{ gap: 12 }}>
+            <div className="field">
+              <label>{form.personType === "PJ" ? "CNPJ" : "CPF"}</label>
+              <input
+                className="input"
+                value={form.cpfCnpj}
+                onChange={(e) => set({ cpfCnpj: formatCpfCnpj(e.target.value, form.personType) })}
+                placeholder={form.personType === "PJ" ? "00.000.000/0000-00" : "000.000.000-00"}
+                inputMode={form.personType === "PJ" ? "text" : "numeric"}
+                aria-invalid={docError ? true : undefined}
+                style={docError ? { borderColor: "var(--danger, #dc2626)" } : undefined}
+              />
+              {docError && <span className="text-xs" style={{ color: "var(--danger, #dc2626)" }}>{docError}</span>}
+            </div>
+            <div className="field">
+              <label>RG</label>
+              <input className="input" value={form.rg} onChange={(e) => set({ rg: e.target.value })} />
+            </div>
+            <div className="field">
+              <label>Órgão emissor</label>
+              <input className="input" value={form.rgIssuer} onChange={(e) => set({ rgIssuer: e.target.value })} placeholder="SSP/MG" />
+            </div>
+          </div>
+
+          <div className="grid grid-3" style={{ gap: 12 }}>
+            <div className="field">
+              <label>Nascimento</label>
+              <input className="input" type="date" value={form.birthDate} onChange={(e) => set({ birthDate: e.target.value })} />
+            </div>
+            <div className="field">
+              <label>Sexo</label>
+              <select className="input" value={form.gender} onChange={(e) => set({ gender: e.target.value as NewPersonInput["gender"] })}>
+                <option value="">—</option>
+                <option value="M">Masculino</option>
+                <option value="F">Feminino</option>
+                <option value="OUTRO">Outro</option>
+              </select>
+            </div>
+            <div className="field">
+              <label>Nacionalidade</label>
+              <input className="input" value={form.nationality} onChange={(e) => set({ nationality: e.target.value })} />
+            </div>
+          </div>
+
+          <div className="grid grid-2" style={{ gap: 12 }}>
+            <div className="field">
+              <label>Estado civil</label>
+              <select className="input" value={form.maritalStatus} onChange={(e) => set({ maritalStatus: e.target.value })}>
+                <option value="">—</option>
+                <option value="SOLTEIRO">Solteiro(a)</option>
+                <option value="CASADO">Casado(a)</option>
+                <option value="DIVORCIADO">Divorciado(a)</option>
+                <option value="VIUVO">Viúvo(a)</option>
+                <option value="UNIAO_ESTAVEL">União estável</option>
+              </select>
+            </div>
+            <div className="field">
+              <label>Profissão</label>
+              <input className="input" value={form.occupation} onChange={(e) => set({ occupation: e.target.value })} />
+            </div>
+          </div>
+
+          {form.maritalStatus === "CASADO" && (
+            <div className="stack" style={{ gap: 10, borderLeft: "3px solid var(--border, #e5e7eb)", paddingLeft: 12 }}>
+              <span className="text-sm strong">Cônjuge</span>
+              <div className="grid grid-2" style={{ gap: 12 }}>
+                <div className="field">
+                  <label>Nome *</label>
+                  <input className="input" value={form.spouseName} onChange={(e) => set({ spouseName: e.target.value })} />
+                </div>
+                <div className="field">
+                  <label>CPF</label>
+                  <input className="input" value={form.spouseCpf} onChange={(e) => set({ spouseCpf: formatCpf(e.target.value) })} placeholder="000.000.000-00" inputMode="numeric" />
+                </div>
+              </div>
+              <div className="grid grid-3" style={{ gap: 12 }}>
+                <div className="field">
+                  <label>RG</label>
+                  <input className="input" value={form.spouseRg} onChange={(e) => set({ spouseRg: e.target.value })} />
+                </div>
+                <div className="field">
+                  <label>Profissão</label>
+                  <input className="input" value={form.spouseOccupation} onChange={(e) => set({ spouseOccupation: e.target.value })} />
+                </div>
+                <div className="field">
+                  <label>Nascimento</label>
+                  <input className="input" type="date" value={form.spouseBirthDate} onChange={(e) => set({ spouseBirthDate: e.target.value })} />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Dados bancários (repasse) */}
+        <div className="stack" style={{ gap: 12, display: tab === "bancarios" ? "flex" : "none" }}>
           <div className="grid grid-3" style={{ gap: 12 }}>
             <div className="field">
               <label>Banco</label>
@@ -279,62 +347,63 @@ export function PersonFormButton({
           </div>
         </div>
 
-        {/* Endereços */}
-        <div className="stack" style={{ gap: 10 }}>
-          <span className="text-sm strong">Dados residenciais</span>
+        {/* Dados residenciais */}
+        <div className="stack" style={{ gap: 10, display: tab === "residenciais" ? "flex" : "none" }}>
           <AddressBlock title="" value={form.residential} onChange={(patch) => set({ residential: { ...form.residential, ...patch } })} />
+          <span className="text-xs subtle">Informe ao menos um contato (e-mail ou telefone/celular) nos dados residenciais.</span>
         </div>
-        <div className="stack" style={{ gap: 10 }}>
-          <span className="text-sm strong">Dados comerciais</span>
+
+        {/* Dados comerciais */}
+        <div className="stack" style={{ gap: 10, display: tab === "comerciais" ? "flex" : "none" }}>
           <AddressBlock title="" value={form.commercial} onChange={(patch) => set({ commercial: { ...form.commercial, ...patch } })} />
         </div>
-        <span className="text-xs subtle">Informe ao menos um contato (e-mail ou telefone/celular) nos dados residenciais.</span>
 
-        {/* Observações */}
-        <div className="grid grid-2" style={{ gap: 12 }}>
-          <div className="field">
-            <label>Observações</label>
-            <input className="input" value={form.notes} onChange={(e) => set({ notes: e.target.value })} />
+        {/* Observações + referências + perfil de busca */}
+        <div className="stack" style={{ gap: 12, display: tab === "observacoes" ? "flex" : "none" }}>
+          <div className="grid grid-2" style={{ gap: 12 }}>
+            <div className="field">
+              <label>Observações</label>
+              <input className="input" value={form.notes} onChange={(e) => set({ notes: e.target.value })} />
+            </div>
+            <div className="field">
+              <label>Referências</label>
+              <input className="input" value={form.references} onChange={(e) => set({ references: e.target.value })} />
+            </div>
           </div>
-          <div className="field">
-            <label>Referências</label>
-            <input className="input" value={form.references} onChange={(e) => set({ references: e.target.value })} />
-          </div>
-        </div>
 
-        {/* Perfil de busca (locatário/comprador) */}
-        <div className="field">
-          <label>Intenção de busca (opcional)</label>
-          <select className="input" value={form.intent} onChange={(e) => set({ intent: e.target.value as NewPersonInput["intent"] })}>
-            <option value="">— sem perfil de busca</option>
-            <option value="COMPRA">Compra</option>
-            <option value="LOCACAO">Locação</option>
-          </select>
+          <div className="field">
+            <label>Intenção de busca (opcional)</label>
+            <select className="input" value={form.intent} onChange={(e) => set({ intent: e.target.value as NewPersonInput["intent"] })}>
+              <option value="">— sem perfil de busca</option>
+              <option value="COMPRA">Compra</option>
+              <option value="LOCACAO">Locação</option>
+            </select>
+          </div>
+          {form.intent && (
+            <>
+              <div className="grid grid-2" style={{ gap: 12 }}>
+                <div className="field">
+                  <label>Orçamento mín. (R$)</label>
+                  <input className="input" value={form.minPriceReais} onChange={(e) => set({ minPriceReais: e.target.value })} inputMode="numeric" />
+                </div>
+                <div className="field">
+                  <label>Orçamento máx. (R$)</label>
+                  <input className="input" value={form.maxPriceReais} onChange={(e) => set({ maxPriceReais: e.target.value })} inputMode="numeric" />
+                </div>
+              </div>
+              <div className="grid grid-2" style={{ gap: 12 }}>
+                <div className="field">
+                  <label>Bairros (separados por vírgula)</label>
+                  <input className="input" value={form.districts} onChange={(e) => set({ districts: e.target.value })} placeholder="Centro, Zona Sul" />
+                </div>
+                <div className="field">
+                  <label>Quartos (mín.)</label>
+                  <input className="input" value={form.bedroomsMin} onChange={(e) => set({ bedroomsMin: e.target.value })} inputMode="numeric" />
+                </div>
+              </div>
+            </>
+          )}
         </div>
-        {form.intent && (
-          <>
-            <div className="grid grid-2" style={{ gap: 12 }}>
-              <div className="field">
-                <label>Orçamento mín. (R$)</label>
-                <input className="input" value={form.minPriceReais} onChange={(e) => set({ minPriceReais: e.target.value })} inputMode="numeric" />
-              </div>
-              <div className="field">
-                <label>Orçamento máx. (R$)</label>
-                <input className="input" value={form.maxPriceReais} onChange={(e) => set({ maxPriceReais: e.target.value })} inputMode="numeric" />
-              </div>
-            </div>
-            <div className="grid grid-2" style={{ gap: 12 }}>
-              <div className="field">
-                <label>Bairros (separados por vírgula)</label>
-                <input className="input" value={form.districts} onChange={(e) => set({ districts: e.target.value })} placeholder="Centro, Zona Sul" />
-              </div>
-              <div className="field">
-                <label>Quartos (mín.)</label>
-                <input className="input" value={form.bedroomsMin} onChange={(e) => set({ bedroomsMin: e.target.value })} inputMode="numeric" />
-              </div>
-            </div>
-          </>
-        )}
 
         {error && <span className="text-sm" style={{ color: "var(--danger, #dc2626)" }}>{error}</span>}
 

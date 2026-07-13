@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Icon } from "../../../components/Icon";
+import { formatCep } from "../../../lib/br-doc";
 import type { AddressInput } from "./actions";
 
 type Locked = Partial<Record<"street" | "district" | "city" | "state", boolean>>;
@@ -86,8 +87,9 @@ export function AddressBlock({
             className="input"
             value={value.zip ?? ""}
             inputMode="numeric"
+            maxLength={9}
             placeholder="00000-000"
-            onChange={(e) => onChange({ zip: e.target.value })}
+            onChange={(e) => onChange({ zip: formatCep(e.target.value) })}
             onBlur={(e) => lookup(e.target.value)}
           />
         </div>

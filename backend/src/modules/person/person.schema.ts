@@ -1,14 +1,16 @@
 import { z } from "zod";
+import { normalizeDoc, isValidCpfCnpj } from "./document.js";
 
 /**
- * Pessoa unificada (MOD-PESSOA): LOCADOR / LOCATARIO / FIADOR / COMPRADOR no
- * MESMO registro, distinguidos por `roles[]` (uma pessoa acumula papéis). Funde
+ * Pessoa unificada (MOD-PESSOA): LOCADOR / LOCATARIO / FIADOR no MESMO registro,
+ * distinguidos por `roles[]` (uma pessoa acumula papéis). Comprador NÃO é papel:
+ * o interesse em comprar vem do perfil de busca (`intent = COMPRA`). Funde
  * a ficha PF/PJ (ex-`guarantor`: cônjuge, banco, endereços) e a jornada de
  * lead/cliente (ex-`customer`: stage, perfil de busca, interações append-only).
  * TODO: cifrar cpf_cnpj/rg/email/phone/banco em repouso (AES-256-GCM).
  */
 
-export const personRole = z.enum(["LOCADOR", "LOCATARIO", "FIADOR", "COMPRADOR"]);
+export const personRole = z.enum(["LOCADOR", "LOCATARIO", "FIADOR"]);
 export type PersonRole = z.infer<typeof personRole>;
 
 export const personStage = z.enum([
@@ -77,7 +79,11 @@ export const createPersonSchema = z
     roles: z.array(personRole).min(1),
     personType: z.enum(["PF", "PJ"]).default("PF"),
     fullName: z.string().min(2).max(200),
-    cpfCnpj: z.string().transform(digits).pipe(z.string().min(11).max(14)).optional(),
+    cpfCnpj: z
+      .string()
+      .transform(normalizeDoc)
+      .pipe(z.string().min(11).max(14).refine(isValidCpfCnpj, { message: "CPF/CNPJ inválido" }))
+      .optional(),
     rg: z.string().max(20).optional(),
     rgIssuer: z.string().max(20).optional(),
     gender: z.enum(["M", "F", "OUTRO"]).optional(),
@@ -119,7 +125,12 @@ export const updatePersonSchema = z
     roles: z.array(personRole).min(1).optional(),
     personType: z.enum(["PF", "PJ"]).optional(),
     fullName: z.string().min(2).max(200).optional(),
-    cpfCnpj: z.string().transform(digits).pipe(z.string().min(11).max(14)).nullable().optional(),
+    cpfCnpj: z
+      .string()
+      .transform(normalizeDoc)
+      .pipe(z.string().min(11).max(14).refine(isValidCpfCnpj, { message: "CPF/CNPJ inválido" }))
+      .nullable()
+      .optional(),
     rg: z.string().max(20).nullable().optional(),
     rgIssuer: z.string().max(20).nullable().optional(),
     gender: z.enum(["M", "F", "OUTRO"]).nullable().optional(),

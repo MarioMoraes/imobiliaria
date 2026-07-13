@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { postJson } from "../../../lib/api";
 
 /** Papéis possíveis de uma pessoa (uma pessoa acumula 1+). */
-export type PersonRole = "LOCADOR" | "LOCATARIO" | "FIADOR" | "COMPRADOR";
+export type PersonRole = "LOCADOR" | "LOCATARIO" | "FIADOR";
 
 /** Bloco de endereço (residencial/comercial) — inclui contato do bloco (legado). */
 export interface AddressInput {
@@ -72,6 +72,14 @@ const digits = (v?: string) => {
   const d = (v ?? "").replace(/\D/g, "");
   return d === "" ? undefined : d;
 };
+/**
+ * Documento (CPF/CNPJ) na forma canônica: remove a máscara mantendo letras
+ * (CNPJ alfanumérico) e coloca em caixa alta. CPF continua 100% numérico.
+ */
+const doc = (v?: string) => {
+  const d = (v ?? "").replace(/[^0-9A-Za-z]/g, "").toUpperCase();
+  return d === "" ? undefined : d;
+};
 const toCents = (v?: string): number | undefined => {
   const n = Number((v ?? "").replace(/[^\d]/g, ""));
   return Number.isFinite(n) && n > 0 ? n * 100 : undefined;
@@ -100,12 +108,12 @@ function buildAddress(kind: "RESIDENCIAL" | "COMERCIAL", a: AddressInput) {
   return hasData ? out : undefined;
 }
 
-/** Cria uma pessoa (locador/locatário/fiador/comprador) via POST /v1/persons. */
+/** Cria uma pessoa (locador/locatário/fiador) via POST /v1/persons. */
 export async function createPersonAction(input: NewPersonInput): Promise<FormState> {
   const fullName = input.fullName.trim();
   if (fullName.length < 2) return { ok: false, error: "Informe o nome da pessoa." };
   if (!input.roles || input.roles.length === 0) {
-    return { ok: false, error: "Selecione ao menos um papel (locador/locatário/fiador/comprador)." };
+    return { ok: false, error: "Selecione ao menos um papel (locador/locatário/fiador)." };
   }
 
   // Contato principal (dedup) derivado do bloco residencial → comercial.
@@ -126,7 +134,7 @@ export async function createPersonAction(input: NewPersonInput): Promise<FormSta
     roles: input.roles,
     personType: input.personType,
     fullName,
-    cpfCnpj: digits(input.cpfCnpj),
+    cpfCnpj: doc(input.cpfCnpj),
     rg: clean(input.rg),
     rgIssuer: clean(input.rgIssuer),
     gender: clean(input.gender),

@@ -7,7 +7,7 @@ import * as service from "./person.service.js";
 import type { CreatePersonInput } from "./person.schema.js";
 
 /**
- * MOD-PESSOA — cadastro unificado (locador/locatário/fiador/comprador). Inclui o
+ * MOD-PESSOA — cadastro unificado (locador/locatário/fiador). Inclui o
  * teste de ISOLAMENTO multi-tenant obrigatório (SPEC 3.1 e 14), deduplicação,
  * contato obrigatório, papéis, endereços, perfil de busca e máquina de estados.
  * Requer a infra de pé (npm run infra:up).
@@ -59,8 +59,8 @@ test("cria pessoa com múltiplos papéis e filtra por papel", async () => {
   const asLocador = await service.list(t.id, { role: "LOCADOR" });
   assert.ok(asLocador.some((p) => p.id === created.id), "deve aparecer no filtro LOCADOR");
 
-  const asComprador = await service.list(t.id, { role: "COMPRADOR" });
-  assert.ok(!asComprador.some((p) => p.id === created.id), "não deve aparecer no filtro COMPRADOR");
+  const asLocatario = await service.list(t.id, { role: "LOCATARIO" });
+  assert.ok(!asLocatario.some((p) => p.id === created.id), "não deve aparecer no filtro LOCATARIO");
 });
 
 test("ficha completa (cônjuge + banco + endereço) é persistida", async () => {

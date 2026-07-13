@@ -227,8 +227,9 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON employees TO app_user;
 
 -- ─────────────────────────────────────────────────────────────
 -- Pessoas (MOD-PESSOA) — cadastro unificado de partes: LOCADOR,
--- LOCATARIO, FIADOR e COMPRADOR no MESMO registro, distinguidos por
--- `roles[]` (uma pessoa acumula papéis). Funde os antigos `customers`
+-- LOCATARIO e FIADOR no MESMO registro, distinguidos por `roles[]`
+-- (uma pessoa acumula papéis). Comprador NÃO é papel: o interesse em
+-- comprar vem do perfil de busca (intent = COMPRA). Funde os antigos `customers`
 -- (lead → cliente/inquilino/comprador: stage, perfil de busca, interações)
 -- e `guarantors` (ficha PF/PJ + cônjuge + banco + endereços 1:N).
 -- Tabelas de domínio, protegidas por RLS.
@@ -237,9 +238,9 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON employees TO app_user;
 CREATE TABLE IF NOT EXISTS persons (
   id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id          UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-  -- Papéis (1+): LOCADOR | LOCATARIO | FIADOR | COMPRADOR.
+  -- Papéis (1+): LOCADOR | LOCATARIO | FIADOR.
   roles              TEXT[] NOT NULL DEFAULT '{}'
-                       CHECK (roles <@ ARRAY['LOCADOR','LOCATARIO','FIADOR','COMPRADOR']),
+                       CHECK (roles <@ ARRAY['LOCADOR','LOCATARIO','FIADOR']),
   -- Ficha (compat. telas legadas "Cadastro de Locadores/Locatários/Fiadores").
   person_type        TEXT NOT NULL DEFAULT 'PF',    -- PF | PJ
   full_name          TEXT NOT NULL,
@@ -379,7 +380,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON property_owners        TO app_user;
 -- init (bypassa RLS). Dá dado real às páginas /clientes e /fiadores.
 INSERT INTO persons (id, tenant_id, roles, person_type, full_name, cpf_cnpj, email, phone, stage, source) VALUES
   ('00000000-0000-0000-0000-0000000c0001', '00000000-0000-0000-0000-000000000001', '{LOCATARIO}', 'PF', 'Ana Lima',            NULL,          'ana.lima@example.com',    '11990001111', 'LEAD',      'WHATSAPP'),
-  ('00000000-0000-0000-0000-0000000c0002', '00000000-0000-0000-0000-000000000001', '{COMPRADOR}', 'PF', 'Pedro Nogueira',      NULL,          'pedro.n@example.com',     '11990002222', 'CLIENTE',   'SITE'),
+  ('00000000-0000-0000-0000-0000000c0002', '00000000-0000-0000-0000-000000000001', '{LOCATARIO}', 'PF', 'Pedro Nogueira',      NULL,          'pedro.n@example.com',     '11990002222', 'CLIENTE',   'SITE'),
   ('00000000-0000-0000-0000-0000000c0003', '00000000-0000-0000-0000-000000000001', '{LOCATARIO}', 'PF', 'Família Ribeiro',     NULL,          NULL,                      '11990003333', 'INQUILINO', 'INDICACAO'),
   ('00000000-0000-0000-0000-0000000c0004', '00000000-0000-0000-0000-000000000001', '{LOCADOR}',   'PF', 'Carlos Proprietário', '52998224725', 'carlos.prop@example.com', '11990004444', 'CLIENTE',   'MANUAL'),
   ('00000000-0000-0000-0000-0000000c0005', '00000000-0000-0000-0000-000000000001', '{FIADOR}',    'PF', 'Marina Fiadora',      '39053344705', 'marina.f@example.com',    '11990005555', 'CLIENTE',   'MANUAL')

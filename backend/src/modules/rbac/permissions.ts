@@ -48,7 +48,7 @@ const MATRIX: Record<Operation, Role[]> = {
   "contract:write": ["SUPER_ADMIN", "ADMIN", "GESTOR"],
   "crm:read": ["SUPER_ADMIN", "ADMIN", "GESTOR", "CORRETOR"],
   "crm:write": ["SUPER_ADMIN", "ADMIN", "GESTOR", "CORRETOR"],
-  // Pessoas (MOD-PESSOA: locador/locatário/fiador/comprador). AI_AGENT
+  // Pessoas (MOD-PESSOA: locador/locatário/fiador). AI_AGENT
   // cria/atualiza mas NUNCA deleta (RN-04).
   "person:read": ["SUPER_ADMIN", "ADMIN", "GESTOR", "CORRETOR"],
   "person:write": ["SUPER_ADMIN", "ADMIN", "GESTOR", "CORRETOR", "AI_AGENT"],

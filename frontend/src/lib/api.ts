@@ -114,11 +114,11 @@ export interface PersonSearchProfile {
   districts: string[];
 }
 
-export type PersonRole = "LOCADOR" | "LOCATARIO" | "FIADOR" | "COMPRADOR";
+export type PersonRole = "LOCADOR" | "LOCATARIO" | "FIADOR";
 
 /**
- * Pessoa unificada (MOD-PESSOA): locador/locatário/fiador/comprador no mesmo
- * registro, distinguidos por `roles[]`. Substitui os antigos Customer/Guarantor.
+ * Pessoa unificada (MOD-PESSOA): locador/locatário/fiador no mesmo registro,
+ * distinguidos por `roles[]`. Substitui os antigos Customer/Guarantor.
  */
 export interface Person {
   id: string;
