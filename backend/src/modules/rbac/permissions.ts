@@ -30,9 +30,9 @@ export type Operation =
   | "contract:write"
   | "crm:read"
   | "crm:write"
-  | "customer:read"
-  | "customer:write"
-  | "customer:delete";
+  | "person:read"
+  | "person:write"
+  | "person:delete";
 
 const MATRIX: Record<Operation, Role[]> = {
   "users:read": ["SUPER_ADMIN", "ADMIN", "GESTOR"],
@@ -48,10 +48,11 @@ const MATRIX: Record<Operation, Role[]> = {
   "contract:write": ["SUPER_ADMIN", "ADMIN", "GESTOR"],
   "crm:read": ["SUPER_ADMIN", "ADMIN", "GESTOR", "CORRETOR"],
   "crm:write": ["SUPER_ADMIN", "ADMIN", "GESTOR", "CORRETOR"],
-  // Clientes (MOD-CLIENTE §5). AI_AGENT cria/atualiza mas NUNCA deleta (RN-04).
-  "customer:read": ["SUPER_ADMIN", "ADMIN", "GESTOR", "CORRETOR"],
-  "customer:write": ["SUPER_ADMIN", "ADMIN", "GESTOR", "CORRETOR", "AI_AGENT"],
-  "customer:delete": ["SUPER_ADMIN", "ADMIN", "GESTOR"],
+  // Pessoas (MOD-PESSOA: locador/locatário/fiador/comprador). AI_AGENT
+  // cria/atualiza mas NUNCA deleta (RN-04).
+  "person:read": ["SUPER_ADMIN", "ADMIN", "GESTOR", "CORRETOR"],
+  "person:write": ["SUPER_ADMIN", "ADMIN", "GESTOR", "CORRETOR", "AI_AGENT"],
+  "person:delete": ["SUPER_ADMIN", "ADMIN", "GESTOR"],
 };
 
 /** Papéis que podem executar `op`. */

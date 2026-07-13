@@ -36,6 +36,20 @@ export const createPropertySchema = z.object({
 
 export type CreatePropertyInput = z.infer<typeof createPropertySchema>;
 
+/** Vínculo imóvel↔dono (proprietário = pessoa com papel LOCADOR). */
+export const addOwnerSchema = z.object({
+  personId: z.string().uuid(),
+  sharePercent: z.number().min(0).max(100).default(100),
+});
+export type AddOwnerInput = z.infer<typeof addOwnerSchema>;
+
+export interface PropertyOwner {
+  id: string;
+  personId: string;
+  personName: string;
+  sharePercent: number;
+}
+
 export interface Property {
   id: string;
   tenantId: string;
@@ -49,6 +63,7 @@ export interface Property {
   city: string | null;
   state: string | null;
   bedrooms: number | null;
+  owners: PropertyOwner[];
   createdAt: string;
   updatedAt: string;
 }

@@ -144,6 +144,18 @@ INSERT INTO user_roles (tenant_id, user_id, role)
 VALUES ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a1', 'ADMIN')
 ON CONFLICT (user_id, role) DO NOTHING;
 
+-- Usuário do login Clerk de desenvolvimento (moraes.mario@gmail.com). Mantém o
+-- acesso ADMIN ao tenant demo sobrevivendo ao `infra:reset` — o claim tenant_id
+-- do token aponta para o tenant demo (ver memória auth-clerk-setup / RBAC).
+INSERT INTO users (id, tenant_id, clerk_external_id, email, full_name, status)
+VALUES ('00000000-0000-0000-0000-0000000000a2', '00000000-0000-0000-0000-000000000001',
+        'user_3GMSRF0wiuH0liQQywUs2fR1HUb', 'moraes.mario@gmail.com', 'Mario Moraes', 'active')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO user_roles (tenant_id, user_id, role)
+VALUES ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000000a2', 'ADMIN')
+ON CONFLICT (user_id, role) DO NOTHING;
+
 -- ─────────────────────────────────────────────────────────────
 -- Tipo de Imóvel (lookup editável por tenant) — compat. tela legada
 -- "Cadastro de Tipo de Imóveis". Distinto da FINALIDADE (venda/locação).
@@ -176,67 +188,10 @@ VALUES
 ON CONFLICT DO NOTHING;
 
 -- ─────────────────────────────────────────────────────────────
--- Fiadores (MOD-FIADOR) — cadastro novo (compat. tela "Cadastro de Fiadores").
--- Ficha PF/PJ + cônjuge (colunas) + endereços (tabela 1:N).
--- TODO: criptografar cpf_cnpj/rg/banco em repouso (AES-256-GCM, PRD §4/9).
+-- (Fiadores) — os antigos `guarantors`/`guarantor_addresses` foram
+-- absorvidos pelo cadastro unificado `persons` (papel FIADOR), definido
+-- mais abaixo. A tela /fiadores lê `persons` filtrando por roles=FIADOR.
 -- ─────────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS guarantors (
-  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id      UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-  person_type    TEXT NOT NULL DEFAULT 'PF',   -- PF | PJ
-  cpf_cnpj       TEXT NOT NULL,
-  full_name      TEXT NOT NULL,
-  rg             TEXT,
-  rg_issuer      TEXT,
-  gender         TEXT,                          -- M | F | OUTRO
-  birth_date     DATE,
-  marital_status TEXT,                          -- SOLTEIRO | CASADO | ...
-  nationality    TEXT DEFAULT 'BRASILEIRA',
-  occupation     TEXT,
-  email          TEXT,
-  phone          TEXT,
-  mobile         TEXT,
-  bank           TEXT,
-  agency         TEXT,
-  account        TEXT,
-  holder_name    TEXT,
-  spouse_name    TEXT,
-  spouse_cpf     TEXT,
-  notes          TEXT,
-  references_txt TEXT,
-  status         TEXT NOT NULL DEFAULT 'active', -- active | inactive
-  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at     TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS idx_guarantors_tenant ON guarantors (tenant_id);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_guarantors_tenant_doc ON guarantors (tenant_id, cpf_cnpj);
-
-CREATE TABLE IF NOT EXISTS guarantor_addresses (
-  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id     UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-  guarantor_id  UUID NOT NULL REFERENCES guarantors(id) ON DELETE CASCADE,
-  kind          TEXT NOT NULL DEFAULT 'RESIDENCIAL', -- RESIDENCIAL | COMERCIAL
-  street        TEXT,
-  number        TEXT,
-  district      TEXT,
-  city          TEXT,
-  state         TEXT,
-  zip           TEXT
-);
-CREATE INDEX IF NOT EXISTS idx_guarantor_addr ON guarantor_addresses (guarantor_id);
-
-ALTER TABLE guarantors          ENABLE ROW LEVEL SECURITY;
-ALTER TABLE guarantors          FORCE  ROW LEVEL SECURITY;
-ALTER TABLE guarantor_addresses ENABLE ROW LEVEL SECURITY;
-ALTER TABLE guarantor_addresses FORCE  ROW LEVEL SECURITY;
-CREATE POLICY tenant_isolation ON guarantors
-  USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
-  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
-CREATE POLICY tenant_isolation ON guarantor_addresses
-  USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
-  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
-GRANT SELECT, INSERT, UPDATE, DELETE ON guarantors          TO app_user;
-GRANT SELECT, INSERT, UPDATE, DELETE ON guarantor_addresses TO app_user;
 
 -- ─────────────────────────────────────────────────────────────
 -- Funcionários / colaboradores internos (MOD-FUNC) — recepção,
@@ -271,41 +226,86 @@ CREATE POLICY tenant_isolation ON employees
 GRANT SELECT, INSERT, UPDATE, DELETE ON employees TO app_user;
 
 -- ─────────────────────────────────────────────────────────────
--- Clientes / cliente unificado (MOD-CLIENTE) — lead, cliente,
--- inquilino e comprador no MESMO registro, distinguidos por `stage`.
--- customers = ficha-base; perfis de busca (1:N) e interações
--- (append-only) em tabelas filhas. Tabelas de domínio, com RLS.
--- TODO: cifrar cpf/email/phone em repouso (AES-256-GCM, PRD clientes §4).
+-- Pessoas (MOD-PESSOA) — cadastro unificado de partes: LOCADOR,
+-- LOCATARIO, FIADOR e COMPRADOR no MESMO registro, distinguidos por
+-- `roles[]` (uma pessoa acumula papéis). Funde os antigos `customers`
+-- (lead → cliente/inquilino/comprador: stage, perfil de busca, interações)
+-- e `guarantors` (ficha PF/PJ + cônjuge + banco + endereços 1:N).
+-- Tabelas de domínio, protegidas por RLS.
+-- TODO: cifrar cpf_cnpj/rg/email/phone/banco em repouso (AES-256-GCM).
 -- ─────────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS customers (
+CREATE TABLE IF NOT EXISTS persons (
   id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id          UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  -- Papéis (1+): LOCADOR | LOCATARIO | FIADOR | COMPRADOR.
+  roles              TEXT[] NOT NULL DEFAULT '{}'
+                       CHECK (roles <@ ARRAY['LOCADOR','LOCATARIO','FIADOR','COMPRADOR']),
+  -- Ficha (compat. telas legadas "Cadastro de Locadores/Locatários/Fiadores").
+  person_type        TEXT NOT NULL DEFAULT 'PF',    -- PF | PJ
   full_name          TEXT NOT NULL,
-  cpf                TEXT,                          -- único por tenant quando presente
+  cpf_cnpj           TEXT,                          -- CPF (PF) ou CNPJ (PJ); único por tenant quando presente
+  rg                 TEXT,
+  rg_issuer          TEXT,
+  gender             TEXT,                          -- M | F | OUTRO
+  birth_date         DATE,
+  marital_status     TEXT,                          -- SOLTEIRO | CASADO | DIVORCIADO | VIUVO | UNIAO_ESTAVEL
+  nationality        TEXT DEFAULT 'BRASILEIRA',
+  occupation         TEXT,
   email              TEXT,
   phone              TEXT,                          -- ao menos email OU phone (validado no Zod)
-  -- stage: LEAD | CLIENTE | INQUILINO | COMPRADOR | INATIVO (máquina de estados §6)
-  stage              TEXT NOT NULL DEFAULT 'LEAD',
-  -- source: WHATSAPP | INSTAGRAM | SITE | PORTAL | INDICACAO | MANUAL
-  source             TEXT NOT NULL DEFAULT 'MANUAL',
-  assigned_broker_id UUID,                          -- corretor responsável (FK lógica → brokers, módulo futuro)
+  mobile             TEXT,
+  bank               TEXT,
+  agency             TEXT,
+  account            TEXT,
+  holder_name        TEXT,
+  payment_authorization TEXT,                        -- "Autorização de Depósito/Recebimento" (repasse ao locador)
+  spouse_name        TEXT,
+  spouse_cpf         TEXT,
+  spouse_rg          TEXT,
+  spouse_occupation  TEXT,
+  spouse_birth_date  DATE,
   notes              TEXT,
+  references_txt     TEXT,
+  -- Jornada de lead/cliente (relevante p/ LOCATARIO/COMPRADOR):
+  stage              TEXT NOT NULL DEFAULT 'LEAD',   -- LEAD | CLIENTE | INQUILINO | COMPRADOR | INATIVO
+  source             TEXT NOT NULL DEFAULT 'MANUAL', -- WHATSAPP | INSTAGRAM | SITE | PORTAL | INDICACAO | MANUAL
+  assigned_broker_id UUID,                           -- corretor responsável (FK lógica → brokers, módulo futuro)
+  status             TEXT NOT NULL DEFAULT 'active', -- active | inactive
   created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX        IF NOT EXISTS idx_customers_tenant       ON customers (tenant_id);
-CREATE INDEX        IF NOT EXISTS idx_customers_stage        ON customers (tenant_id, stage);
-CREATE INDEX        IF NOT EXISTS idx_customers_broker       ON customers (assigned_broker_id);
--- Unicidade de contato por tenant (só quando presente) — base da deduplicação.
-CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_cpf   ON customers (tenant_id, cpf)          WHERE cpf   IS NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_phone ON customers (tenant_id, phone)        WHERE phone IS NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS idx_customers_email ON customers (tenant_id, lower(email)) WHERE email IS NOT NULL;
+CREATE INDEX        IF NOT EXISTS idx_persons_tenant ON persons (tenant_id);
+CREATE INDEX        IF NOT EXISTS idx_persons_stage  ON persons (tenant_id, stage);
+CREATE INDEX        IF NOT EXISTS idx_persons_roles  ON persons USING GIN (roles);
+-- Deduplicação por documento/contato, por tenant (só quando presente).
+CREATE UNIQUE INDEX IF NOT EXISTS idx_persons_doc   ON persons (tenant_id, cpf_cnpj)      WHERE cpf_cnpj IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_persons_phone ON persons (tenant_id, phone)         WHERE phone    IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_persons_email ON persons (tenant_id, lower(email))  WHERE email    IS NOT NULL;
 
--- Perfil de busca (1:N): um cliente pode ter várias intenções de compra/locação.
-CREATE TABLE IF NOT EXISTS customer_search_profiles (
+-- Endereços (1:N) — residencial/comercial (compat. "Dados Residenciais/Comerciais").
+CREATE TABLE IF NOT EXISTS person_addresses (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id     UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  person_id     UUID NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
+  kind          TEXT NOT NULL DEFAULT 'RESIDENCIAL', -- RESIDENCIAL | COMERCIAL
+  street        TEXT,
+  number        TEXT,
+  district      TEXT,
+  city          TEXT,
+  state         TEXT,
+  zip           TEXT,
+  phone         TEXT,                                -- contato do bloco (compat. "Dados Residenciais/Comerciais")
+  mobile        TEXT,
+  fax           TEXT,
+  email         TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_person_addr ON person_addresses (person_id);
+
+-- Perfil de busca (1:N): preferências de imóvel (LOCATARIO/COMPRADOR).
+CREATE TABLE IF NOT EXISTS person_search_profiles (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id      UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-  customer_id    UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  person_id      UUID NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
   intent         TEXT NOT NULL,                     -- COMPRA | LOCACAO
   min_price_cents BIGINT,
   max_price_cents BIGINT,
@@ -315,51 +315,88 @@ CREATE TABLE IF NOT EXISTS customer_search_profiles (
   parking_min    INT,
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX IF NOT EXISTS idx_cust_profiles_customer ON customer_search_profiles (customer_id);
+CREATE INDEX IF NOT EXISTS idx_person_profiles_person ON person_search_profiles (person_id);
 
--- Interações (append-only): timeline de contatos humano/IA por canal. Nunca
--- editar/apagar (RN-02) — correção = nova interação.
-CREATE TABLE IF NOT EXISTS customer_interactions (
+-- Interações (append-only): timeline humano/IA por canal. Nunca editar/apagar
+-- (RN-02) — correção = nova interação.
+CREATE TABLE IF NOT EXISTS person_interactions (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-  customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  person_id   UUID NOT NULL REFERENCES persons(id) ON DELETE CASCADE,
   channel     TEXT NOT NULL,                        -- WHATSAPP | INSTAGRAM | SITE | PORTAL | EMAIL | TELEFONE | MANUAL
   actor       TEXT NOT NULL,                        -- HUMANO | IA
   summary     TEXT NOT NULL,
   payload     JSONB,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX IF NOT EXISTS idx_cust_interactions_customer ON customer_interactions (customer_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_person_interactions_person ON person_interactions (person_id, created_at DESC);
 
-ALTER TABLE customers                ENABLE ROW LEVEL SECURITY;
-ALTER TABLE customers                FORCE  ROW LEVEL SECURITY;
-ALTER TABLE customer_search_profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE customer_search_profiles FORCE  ROW LEVEL SECURITY;
-ALTER TABLE customer_interactions    ENABLE ROW LEVEL SECURITY;
-ALTER TABLE customer_interactions    FORCE  ROW LEVEL SECURITY;
-CREATE POLICY tenant_isolation ON customers
-  USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
-  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
-CREATE POLICY tenant_isolation ON customer_search_profiles
-  USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
-  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
-CREATE POLICY tenant_isolation ON customer_interactions
-  USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
-  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
-GRANT SELECT, INSERT, UPDATE, DELETE ON customers                TO app_user;
-GRANT SELECT, INSERT, UPDATE, DELETE ON customer_search_profiles TO app_user;
-GRANT SELECT, INSERT, UPDATE, DELETE ON customer_interactions    TO app_user;
+-- Vínculo imóvel ↔ dono (proprietário = pessoa com papel LOCADOR) + % participação.
+CREATE TABLE IF NOT EXISTS property_owners (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id     UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  property_id   UUID NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+  person_id     UUID NOT NULL REFERENCES persons(id)    ON DELETE RESTRICT,
+  share_percent NUMERIC(5,2) NOT NULL DEFAULT 100,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX        IF NOT EXISTS idx_property_owners_property ON property_owners (property_id);
+CREATE INDEX        IF NOT EXISTS idx_property_owners_person   ON property_owners (person_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_property_owners_uniq     ON property_owners (property_id, person_id);
 
--- Seed de clientes demo (ids fixos p/ idempotência). Roda como superusuário do
--- init (bypassa RLS, como o seed de imóveis). Dá dado real à página /clientes.
-INSERT INTO customers (id, tenant_id, full_name, email, phone, stage, source) VALUES
-  ('00000000-0000-0000-0000-0000000c0001', '00000000-0000-0000-0000-000000000001', 'Ana Lima',        'ana.lima@example.com',  '11990001111', 'LEAD',      'WHATSAPP'),
-  ('00000000-0000-0000-0000-0000000c0002', '00000000-0000-0000-0000-000000000001', 'Pedro Nogueira',  'pedro.n@example.com',   '11990002222', 'CLIENTE',   'SITE'),
-  ('00000000-0000-0000-0000-0000000c0003', '00000000-0000-0000-0000-000000000001', 'Família Ribeiro', NULL,                    '11990003333', 'INQUILINO', 'INDICACAO')
+ALTER TABLE persons                ENABLE ROW LEVEL SECURITY;
+ALTER TABLE persons                FORCE  ROW LEVEL SECURITY;
+ALTER TABLE person_addresses       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE person_addresses       FORCE  ROW LEVEL SECURITY;
+ALTER TABLE person_search_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE person_search_profiles FORCE  ROW LEVEL SECURITY;
+ALTER TABLE person_interactions    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE person_interactions    FORCE  ROW LEVEL SECURITY;
+ALTER TABLE property_owners        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE property_owners        FORCE  ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON persons
+  USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
+CREATE POLICY tenant_isolation ON person_addresses
+  USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
+CREATE POLICY tenant_isolation ON person_search_profiles
+  USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
+CREATE POLICY tenant_isolation ON person_interactions
+  USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
+CREATE POLICY tenant_isolation ON property_owners
+  USING (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON persons                TO app_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON person_addresses       TO app_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON person_search_profiles TO app_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON person_interactions    TO app_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON property_owners        TO app_user;
+
+-- Seed de pessoas demo (ids fixos p/ idempotência). Roda como superusuário do
+-- init (bypassa RLS). Dá dado real às páginas /clientes e /fiadores.
+INSERT INTO persons (id, tenant_id, roles, person_type, full_name, cpf_cnpj, email, phone, stage, source) VALUES
+  ('00000000-0000-0000-0000-0000000c0001', '00000000-0000-0000-0000-000000000001', '{LOCATARIO}', 'PF', 'Ana Lima',            NULL,          'ana.lima@example.com',    '11990001111', 'LEAD',      'WHATSAPP'),
+  ('00000000-0000-0000-0000-0000000c0002', '00000000-0000-0000-0000-000000000001', '{COMPRADOR}', 'PF', 'Pedro Nogueira',      NULL,          'pedro.n@example.com',     '11990002222', 'CLIENTE',   'SITE'),
+  ('00000000-0000-0000-0000-0000000c0003', '00000000-0000-0000-0000-000000000001', '{LOCATARIO}', 'PF', 'Família Ribeiro',     NULL,          NULL,                      '11990003333', 'INQUILINO', 'INDICACAO'),
+  ('00000000-0000-0000-0000-0000000c0004', '00000000-0000-0000-0000-000000000001', '{LOCADOR}',   'PF', 'Carlos Proprietário', '52998224725', 'carlos.prop@example.com', '11990004444', 'CLIENTE',   'MANUAL'),
+  ('00000000-0000-0000-0000-0000000c0005', '00000000-0000-0000-0000-000000000001', '{FIADOR}',    'PF', 'Marina Fiadora',      '39053344705', 'marina.f@example.com',    '11990005555', 'CLIENTE',   'MANUAL')
 ON CONFLICT (id) DO NOTHING;
 
-INSERT INTO customer_search_profiles (tenant_id, customer_id, intent, min_price_cents, max_price_cents, districts) VALUES
-  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000c0001', 'LOCACAO', NULL, 300000,    '{Centro}'),
-  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000c0002', 'COMPRA',  NULL, 90000000,  '{"Zona Sul"}'),
-  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000c0003', 'LOCACAO', NULL, 320000,    '{Centro}')
+INSERT INTO person_search_profiles (tenant_id, person_id, intent, min_price_cents, max_price_cents, districts) VALUES
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000c0001', 'LOCACAO', NULL, 300000,   '{Centro}'),
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000c0002', 'COMPRA',  NULL, 90000000, '{"Zona Sul"}'),
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-0000000c0003', 'LOCACAO', NULL, 320000,   '{Centro}')
+ON CONFLICT DO NOTHING;
+
+-- Vincula o primeiro imóvel demo a um dono (LOCADOR). Imóveis têm id aleatório,
+-- por isso seleciona o mais antigo do tenant.
+INSERT INTO property_owners (tenant_id, property_id, person_id, share_percent)
+SELECT '00000000-0000-0000-0000-000000000001', p.id, '00000000-0000-0000-0000-0000000c0004', 100
+FROM properties p
+WHERE p.tenant_id = '00000000-0000-0000-0000-000000000001'
+ORDER BY p.created_at
+LIMIT 1
 ON CONFLICT DO NOTHING;

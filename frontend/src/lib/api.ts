@@ -6,9 +6,9 @@
  * fallback de desenvolvimento: `x-tenant-id` + `x-dev-roles` (o backend só
  * aceita esse fallback com AUTH_DEV_MODE ligado, nunca em produção).
  *
- * Endpoints REAIS hoje: /v1/properties, /v1/property-types, /v1/guarantors,
- * /v1/employees, /v1/customers, /v1/users, /admin/tenants. Os demais módulos
- * usam lib/sample.ts.
+ * Endpoints REAIS hoje: /v1/properties (+ /:id/owners), /v1/property-types,
+ * /v1/persons (cadastro unificado; /fiadores usa ?role=FIADOR), /v1/employees,
+ * /v1/users, /admin/tenants. Os demais módulos usam lib/sample.ts.
  */
 import { auth } from "@clerk/nextjs/server";
 
@@ -24,17 +24,28 @@ const DEV_ROLES = process.env.DEV_ROLES ?? "ADMIN";
  * Preferência: token do Clerk; fallback: headers de dev.
  */
 async function authHeaders(): Promise<Record<string, string>> {
+  // Headers de dev enviados SEMPRE como fallback: o backend só os honra com
+  // AUTH_DEV_MODE ligado (nunca em produção). Assim, um usuário logado no Clerk
+  // mas ainda sem tenant (pré-onboarding) consegue ver o tenant demo em dev.
+  const devFallback = { "x-tenant-id": DEMO_TENANT_ID, "x-dev-roles": DEV_ROLES };
   try {
     const { getToken } = await auth();
     const token = await getToken();
-    if (token) return { Authorization: `Bearer ${token}` };
+    if (token) return { Authorization: `Bearer ${token}`, ...devFallback };
   } catch {
-    // Clerk não configurado/sem contexto de request — usa o fallback de dev.
+    // Clerk não configurado/sem contexto de request — usa só o fallback de dev.
   }
-  return { "x-tenant-id": DEMO_TENANT_ID, "x-dev-roles": DEV_ROLES };
+  return devFallback;
 }
 
 /* --------------------------------------------------------------- Tipos */
+export interface PropertyOwner {
+  id: string;
+  personId: string;
+  personName: string;
+  sharePercent: number;
+}
+
 export interface Property {
   id: string;
   title: string;
@@ -47,6 +58,7 @@ export interface Property {
   city: string | null;
   state: string | null;
   bedrooms: number | null;
+  owners?: PropertyOwner[];
 }
 
 export interface Tenant {
@@ -69,25 +81,16 @@ export interface PropertyType {
   active: boolean;
 }
 
-export interface GuarantorAddress {
+/** Endereço de uma pessoa (residencial/comercial). */
+export interface PersonAddress {
   id?: string;
   kind: "RESIDENCIAL" | "COMERCIAL";
+  street?: string;
+  number?: string;
+  district?: string;
   city?: string;
   state?: string;
-  street?: string;
-}
-
-export interface Guarantor {
-  id: string;
-  personType: string;
-  cpfCnpj: string;
-  fullName: string;
-  maritalStatus: string | null;
-  email: string | null;
-  mobile: string | null;
-  phone: string | null;
-  status: string;
-  addresses: GuarantorAddress[];
+  zip?: string;
 }
 
 export interface Employee {
@@ -102,7 +105,7 @@ export interface Employee {
   roles: string[];
 }
 
-export interface CustomerSearchProfile {
+export interface PersonSearchProfile {
   id: string;
   intent: "COMPRA" | "LOCACAO";
   minPriceCents: number | null;
@@ -111,15 +114,28 @@ export interface CustomerSearchProfile {
   districts: string[];
 }
 
-export interface Customer {
+export type PersonRole = "LOCADOR" | "LOCATARIO" | "FIADOR" | "COMPRADOR";
+
+/**
+ * Pessoa unificada (MOD-PESSOA): locador/locatário/fiador/comprador no mesmo
+ * registro, distinguidos por `roles[]`. Substitui os antigos Customer/Guarantor.
+ */
+export interface Person {
   id: string;
+  roles: string[];
+  personType: string;
   fullName: string;
+  cpfCnpj: string | null;
+  maritalStatus: string | null;
   email: string | null;
   phone: string | null;
+  mobile: string | null;
   stage: "LEAD" | "CLIENTE" | "INQUILINO" | "COMPRADOR" | "INATIVO";
   source: string;
+  status: string;
   assignedBrokerId: string | null;
-  searchProfiles: CustomerSearchProfile[];
+  addresses: PersonAddress[];
+  searchProfiles: PersonSearchProfile[];
 }
 
 /* ------------------------------------------------------------- Helpers */
@@ -165,19 +181,18 @@ export function fetchPropertyTypes(): Promise<PropertyType[] | null> {
   return get<PropertyType[]>("/v1/property-types");
 }
 
-/** Fiadores do tenant da sessão. */
-export function fetchGuarantors(): Promise<Guarantor[] | null> {
-  return get<Guarantor[]>("/v1/guarantors");
-}
-
 /** Funcionários (colaboradores internos) do tenant da sessão. */
 export function fetchEmployees(): Promise<Employee[] | null> {
   return get<Employee[]>("/v1/employees");
 }
 
-/** Clientes do tenant da sessão (lista com perfil de busca primário). */
-export function fetchCustomers(): Promise<Customer[] | null> {
-  return get<Customer[]>("/v1/customers");
+/**
+ * Pessoas do tenant da sessão (cadastro unificado). Opcionalmente filtra por
+ * papel (ex.: `fetchPersons("FIADOR")` para a tela de fiadores).
+ */
+export function fetchPersons(role?: PersonRole): Promise<Person[] | null> {
+  const q = role ? `?role=${encodeURIComponent(role)}` : "";
+  return get<Person[]>(`/v1/persons${q}`);
 }
 
 type JsonResult = { ok: true; data: unknown } | { ok: false; error: string };
@@ -187,15 +202,15 @@ type JsonResult = { ok: true; data: unknown } | { ok: false; error: string };
  * Usado por Server Actions. Retorna { ok } ou { ok:false, error }.
  */
 export async function sendJson(
-  method: "POST" | "PATCH" | "PUT",
+  method: "POST" | "PATCH" | "PUT" | "DELETE",
   path: string,
-  body: unknown,
+  body?: unknown,
 ): Promise<JsonResult> {
   try {
     const res = await fetch(`${BACKEND_URL}${path}`, {
       method,
       headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-      body: JSON.stringify(body),
+      body: body === undefined ? undefined : JSON.stringify(body),
       cache: "no-store",
     });
     const json = (await res.json().catch(() => ({}))) as {
@@ -219,6 +234,11 @@ export function postJson(path: string, body: unknown): Promise<JsonResult> {
 /** Atalho PATCH. */
 export function patchJson(path: string, body: unknown): Promise<JsonResult> {
   return sendJson("PATCH", path, body);
+}
+
+/** Atalho DELETE. */
+export function deleteJson(path: string): Promise<JsonResult> {
+  return sendJson("DELETE", path);
 }
 
 /* ------------------------------------------------------------ Formatos */

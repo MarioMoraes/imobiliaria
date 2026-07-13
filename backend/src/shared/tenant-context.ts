@@ -63,8 +63,16 @@ export async function resolveAuth(req: FastifyRequest): Promise<ResolvedAuth> {
     : undefined;
 
   if (bearer) {
-    const { tenantId, userId } = await verifyClerkToken(bearer);
-    return { tenantId, userId, devRoles: [], viaClerk: true };
+    try {
+      const { tenantId, userId } = await verifyClerkToken(bearer);
+      return { tenantId, userId, devRoles: [], viaClerk: true };
+    } catch (err) {
+      // Em dev, um token válido do Clerk mas SEM tenant_id (usuário logado que
+      // ainda não passou pelo onboarding) cai no fallback de header abaixo — isso
+      // permite visualizar o tenant demo sem onboarding completo. Em produção
+      // (AUTH_DEV_MODE=false) o erro sobe normalmente (401).
+      if (!env.AUTH_DEV_MODE) throw err;
+    }
   }
 
   if (env.AUTH_DEV_MODE) {

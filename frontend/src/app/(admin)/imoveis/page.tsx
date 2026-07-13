@@ -1,6 +1,7 @@
 import { PageHeader, StatCard, Section, StatusBadge, BackendNote } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
 import {
+  fetchPersons,
   fetchProperties,
   fetchPropertyTypes,
   formatPrice,
@@ -10,16 +11,20 @@ import {
 } from "../../../lib/api";
 import { sampleProperties } from "../../../lib/sample";
 import { PropertyTypeManager } from "./PropertyTypeManager";
+import { PropertyOwnersCell } from "./PropertyOwnersCell";
 
 export default async function ImoveisPage() {
-  const [liveProps, liveTypes] = await Promise.all([
+  const [liveProps, liveTypes, liveLocadores] = await Promise.all([
     fetchProperties(),
     fetchPropertyTypes(),
+    fetchPersons("LOCADOR"),
   ]);
   const properties: Property[] = liveProps ?? sampleProperties;
   const isLive = liveProps !== null;
   const types = liveTypes ?? [];
   const typeName = new Map(types.map((t) => [t.id, t.name]));
+  // Candidatos a dono: pessoas com papel LOCADOR (para o vínculo imóvel↔dono).
+  const ownerCandidates = (liveLocadores ?? []).map((p) => ({ id: p.id, fullName: p.fullName }));
 
   const count = (s: string) => properties.filter((p) => p.status === s).length;
 
@@ -78,6 +83,7 @@ export default async function ImoveisPage() {
                   <th>Finalidade</th>
                   <th>Tipo</th>
                   <th>Localização</th>
+                  <th>Donos</th>
                   <th>Valor</th>
                   <th>Status</th>
                   <th></th>
@@ -102,6 +108,14 @@ export default async function ImoveisPage() {
                     </td>
                     <td>{p.propertyTypeId ? typeName.get(p.propertyTypeId) ?? "—" : "—"}</td>
                     <td>{p.city ?? "—"}{p.state ? ` · ${p.state}` : ""}</td>
+                    <td>
+                      <PropertyOwnersCell
+                        propertyId={p.id}
+                        owners={p.owners ?? []}
+                        candidates={ownerCandidates}
+                        live={isLive}
+                      />
+                    </td>
                     <td className="strong">{formatPrice(p.priceCents)}</td>
                     <td><StatusBadge status={p.status} /></td>
                     <td>

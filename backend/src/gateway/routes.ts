@@ -3,11 +3,10 @@ import { healthRoutes } from "../modules/health/health.routes.js";
 import { authRoutes } from "../modules/auth/auth.routes.js";
 import { propertyRoutes } from "../modules/property/property.routes.js";
 import { propertyTypeRoutes } from "../modules/property-type/property-type.routes.js";
-import { guarantorRoutes } from "../modules/guarantor/guarantor.routes.js";
 import { tenantRoutes } from "../modules/tenant/tenant.routes.js";
 import { userRoutes } from "../modules/user/user.routes.js";
 import { employeeRoutes } from "../modules/employee/employee.routes.js";
-import { customerRoutes } from "../modules/customer/customer.routes.js";
+import { personRoutes } from "../modules/person/person.routes.js";
 import { authContextHook } from "./auth-context.hook.js";
 
 /**
@@ -39,12 +38,12 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       v1.addHook("onRequest", authContextHook);
       await v1.register(propertyRoutes, { prefix: "/properties" });
       await v1.register(propertyTypeRoutes, { prefix: "/property-types" });
-      await v1.register(guarantorRoutes, { prefix: "/guarantors" });
       await v1.register(userRoutes, { prefix: "/users" });
       await v1.register(employeeRoutes, { prefix: "/employees" });
-      await v1.register(customerRoutes, { prefix: "/customers" });
-      // Próximos módulos entram aqui:
-      // await v1.register(ownerRoutes,    { prefix: "/owners" });
+      // Cadastro unificado de pessoas (locador/locatário/fiador/comprador).
+      // Substitui os antigos /v1/customers e /v1/guarantors — a tela /fiadores
+      // consome /v1/persons?role=FIADOR.
+      await v1.register(personRoutes, { prefix: "/persons" });
     },
     { prefix: "/v1" },
   );

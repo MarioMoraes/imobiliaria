@@ -1,7 +1,8 @@
 import { PageHeader, StatCard, Section, BackendNote } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
-import { fetchCustomers, formatPrice, type Customer } from "../../../lib/api";
+import { fetchPersons, formatPrice, type Person } from "../../../lib/api";
 import { sampleCustomers } from "../../../lib/sample";
+import { PersonFormButton } from "./PersonFormButton";
 
 const stageBadge: Record<string, string> = {
   LEAD: "badge-cyan",
@@ -25,6 +26,7 @@ const sourceLabel: Record<string, string> = {
 interface Row {
   id: string;
   name: string;
+  roles: string[];
   stage: string;
   intent: string;
   budget: string;
@@ -32,8 +34,15 @@ interface Row {
   broker: string;
 }
 
+const roleLabel: Record<string, string> = {
+  LOCADOR: "Locador",
+  LOCATARIO: "Locatário",
+  FIADOR: "Fiador",
+  COMPRADOR: "Comprador",
+};
+
 /** Deriva "orçamento" do perfil de busca primário (faixa min/max). */
-function budgetOf(c: Customer): string {
+function budgetOf(c: Person): string {
   const p = c.searchProfiles[0];
   if (!p) return "—";
   if (p.maxPriceCents && p.minPriceCents) {
@@ -45,13 +54,17 @@ function budgetOf(c: Customer): string {
 }
 
 export default async function ClientesPage() {
-  const live = await fetchCustomers();
-  const isLive = live !== null;
+  const all = await fetchPersons();
+  const isLive = all !== null;
+  // "Clientes" = pessoas com papel de locatário/comprador (a mesma tabela
+  // `persons`; proprietários/fiadores aparecem nas suas próprias views).
+  const live = all?.filter((p) => p.roles.some((r) => r === "LOCATARIO" || r === "COMPRADOR")) ?? null;
 
-  const rows: Row[] = isLive
+  const rows: Row[] = isLive && live
     ? live.map((c) => ({
         id: c.id,
         name: c.fullName,
+        roles: c.roles,
         stage: c.stage,
         intent: c.searchProfiles[0] ? intentLabel[c.searchProfiles[0].intent] ?? "—" : "—",
         budget: budgetOf(c),
@@ -61,6 +74,7 @@ export default async function ClientesPage() {
     : sampleCustomers.map((c) => ({
         id: c.id,
         name: c.name,
+        roles: [],
         stage: c.stage,
         intent: c.intent,
         budget: c.budget,
@@ -79,7 +93,7 @@ export default async function ClientesPage() {
         eyebrow="Cadastros · Módulo 7.3"
         title="Clientes"
         lead="Jornada unificada lead → cliente → inquilino/comprador. O perfil de busca alimenta a recomendação por IA."
-        actions={<button className="btn btn-primary btn-sm"><Icon name="plus" /> Novo cliente</button>}
+        actions={<PersonFormButton defaultRoles={["LOCATARIO"]} label="Novo cliente" title="Novo cliente" />}
       />
 
       <div className="grid grid-4 mb-4">
@@ -93,14 +107,14 @@ export default async function ClientesPage() {
         title="Base de clientes"
         action={
           isLive
-            ? <span className="badge badge-green"><span className="dot" /> ao vivo · /v1/customers</span>
-            : <BackendNote endpoint="/v1/customers" />
+            ? <span className="badge badge-green"><span className="dot" /> ao vivo · /v1/persons</span>
+            : <BackendNote endpoint="/v1/persons" />
         }
       >
         <div className="table-wrap">
           <table className="table">
             <thead>
-              <tr><th>Cliente</th><th>Estágio</th><th>Intenção</th><th>Orçamento</th><th>Origem</th><th>Corretor</th><th></th></tr>
+              <tr><th>Cliente</th><th>Papéis</th><th>Estágio</th><th>Intenção</th><th>Orçamento</th><th>Origem</th><th>Corretor</th><th></th></tr>
             </thead>
             <tbody>
               {rows.map((c) => (
@@ -111,6 +125,15 @@ export default async function ClientesPage() {
                         {c.name.slice(0, 2).toUpperCase()}
                       </span>
                       <span className="strong">{c.name}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="row" style={{ flexWrap: "wrap", gap: 4 }}>
+                      {c.roles.length === 0
+                        ? <span className="text-sm subtle">—</span>
+                        : c.roles.map((r) => (
+                            <span key={r} className="badge badge-slate">{roleLabel[r] ?? r}</span>
+                          ))}
                     </div>
                   </td>
                   <td><span className={`badge ${stageBadge[c.stage]}`}>{c.stage}</span></td>

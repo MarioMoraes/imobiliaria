@@ -22,10 +22,11 @@ export type ErrorCode =
   | "ERR_FUNC_001" // funcionário não encontrado
   | "ERR_FUNC_004" // identidade duplicada (CPF/e-mail)
   | "ERR_FUNC_005" // último ADMIN não pode ser removido
-  // Códigos do MOD-CLIENTE (PRD clientes §5).
-  | "ERR_CLIENTE_001" // cliente não encontrado
-  | "ERR_CLIENTE_002" // inválido / sem contato / transição de stage manual proibida
-  | "ERR_CLIENTE_004"; // duplicata (retorna existingId)
+  // Códigos do MOD-PESSOA (cadastro unificado: locador/locatário/fiador/comprador).
+  | "ERR_PESSOA_001" // pessoa não encontrada
+  | "ERR_PESSOA_002" // sem contato (email/telefone)
+  | "ERR_PESSOA_004" // duplicata (retorna existingId)
+  | "ERR_PESSOA_005"; // transição de stage manual proibida (INQUILINO/COMPRADOR)
 
 export class AppError extends Error {
   constructor(

@@ -32,7 +32,12 @@ const schema = z.object({
   CLERK_JWT_KEY: z.string().optional(),
   // Modo de desenvolvimento: sem Authorization, aceita x-tenant-id + x-dev-roles
   // para simular um usuário autenticado. NUNCA pode ficar ligado em produção.
-  AUTH_DEV_MODE: z.coerce.boolean().default(true),
+  // NÃO usar z.coerce.boolean(): Boolean("false") === true, então "false" nunca
+  // desligaria o dev-mode. Interpretamos a string explicitamente.
+  AUTH_DEV_MODE: z
+    .string()
+    .default("true")
+    .transform((v) => v.trim().toLowerCase() === "true" || v.trim() === "1"),
 });
 
 const parsed = schema.parse(process.env);
