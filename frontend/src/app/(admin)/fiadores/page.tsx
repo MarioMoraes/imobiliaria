@@ -1,5 +1,4 @@
 import { PageHeader, StatCard, Section, StatusBadge, EmptyState } from "../../../components/ui";
-import { Icon } from "../../../components/Icon";
 import { fetchPersons } from "../../../lib/api";
 import { PersonFormButton } from "../clientes/PersonFormButton";
 
@@ -23,19 +22,8 @@ export default async function FiadoresPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Cadastros · Fiadores (role FIADOR)"
         title="Fiadores"
-        lead="Cadastro de fiadores para garantia de locação — ficha PF/PJ com cônjuge e endereço. Fiança de pessoa casada exige o cônjuge (validado no backend)."
-        actions={
-          <div className="row gap-8">
-            {isLive ? (
-              <span className="badge badge-green"><span className="dot" /> ao vivo · /v1/persons?role=FIADOR</span>
-            ) : (
-              <span className="badge badge-amber"><Icon name="database" size={13} /> backend offline</span>
-            )}
-            <PersonFormButton defaultRoles={["FIADOR"]} label="Novo Fiador" title="Novo Fiador" />
-          </div>
-        }
+        actions={<PersonFormButton defaultRoles={["FIADOR"]} label="Novo Fiador" title="Novo Fiador" />}
       />
 
       <div className="grid grid-4 mb-4">

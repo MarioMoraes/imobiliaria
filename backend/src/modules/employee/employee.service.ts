@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { AppError } from "../../shared/errors.js";
 import { publish } from "../../shared/events.js";
+import { logger } from "../../shared/logger.js";
+import { inviteToOrganization, isClerkConfigured } from "../../shared/clerk.js";
+import { findTenantById } from "../tenant/tenant.repository.js";
 import * as rbac from "../rbac/rbac.service.js";
 import { findUserRef } from "../user/user.repository.js";
 import * as repo from "./employee.repository.js";
@@ -50,10 +53,46 @@ export async function create(
     });
   }
 
-  const employee = await repo.insertEmployee(tenantId, input);
+  // Com Clerk configurado e org do tenant conhecida, o membro nasce 'invited' e
+  // recebe o convite da organização por e-mail; o vínculo (clerk_external_id)
+  // acontece no 1º login (claim por e-mail no auth-context.hook). Sem Clerk
+  // (dev), mantém o fluxo antigo: nasce 'active', sem convite.
+  const tenant = await findTenantById(tenantId);
+  const willInvite = isClerkConfigured() && Boolean(tenant?.clerkOrgId);
 
-  // TODO (MOD-AUTH-06): disparar convite por e-mail; hoje o usuário nasce
-  // 'active' sem credencial local — o vínculo com o Clerk vem no aceite.
+  // Clerk ativo mas o tenant não tem org vinculada: o convite seria pulado em
+  // silêncio (membro nasceria 'active' sem e-mail). Estado inconsistente —
+  // tenants via onboarding sempre gravam clerk_org_id. Torna o gap visível.
+  if (isClerkConfigured() && !tenant?.clerkOrgId) {
+    logger.warn(
+      { tenantId },
+      "Clerk configurado mas tenant sem clerk_org_id — convite não será enviado",
+    );
+  }
+
+  const employee = await repo.insertEmployee(tenantId, input, willInvite ? "invited" : "active");
+
+  if (willInvite) {
+    try {
+      await inviteToOrganization({
+        orgId: tenant!.clerkOrgId!,
+        email: employee.email,
+        role: primaryRole(employee.roles),
+        publicMetadata: { tenant_id: tenantId, user_id: employee.userId },
+      });
+    } catch (err) {
+      // Sem convite não há como o membro entrar — desfaz o cadastro para o
+      // admin poder reenviar (ex.: já existe convite pendente para este e-mail).
+      await repo
+        .removeEmployee(tenantId, employee.id, employee.userId)
+        .catch((e) => logger.error({ e, employeeId: employee.id }, "falha ao desfazer funcionário órfão"));
+      logger.warn({ err, email: employee.email }, "falha ao enviar convite do Clerk");
+      throw new AppError("ERR_FUNC_006", 502, "Não foi possível enviar o convite ao membro", {
+        hint: "verifique se já existe um convite pendente para este e-mail",
+      });
+    }
+  }
+
   await publish({
     type: "employee.created",
     tenantId,
@@ -109,6 +148,14 @@ export async function changeAccess(
   await invalidateAndAnnounce(tenantId, updated, eventType, { accessStatus: status });
 
   return updated;
+}
+
+/**
+ * Papel de maior privilégio do membro — define o papel na org do Clerk (admin
+ * vs member). Os papéis reais do app continuam em `user_roles` no nosso banco.
+ */
+function primaryRole(roles: string[]): string {
+  return roles.includes("ADMIN") ? "ADMIN" : (roles[0] ?? "GESTOR");
 }
 
 /** Bloqueia a transição se ela removeria o único ADMIN ativo do tenant (RN-01). */

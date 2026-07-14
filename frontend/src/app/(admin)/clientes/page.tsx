@@ -1,4 +1,4 @@
-import { PageHeader, StatCard, Section, BackendNote } from "../../../components/ui";
+import { PageHeader, StatCard, Section } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
 import { fetchPersons, formatPrice, type Person } from "../../../lib/api";
 import { sampleCustomers } from "../../../lib/sample";
@@ -90,9 +90,7 @@ export default async function ClientesPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Cadastros · Módulo 7.3"
         title="Locatários"
-        lead="Locatários e interessados: jornada lead → cliente → inquilino. O perfil de busca alimenta a recomendação por IA."
         actions={<PersonFormButton defaultRoles={["LOCATARIO"]} label="Novo Locatário" title="Novo Locatário" />}
       />
 
@@ -104,12 +102,7 @@ export default async function ClientesPage() {
       </div>
 
       <Section
-        title="Base de locatários"
-        action={
-          isLive
-            ? <span className="badge badge-green"><span className="dot" /> ao vivo · /v1/persons</span>
-            : <BackendNote endpoint="/v1/persons" />
-        }
+        title="Locatários"
       >
         <div className="table-wrap">
           <table className="table">

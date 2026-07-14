@@ -1,7 +1,8 @@
-import { PageHeader, StatCard, Section, StatusBadge, BackendNote } from "../../../components/ui";
+import { PageHeader, StatCard, Section, StatusBadge } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
 import { fetchEmployees } from "../../../lib/api";
 import { sampleEmployees } from "../../../lib/sample";
+import { EmployeeInviteButton } from "./EmployeeInviteButton";
 
 /** Linha de exibição unificada (dado real do backend ou amostra de fallback). */
 interface Row {
@@ -10,6 +11,8 @@ interface Row {
   position: string;
   roles: string[];
   access: "active" | "suspended" | "revoked";
+  /** Convite ainda não aceito (users.status === "invited"). */
+  invited: boolean;
 }
 
 const accessLabel: Record<Row["access"], { status: string; label: string }> = {
@@ -34,6 +37,7 @@ export default async function FuncionariosPage() {
             : e.accessStatus === "SUSPENSO"
               ? "suspended"
               : "revoked",
+        invited: e.userStatus === "invited",
       }))
     : sampleEmployees.map((e) => ({
         id: e.id,
@@ -41,6 +45,7 @@ export default async function FuncionariosPage() {
         position: e.role,
         roles: e.roles,
         access: e.access === "active" ? "active" : "suspended",
+        invited: false,
       }));
 
   const has = (r: Row, role: string) => r.roles.includes(role);
@@ -52,10 +57,8 @@ export default async function FuncionariosPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Cadastros · Módulo 7.5"
         title="Funcionários"
-        lead="Colaboradores internos, cargos e permissões (RBAC). Foco em identidade e acesso — não folha de pagamento."
-        actions={<button className="btn btn-primary btn-sm"><Icon name="plus" /> Convidar Membro</button>}
+        actions={<EmployeeInviteButton />}
       />
 
       <div className="grid grid-4 mb-4">
@@ -67,11 +70,6 @@ export default async function FuncionariosPage() {
 
       <Section
         title="Equipe interna"
-        action={
-          isLive
-            ? <span className="badge badge-green"><span className="dot" /> ao vivo · /v1/employees</span>
-            : <BackendNote endpoint="/v1/employees" />
-        }
       >
         <div className="table-wrap">
           <table className="table">
@@ -96,7 +94,10 @@ export default async function FuncionariosPage() {
                     </div>
                   </td>
                   <td>
-                    <StatusBadge status={accessLabel[e.access].status} label={accessLabel[e.access].label} />
+                    <div className="row gap-8 wrap">
+                      <StatusBadge status={accessLabel[e.access].status} label={accessLabel[e.access].label} />
+                      {e.invited && <span className="badge badge-amber">Convite pendente</span>}
+                    </div>
                   </td>
                   <td><button className="icon-btn" style={{ width: 30, height: 30 }}><Icon name="ellipsis" size={15} /></button></td>
                 </tr>

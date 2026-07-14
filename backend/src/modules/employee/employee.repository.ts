@@ -27,6 +27,7 @@ interface Row {
   updated_at: Date;
   email: string;
   full_name: string;
+  user_status: string;
   roles: string[];
 }
 
@@ -46,6 +47,7 @@ function toEmployee(row: Row): Employee {
     position: row.position,
     hiredAt: row.hired_at ? row.hired_at.toISOString().slice(0, 10) : null,
     accessStatus: row.access_status as EmployeeAccessStatus,
+    userStatus: row.user_status,
     roles: row.roles,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
@@ -55,7 +57,7 @@ function toEmployee(row: Row): Employee {
 const SELECT_EMPLOYEE = `
   SELECT e.id, e.tenant_id, e.user_id, e.cpf, e.position, e.hired_at,
          e.access_status, e.created_at, e.updated_at,
-         u.email, u.full_name,
+         u.email, u.full_name, u.status AS user_status,
          COALESCE(array_agg(ur.role) FILTER (WHERE ur.role IS NOT NULL), '{}') AS roles
     FROM employees e
     JOIN users u ON u.id = e.user_id
@@ -64,7 +66,7 @@ const SELECT_EMPLOYEE = `
 export function listEmployees(tenantId: string): Promise<Employee[]> {
   return withTenant(tenantId, async (client) => {
     const { rows } = await client.query<Row>(
-      `${SELECT_EMPLOYEE} GROUP BY e.id, u.email, u.full_name ORDER BY e.created_at DESC LIMIT 200`,
+      `${SELECT_EMPLOYEE} GROUP BY e.id, u.email, u.full_name, u.status ORDER BY e.created_at DESC LIMIT 200`,
     );
     return rows.map(toEmployee);
   });
@@ -73,7 +75,7 @@ export function listEmployees(tenantId: string): Promise<Employee[]> {
 export function findEmployee(tenantId: string, id: string): Promise<Employee | null> {
   return withTenant(tenantId, async (client) => {
     const { rows } = await client.query<Row>(
-      `${SELECT_EMPLOYEE} WHERE e.id = $1 GROUP BY e.id, u.email, u.full_name`,
+      `${SELECT_EMPLOYEE} WHERE e.id = $1 GROUP BY e.id, u.email, u.full_name, u.status`,
       [id],
     );
     return rows[0] ? toEmployee(rows[0]) : null;
@@ -136,13 +138,14 @@ async function replaceRoles(
 export function insertEmployee(
   tenantId: string,
   input: CreateEmployeeInput,
+  userStatus: "active" | "invited",
 ): Promise<Employee> {
   return withTenant(tenantId, async (client) => {
     const { rows: userRows } = await client.query<{ id: string }>(
       `INSERT INTO users (tenant_id, email, full_name, status)
-       VALUES ($1, $2, $3, 'active')
+       VALUES ($1, $2, $3, $4)
        RETURNING id`,
-      [tenantId, input.email, input.fullName],
+      [tenantId, input.email, input.fullName, userStatus],
     );
     const userId = userRows[0]!.id;
 
@@ -156,6 +159,23 @@ export function insertEmployee(
     );
     const employee = await loadOne(client, rows[0]!.id);
     return employee;
+  });
+}
+
+/**
+ * Remove o funcionário e sua identidade (rollback do cadastro quando o convite
+ * do Clerk falha). `user_roles` cai por FK/cascata ao apagar `users`; apagamos
+ * `employees` antes para não violar a FK employees→users.
+ */
+export function removeEmployee(
+  tenantId: string,
+  id: string,
+  userId: string,
+): Promise<void> {
+  return withTenant(tenantId, async (client) => {
+    await client.query("DELETE FROM employees WHERE id = $1", [id]);
+    await client.query("DELETE FROM user_roles WHERE user_id = $1", [userId]);
+    await client.query("DELETE FROM users WHERE id = $1", [userId]);
   });
 }
 
@@ -210,7 +230,7 @@ export function setAccessStatus(
 /** Recarrega um funcionário dentro da transação corrente (pós-escrita). */
 async function loadOne(client: PoolClient, id: string): Promise<Employee> {
   const { rows } = await client.query<Row>(
-    `${SELECT_EMPLOYEE} WHERE e.id = $1 GROUP BY e.id, u.email, u.full_name`,
+    `${SELECT_EMPLOYEE} WHERE e.id = $1 GROUP BY e.id, u.email, u.full_name, u.status`,
     [id],
   );
   return toEmployee(rows[0]!);

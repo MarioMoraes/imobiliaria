@@ -1,4 +1,4 @@
-import { PageHeader, StatCard, Section, StatusBadge, BackendNote } from "../../../components/ui";
+import { PageHeader, StatCard, Section, StatusBadge } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
 import { sampleMaintenance } from "../../../lib/sample";
 
@@ -12,9 +12,7 @@ export default function ManutencaoPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Operação · Módulo 7.11"
         title="Manutenção"
-        lead="Chamados abertos pelo inquilino (portal/IA) ou internamente, com aprovação do proprietário acima da alçada e histórico por imóvel."
         actions={<button className="btn btn-primary btn-sm"><Icon name="plus" /> Abrir Chamado</button>}
       />
 
@@ -25,7 +23,7 @@ export default function ManutencaoPage() {
         <StatCard icon="check" label="Resolvidos (mês)" value="21" tone="success" />
       </div>
 
-      <Section title="Chamados" action={<BackendNote endpoint="/v1/maintenance-requests" />}>
+      <Section title="Chamados">
         <div className="table-wrap">
           <table className="table">
             <thead><tr><th>Chamado</th><th>Imóvel</th><th>Categoria</th><th>Solicitante</th><th>Custo est.</th><th>Status</th></tr></thead>

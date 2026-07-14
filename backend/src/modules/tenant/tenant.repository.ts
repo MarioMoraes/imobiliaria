@@ -23,6 +23,7 @@ interface Row {
   logo_url: string | null;
   plan: string;
   status: TenantStatus;
+  clerk_org_id: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -38,6 +39,7 @@ function toTenant(row: Row): Tenant {
     logoUrl: row.logo_url,
     plan: row.plan,
     status: row.status,
+    clerkOrgId: row.clerk_org_id,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
   };

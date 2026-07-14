@@ -1,4 +1,4 @@
-import { PageHeader, StatCard, Section, StatusBadge, BackendNote } from "../../../components/ui";
+import { PageHeader, StatCard, Section, StatusBadge } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
 import {
   fetchPersons,
@@ -31,9 +31,7 @@ export default async function ImoveisPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Cadastros · Módulo 7.1"
         title="Imóveis"
-        lead="A fonte única de verdade do inventário. Finalidade (venda/locação) e tipo do imóvel (Apartamento, Casa…) são campos distintos, como no cadastro clássico de imobiliária."
         actions={
           <>
             <button className="btn btn-outline btn-sm"><Icon name="filter" /> Filtros</button>
@@ -51,11 +49,6 @@ export default async function ImoveisPage() {
 
       <Section
         title="Tipos de imóvel (lookup do tenant)"
-        action={
-          liveTypes !== null
-            ? <span className="badge badge-green"><span className="dot" /> ao vivo · /v1/property-types</span>
-            : <BackendNote endpoint="/v1/property-types" />
-        }
       >
         <PropertyTypeManager types={types} live={liveTypes !== null} />
       </Section>
@@ -65,9 +58,6 @@ export default async function ImoveisPage() {
           title="Inventário"
           action={
             <div className="row gap-8">
-              {isLive
-                ? <span className="badge badge-green"><span className="dot" /> ao vivo · backend</span>
-                : <BackendNote />}
               <div className="search" style={{ padding: "7px 12px" }}>
                 <Icon name="search" size={15} /> <span className="text-sm">Buscar…</span>
               </div>

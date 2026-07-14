@@ -1,4 +1,4 @@
-import { PageHeader, StatCard, Section, StatusBadge, BackendNote } from "../../../components/ui";
+import { PageHeader, StatCard, Section, StatusBadge } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
 import { sampleAppointments } from "../../../lib/sample";
 
@@ -12,9 +12,7 @@ export default function AgendaPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Operação · Módulo 7.6"
         title="Agenda"
-        lead="Visitas, vistorias e reuniões com bloqueio de conflitos por corretor. Lembretes automáticos em T-24h e T-2h pelo canal do cliente."
         actions={
           <>
             <button className="btn btn-outline btn-sm"><Icon name="calendar" /> Semana</button>
@@ -30,7 +28,7 @@ export default function AgendaPage() {
         <StatCard icon="x" label="No-show (mês)" value="4%" tone="accent" />
       </div>
 
-      <Section title="Hoje · quinta, 10 de julho" action={<BackendNote endpoint="/v1/appointments" />}>
+      <Section title="Hoje · quinta, 10 de julho">
         <div className="card-pad timeline">
           {sampleAppointments.map((a, i) => (
             <div className="timeline-item" key={i}>

@@ -6,7 +6,9 @@ import {
   type TenantContext,
 } from "../shared/tenant-context.js";
 import { assertActive } from "../modules/tenant/tenant.service.js";
-import { loadForClerkUser } from "../modules/rbac/rbac.service.js";
+import { claimInvitedMembership, loadForClerkUser } from "../modules/rbac/rbac.service.js";
+import { getClerkUserEmail, isClerkConfigured } from "../shared/clerk.js";
+import { logger } from "../shared/logger.js";
 
 /**
  * Hook de composição (onRequest) de TODO request /v1: resolve a identidade
@@ -37,8 +39,39 @@ async function buildContext(req: FastifyRequest): Promise<TenantContext> {
     const resolved = await loadForClerkUser(auth.tenantId, auth.userId!);
     userId = resolved.userId ?? undefined;
     roles = resolved.roles;
+
+    // Sem usuário local para este `sub`: pode ser um membro que acabou de
+    // aceitar o convite (users row 'invited', ainda sem clerk_external_id).
+    // Casa por e-mail e reivindica a row no 1º acesso. Se não houver convite
+    // pendente, segue sem papéis (403) — comportamento inalterado.
+    if (!userId && isClerkConfigured()) {
+      const claimed = await claimInvite(auth.tenantId, auth.userId!);
+      if (claimed) {
+        userId = claimed.userId;
+        roles = claimed.roles;
+      }
+    }
   }
 
   const requestId = (req.id as string) ?? randomUUID();
   return { tenantId: auth.tenantId, userId, roles, requestId };
+}
+
+/**
+ * Busca o e-mail do usuário no Clerk e tenta reivindicar um convite pendente do
+ * tenant. Tolerante a falha: qualquer erro (Clerk indisponível, sem e-mail) só
+ * loga e devolve null — o request segue como "sem papel ativo".
+ */
+async function claimInvite(
+  tenantId: string,
+  clerkUserId: string,
+): Promise<{ userId: string; roles: string[] } | null> {
+  try {
+    const email = await getClerkUserEmail(clerkUserId);
+    if (!email) return null;
+    return await claimInvitedMembership(tenantId, clerkUserId, email);
+  } catch (err) {
+    logger.warn({ err, clerkUserId }, "falha ao reivindicar convite no 1º login");
+    return null;
+  }
 }

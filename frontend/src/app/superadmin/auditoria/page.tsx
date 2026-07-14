@@ -1,4 +1,4 @@
-import { PageHeader, StatCard, Section, BackendNote } from "../../../components/ui";
+import { PageHeader, StatCard, Section } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
 import { sampleAudit } from "../../../lib/sample";
 
@@ -15,9 +15,7 @@ export default function AuditoriaPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Plataforma · Compliance"
         title="Auditoria global"
-        lead="Registro imutável de ações sensíveis em todos os tenants — inclusive decisões dos agentes de IA e ferramentas LGPD."
         actions={<button className="btn btn-outline btn-sm"><Icon name="receipt" /> Exportar</button>}
       />
 
@@ -28,7 +26,7 @@ export default function AuditoriaPage() {
         <StatCard icon="flag" label="Pedidos LGPD" value="3" tone="warning" />
       </div>
 
-      <Section title="Trilha de auditoria" action={<BackendNote endpoint="/admin/audit" />}>
+      <Section title="Trilha de auditoria">
         <div className="table-wrap">
           <table className="table">
             <thead><tr><th>Ação</th><th>Ator</th><th>Alvo</th><th>Quando</th></tr></thead>

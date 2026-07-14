@@ -1,4 +1,4 @@
-import { PageHeader, StatCard, Section, StatusBadge, BackendNote } from "../../../components/ui";
+import { PageHeader, StatCard, Section, StatusBadge } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
 import { sampleDocuments } from "../../../lib/sample";
 
@@ -6,9 +6,7 @@ export default function DocumentosPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Operação · Módulo 7.12"
         title="Documentos"
-        lead="Repositório central por entidade, com versionamento, controle de expiração e extração de dados por OCR. Retenção alinhada à LGPD."
         actions={<button className="btn btn-primary btn-sm"><Icon name="plus" /> Enviar Documento</button>}
       />
 
@@ -19,7 +17,7 @@ export default function DocumentosPage() {
         <StatCard icon="shield" label="Retenção LGPD ok" value="100%" tone="success" />
       </div>
 
-      <Section title="Biblioteca documental" action={<BackendNote endpoint="/v1/documents" />}>
+      <Section title="Biblioteca documental">
         <div className="table-wrap">
           <table className="table">
             <thead><tr><th>Documento</th><th>Entidade</th><th>Tipo</th><th>Validade</th><th>Status</th><th></th></tr></thead>

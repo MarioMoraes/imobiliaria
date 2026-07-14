@@ -1,4 +1,4 @@
-import { PageHeader, StatCard, Section, BackendNote } from "../../../components/ui";
+import { PageHeader, StatCard, Section } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
 import { sampleBrokers } from "../../../lib/sample";
 import { formatPrice } from "../../../lib/api";
@@ -9,9 +9,7 @@ export default function CorretoresPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Cadastros · Módulo 7.4"
         title="Corretores"
-        lead="Equipes, metas e comissionamento. Leads chegam por rodízio automático (round-robin) entre corretores disponíveis."
         actions={<button className="btn btn-primary btn-sm"><Icon name="plus" /> Novo Corretor</button>}
       />
 
@@ -22,7 +20,7 @@ export default function CorretoresPage() {
         <StatCard icon="wallet" label="Comissões a pagar" value="R$ 176k" tone="warning" />
       </div>
 
-      <Section title="Ranking · comissão acumulada no mês" action={<BackendNote endpoint="/v1/brokers" />}>
+      <Section title="Ranking · comissão acumulada no mês">
         <div className="table-wrap">
           <table className="table">
             <thead>

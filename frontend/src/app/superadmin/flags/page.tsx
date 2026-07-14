@@ -1,4 +1,4 @@
-import { PageHeader, Section, BackendNote } from "../../../components/ui";
+import { PageHeader, Section } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
 import { sampleFlags } from "../../../lib/sample";
 
@@ -6,13 +6,11 @@ export default function FlagsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Plataforma · Configuração"
         title="Feature Flags"
-        lead="Ligue ou desligue funcionalidades por escopo (global, plano ou tenant). A resolução mais específica vence."
         actions={<button className="btn btn-primary btn-sm"><Icon name="plus" /> Nova Flag</button>}
       />
 
-      <Section title="Flags da plataforma" action={<BackendNote endpoint="/admin/feature-flags" />}>
+      <Section title="Flags da plataforma">
         <div className="table-wrap">
           <table className="table">
             <thead><tr><th>Funcionalidade</th><th>Chave</th><th>Escopo</th><th>Estado</th></tr></thead>

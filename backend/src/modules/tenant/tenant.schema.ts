@@ -58,6 +58,8 @@ export interface Tenant {
   logoUrl: string | null;
   plan: string;
   status: TenantStatus;
+  /** Organização Clerk correspondente (org = tenant); nulo no dev-mode. */
+  clerkOrgId: string | null;
   createdAt: string;
   updatedAt: string;
 }

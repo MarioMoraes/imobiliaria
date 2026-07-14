@@ -14,9 +14,7 @@ export default function SaudePage() {
   return (
     <>
       <PageHeader
-        eyebrow="Plataforma · Observabilidade"
         title="Saúde da plataforma"
-        lead="Health checks das dependências (timeout 3s por componente) e execuções de jobs agendados."
         actions={
           allOk
             ? <span className="badge badge-green"><span className="dot" /> tudo operacional</span>

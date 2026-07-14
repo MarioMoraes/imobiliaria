@@ -1,4 +1,4 @@
-import { PageHeader, StatCard, Section, StatusBadge, EmptyState, BackendNote } from "../../../components/ui";
+import { PageHeader, StatCard, Section, StatusBadge, EmptyState } from "../../../components/ui";
 import { fetchPersons } from "../../../lib/api";
 import { PersonFormButton } from "../clientes/PersonFormButton";
 
@@ -15,9 +15,7 @@ export default async function ProprietariosPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Cadastros · Locadores (role LOCADOR)"
         title="Locadores"
-        lead="Dados, contas de repasse e documentos dos locadores. Repasse liberado após compensação do pagamento do inquilino. Vincule imóveis a donos na tela de Imóveis."
         actions={<PersonFormButton defaultRoles={["LOCADOR"]} label="Novo Locador" title="Novo Locador" />}
       />
 
@@ -30,11 +28,6 @@ export default async function ProprietariosPage() {
 
       <Section
         title="Locadores"
-        action={
-          isLive
-            ? <span className="badge badge-green"><span className="dot" /> ao vivo · /v1/persons?role=LOCADOR</span>
-            : <BackendNote endpoint="/v1/persons?role=LOCADOR" />
-        }
       >
         {owners.length === 0 ? (
           <EmptyState

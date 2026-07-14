@@ -102,6 +102,8 @@ export interface Employee {
   position: string;
   hiredAt: string | null;
   accessStatus: "ATIVO" | "SUSPENSO" | "REVOGADO";
+  /** users.status: "invited" (convite pendente) | "active" | "disabled". */
+  userStatus: string;
   roles: string[];
 }
 

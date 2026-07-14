@@ -1,4 +1,4 @@
-import { PageHeader, Section, BackendNote } from "../../../components/ui";
+import { PageHeader, Section } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
 
 const integrations = [
@@ -13,11 +13,7 @@ const integrations = [
 export default function ConfiguracoesPage() {
   return (
     <>
-      <PageHeader
-        eyebrow="Administração"
-        title="Configurações"
-        lead="Identidade da imobiliária, usuários, plano e integrações. As chaves de terceiros ficam criptografadas em repouso."
-      />
+      <PageHeader title="Configurações" />
 
       <div className="grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
         <Section title="Dados da imobiliária" pad>
@@ -30,7 +26,7 @@ export default function ConfiguracoesPage() {
           </div>
         </Section>
 
-        <Section title="Integrações" action={<BackendNote endpoint="/v1/tenant/config" />}>
+        <Section title="Integrações">
           <div className="card-pad stack" style={{ gap: 10 }}>
             {integrations.map((it) => (
               <div key={it.name} className="card card-pad row-between" style={{ padding: 14 }}>

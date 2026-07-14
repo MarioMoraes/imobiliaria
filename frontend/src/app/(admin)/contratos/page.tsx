@@ -1,4 +1,4 @@
-import { PageHeader, StatCard, Section, StatusBadge, BackendNote } from "../../../components/ui";
+import { PageHeader, StatCard, Section, StatusBadge } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
 import { sampleContracts } from "../../../lib/sample";
 
@@ -6,9 +6,7 @@ export default function ContratosPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Operação · Módulo 7.8"
         title="Contratos"
-        lead="Locação, venda e intermediação. Templates com cláusulas dinâmicas, geração de PDF e renovação automática (opt-out). Reajuste padrão IPCA."
         actions={
           <>
             <button className="btn btn-outline btn-sm"><Icon name="contract" /> Templates</button>
@@ -24,7 +22,7 @@ export default function ContratosPage() {
         <StatCard icon="contract" label="Assinados no mês" value="24" trend="+4" tone="blue" />
       </div>
 
-      <Section title="Contratos" action={<BackendNote endpoint="/v1/contracts" />}>
+      <Section title="Contratos">
         <div className="table-wrap">
           <table className="table">
             <thead>

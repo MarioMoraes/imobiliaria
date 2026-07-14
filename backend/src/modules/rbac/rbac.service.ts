@@ -26,6 +26,22 @@ export async function loadForClerkUser(
   return resolved;
 }
 
+/**
+ * Reivindica o convite de um membro no 1º login (vincula clerk_external_id +
+ * ativa). Chamado pelo auth-context.hook quando não há usuário local para o
+ * `sub` do Clerk. Em sucesso, invalida o cache (que guardava `{userId:null}`)
+ * e devolve os papéis já efetivos. `null` = nenhum convite pendente a casar.
+ */
+export async function claimInvitedMembership(
+  tenantId: string,
+  clerkExternalId: string,
+  email: string,
+): Promise<{ userId: string; roles: string[] } | null> {
+  const claimed = await repo.claimInvitedUser(tenantId, clerkExternalId, email);
+  if (claimed) await invalidate(tenantId, clerkExternalId);
+  return claimed;
+}
+
 /** Invalida o cache de papéis de um usuário (chamar após `role.changed`). */
 export async function invalidate(tenantId: string, clerkExternalId: string): Promise<void> {
   if (redis.status !== "ready") return;

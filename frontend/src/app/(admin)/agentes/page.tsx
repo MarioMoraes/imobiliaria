@@ -1,4 +1,4 @@
-import { PageHeader, StatCard, Section, BackendNote } from "../../../components/ui";
+import { PageHeader, StatCard, Section } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
 import { sampleConversations } from "../../../lib/sample";
 
@@ -22,9 +22,7 @@ export default function AgentesPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Inteligência · Seção 8 (AaaS)"
         title="Agentes de IA"
-        lead="A camada diferencial. Handoff para corretor quando há sentimento negativo ou 3 tentativas sem resolução. Toda ação do agente é auditada."
         actions={
           <>
             <span className="badge badge-cyan"><span className="pulse-dot"><span /><span /></span> online</span>
@@ -41,7 +39,7 @@ export default function AgentesPage() {
       </div>
 
       <div className="grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
-        <Section title="Conversas ativas" action={<BackendNote endpoint="/v1/ai/conversations" />}>
+        <Section title="Conversas ativas">
           <div className="table-wrap">
             <table className="table">
               <thead><tr><th>Cliente</th><th>Canal</th><th>Última mensagem</th><th>Estado</th></tr></thead>

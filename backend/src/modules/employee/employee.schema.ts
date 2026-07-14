@@ -74,6 +74,8 @@ export interface Employee {
   position: string;
   hiredAt: string | null;
   accessStatus: EmployeeAccessStatus;
+  /** users.status: 'invited' (convite pendente) | 'active' | 'disabled'. */
+  userStatus: string;
   roles: string[];
   createdAt: string;
   updatedAt: string;

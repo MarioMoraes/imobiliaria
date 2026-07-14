@@ -1,4 +1,4 @@
-import { PageHeader, StatCard, Section, StatusBadge, BackendNote } from "../../../components/ui";
+import { PageHeader, StatCard, Section, StatusBadge } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
 import { formatPrice } from "../../../lib/api";
 
@@ -13,9 +13,7 @@ export default function AluguelPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Operação · Módulo 7.10"
         title="Gestão de Aluguel"
-        lead="Ciclos mensais, reajuste anual (IPCA padrão · IGP-M opcional), inadimplência com régua automatizada e vistorias de entrada/saída."
         actions={<button className="btn btn-primary btn-sm"><Icon name="key" /> Gerar Cobranças do Mês</button>}
       />
 
@@ -27,7 +25,7 @@ export default function AluguelPage() {
       </div>
 
       <div className="grid" style={{ gridTemplateColumns: "1.5fr 1fr" }}>
-        <Section title="Ciclos de locação · competência 07/2026" action={<BackendNote endpoint="/v1/rental-cycles" />}>
+        <Section title="Ciclos de locação · competência 07/2026">
           <div className="table-wrap">
             <table className="table">
               <thead><tr><th>Imóvel</th><th>Inquilino</th><th>Valor</th><th>Status</th></tr></thead>

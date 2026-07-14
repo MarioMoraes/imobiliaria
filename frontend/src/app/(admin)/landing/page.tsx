@@ -1,4 +1,4 @@
-import { PageHeader, StatCard, Section, BackendNote } from "../../../components/ui";
+import { PageHeader, StatCard, Section } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
 
 const blocks = [
@@ -14,9 +14,7 @@ export default function LandingPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Presença Digital · Módulo 7.17"
         title="Landing Page"
-        lead="Site público do tenant em demo.moveai.com.br — editor por blocos, catálogo, formulário anti-spam (honeypot) e chat de IA embutido."
         actions={
           <>
             <button className="btn btn-outline btn-sm"><Icon name="eye" /> Pré-visualizar</button>
@@ -33,7 +31,7 @@ export default function LandingPage() {
       </div>
 
       <div className="grid" style={{ gridTemplateColumns: "1fr 340px" }}>
-        <Section title="Editor por blocos" action={<BackendNote endpoint="/v1/landing" />}>
+        <Section title="Editor por blocos">
           <div className="card-pad stack" style={{ gap: 10 }}>
             {blocks.map((b) => (
               <div key={b.name} className="card card-pad row-between" style={{ padding: 14 }}>

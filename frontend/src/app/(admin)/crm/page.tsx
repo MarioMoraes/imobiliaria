@@ -1,4 +1,4 @@
-import { PageHeader, StatCard, BackendNote } from "../../../components/ui";
+import { PageHeader, StatCard } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
 import { dealStages, sampleDeals } from "../../../lib/sample";
 
@@ -6,9 +6,7 @@ export default function CrmPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Operação · Módulo 7.7"
         title="CRM — Funil de negócios"
-        lead="Kanban configurável por tenant. Atribuição automática por rodízio e SLA de primeira resposta — a IA cobre o horário fora do expediente."
         actions={
           <>
             <button className="btn btn-outline btn-sm"><Icon name="settings" /> Configurar Funil</button>
@@ -26,7 +24,6 @@ export default function CrmPage() {
 
       <div className="row-between mb-4">
         <h2 className="section-title">Pipeline · Vendas &amp; Locação</h2>
-        <BackendNote endpoint="/v1/deals" />
       </div>
 
       <div className="kanban">

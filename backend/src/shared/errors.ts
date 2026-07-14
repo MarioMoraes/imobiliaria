@@ -22,6 +22,7 @@ export type ErrorCode =
   | "ERR_FUNC_001" // funcionário não encontrado
   | "ERR_FUNC_004" // identidade duplicada (CPF/e-mail)
   | "ERR_FUNC_005" // último ADMIN não pode ser removido
+  | "ERR_FUNC_006" // falha ao enviar o convite ao membro (Clerk)
   // Códigos do MOD-PESSOA (cadastro unificado: locador/locatário/fiador/comprador).
   | "ERR_PESSOA_001" // pessoa não encontrada
   | "ERR_PESSOA_002" // sem contato (email/telefone)

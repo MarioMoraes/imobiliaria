@@ -1,4 +1,4 @@
-import { PageHeader, StatCard, Section, StatusBadge, BackendNote } from "../../../components/ui";
+import { PageHeader, StatCard, Section, StatusBadge } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
 import { samplePlans } from "../../../lib/sample";
 
@@ -13,9 +13,7 @@ export default function PlanosPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Plataforma · Billing"
         title="Planos & Billing"
-        lead="Assinaturas dos tenants via Stripe/Asaas. Enforcement de limites por plano e faturas da plataforma."
         actions={<button className="btn btn-primary btn-sm"><Icon name="plus" /> Novo Plano</button>}
       />
 
@@ -44,7 +42,7 @@ export default function PlanosPage() {
         ))}
       </div>
 
-      <Section title="Faturas da plataforma" action={<BackendNote endpoint="/admin/subscriptions" />}>
+      <Section title="Faturas da plataforma">
         <div className="table-wrap">
           <table className="table">
             <thead><tr><th>Tenant</th><th>Plano</th><th>Valor</th><th>Vencimento</th><th>Status</th></tr></thead>

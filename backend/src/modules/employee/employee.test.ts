@@ -61,6 +61,8 @@ test("cria funcionário vinculado a user+papel e recupera por id", async () => {
   assert.equal(created.accessStatus, "ATIVO");
   assert.deepEqual(created.roles, ["GESTOR"]);
   assert.ok(created.userId, "deve provisionar um user vinculado");
+  // Sem Clerk configurado (dev), o membro nasce ativo, sem convite por e-mail.
+  assert.equal(created.userStatus, "active");
 
   const fetched = await service.getById(t.id, created.id);
   assert.equal(fetched.id, created.id);

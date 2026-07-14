@@ -19,9 +19,7 @@ export default async function DashboardPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Visão geral"
         title="Bom dia, Otávio 👋"
-        lead="O resumo da operação da Imobiliária Demo — captação, funil, financeiro e agentes de IA em um só lugar."
         actions={
           <>
             <button className="btn btn-outline btn-sm">

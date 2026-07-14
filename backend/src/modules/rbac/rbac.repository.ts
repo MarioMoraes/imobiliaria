@@ -25,3 +25,35 @@ export async function resolveUserAndRoles(
     return { userId, roles };
   });
 }
+
+/**
+ * Vínculo de convite no 1º login (MOD-AUTH-06): casa a sessão do Clerk com a
+ * `users` row `invited` do tenant por e-mail e a ativa, gravando o
+ * `clerk_external_id`. Idempotente: o `WHERE ... clerk_external_id IS NULL AND
+ * status='invited'` garante que só a primeira reivindicação surte efeito.
+ * Retorna `{userId, roles}` se reivindicou; `null` se não havia convite a casar.
+ */
+export async function claimInvitedUser(
+  tenantId: string,
+  clerkExternalId: string,
+  email: string,
+): Promise<{ userId: string; roles: string[] } | null> {
+  return withTenant(tenantId, async (client) => {
+    const { rows } = await client.query<{ id: string }>(
+      `UPDATE users
+          SET clerk_external_id = $1, status = 'active', updated_at = now()
+        WHERE lower(email) = lower($2)
+          AND clerk_external_id IS NULL
+          AND status = 'invited'
+        RETURNING id`,
+      [clerkExternalId, email],
+    );
+    if (rows.length === 0) return null;
+    const userId = rows[0]!.id;
+    const { rows: roleRows } = await client.query<{ role: string }>(
+      "SELECT role FROM user_roles WHERE user_id = $1",
+      [userId],
+    );
+    return { userId, roles: roleRows.map((r) => r.role) };
+  });
+}

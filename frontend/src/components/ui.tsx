@@ -3,24 +3,16 @@ import { Icon } from "./Icon";
 
 /* -------------------------------------------------------------- PageHeader */
 export function PageHeader({
-  eyebrow,
   title,
-  lead,
   actions,
 }: {
-  eyebrow?: string;
   title: string;
-  lead?: string;
   actions?: ReactNode;
 }) {
   return (
     <div className="page-header reveal">
       <div>
-        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
-        <h1 className="page-title" style={{ marginTop: eyebrow ? 6 : 0 }}>
-          {title}
-        </h1>
-        {lead && <p className="lead">{lead}</p>}
+        <h1 className="page-title">{title}</h1>
       </div>
       {actions && <div className="row gap-8 wrap">{actions}</div>}
     </div>
@@ -155,16 +147,3 @@ export function EmptyState({
   );
 }
 
-/* ------------------------------------------------------- ModulePlaceholder */
-/** Aviso discreto: módulo com UI pronta, backend a implementar (fases PRD). */
-export function BackendNote({ endpoint }: { endpoint?: string }) {
-  return (
-    <span
-      className="badge badge-slate"
-      title="Interface pronta; endpoint de backend será conectado conforme o roadmap do PRD"
-    >
-      <Icon name="database" size={13} />
-      {endpoint ? `aguardando ${endpoint}` : "dados de exemplo"}
-    </span>
-  );
-}

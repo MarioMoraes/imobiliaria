@@ -1,4 +1,4 @@
-import { PageHeader, StatCard, Section, StatusBadge, BackendNote } from "../../../components/ui";
+import { PageHeader, StatCard, Section, StatusBadge } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
 import { samplePortals } from "../../../lib/sample";
 
@@ -6,9 +6,7 @@ export default function PublicacaoPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Presença Digital · Módulo 7.16"
         title="Publicação em portais"
-        lead="Exportação de feed para Viva Real, ZAP, OLX e Imovelweb, com sincronização de status — imóveis alugados/vendidos saem automaticamente."
         actions={<button className="btn btn-primary btn-sm"><Icon name="megaphone" /> Publicar Imóveis</button>}
       />
 
@@ -39,8 +37,6 @@ export default function PublicacaoPage() {
           </div>
         ))}
       </div>
-
-      <div className="mt-4"><BackendNote endpoint="/v1/portal-integrations" /></div>
     </>
   );
 }

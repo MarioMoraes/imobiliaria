@@ -16,6 +16,49 @@ export function isClerkConfigured(): boolean {
 }
 
 /**
+ * Papel RBAC → papel de organização do Clerk. O Clerk só conhece os papéis da
+ * org (`org:admin`/`org:member`); os papéis reais do app vivem em `user_roles`
+ * no nosso banco. Aqui só distinguimos quem entra como admin da org.
+ */
+function orgRoleFor(rbacRole: string): "org:admin" | "org:member" {
+  return rbacRole === "ADMIN" ? "org:admin" : "org:member";
+}
+
+/**
+ * Convida um e-mail para a organização (= tenant) no Clerk (MOD-AUTH-06). O
+ * `publicMetadata` carrega o vínculo (tenant_id/user_id) para auditoria e para
+ * um futuro webhook; o vínculo efetivo hoje acontece no 1º login (por e-mail).
+ * Lança em falha (ex.: convite pendente duplicado) — o caller decide o rollback.
+ */
+export async function inviteToOrganization(params: {
+  orgId: string;
+  email: string;
+  role: string;
+  publicMetadata?: Record<string, unknown>;
+}): Promise<void> {
+  await clerkClient.organizations.createOrganizationInvitation({
+    organizationId: params.orgId,
+    emailAddress: params.email,
+    role: orgRoleFor(params.role),
+    publicMetadata: params.publicMetadata,
+  });
+}
+
+/**
+ * E-mail primário de um usuário do Clerk. Usado só no claim-on-first-login para
+ * casar a sessão do convidado com a `users` row `invited` (por e-mail). Mantém o
+ * Clerk como único ponto que conhece o provedor.
+ */
+export async function getClerkUserEmail(userId: string): Promise<string | null> {
+  const user = await clerkClient.users.getUser(userId);
+  return (
+    user.primaryEmailAddress?.emailAddress ??
+    user.emailAddresses[0]?.emailAddress ??
+    null
+  );
+}
+
+/**
  * Verificação do JWT de sessão do Clerk (MOD-AUTH-05). Isolado aqui para ser o
  * ÚNICO ponto que conhece o Clerk — o resto do backend depende só do resultado
  * (`{ tenantId, userId }`). Trocar de provedor = trocar este arquivo.

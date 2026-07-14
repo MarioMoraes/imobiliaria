@@ -1,4 +1,4 @@
-import { PageHeader, StatCard, Section, StatusBadge, BackendNote } from "../../../components/ui";
+import { PageHeader, StatCard, Section, StatusBadge } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
 import { formatPrice } from "../../../lib/api";
 import { sampleReceivables, sampleTransfers } from "../../../lib/sample";
@@ -11,9 +11,7 @@ export default function FinanceiroPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Financeiro · Módulo 7.9"
         title="Gestão Financeira"
-        lead="Contas a receber/pagar, cobrança via Asaas, repasse ao proprietário (após compensação), comissões e DRE simplificado."
         actions={
           <>
             <button className="btn btn-outline btn-sm"><Icon name="receipt" /> Exportar</button>
@@ -49,7 +47,7 @@ export default function FinanceiroPage() {
             </div>
           </Section>
 
-          <Section title="Contas a receber" action={<BackendNote endpoint="/v1/receivables" />}>
+          <Section title="Contas a receber">
             <div className="table-wrap">
               <table className="table">
                 <thead><tr><th>Descrição</th><th>Pagador</th><th>Venc.</th><th>Valor</th><th>Status</th></tr></thead>
@@ -88,7 +86,7 @@ export default function FinanceiroPage() {
             </div>
           </Section>
 
-          <Section title="Repasses a proprietários" action={<BackendNote endpoint="/v1/transfers" />}>
+          <Section title="Repasses a proprietários">
             <div className="card-pad stack" style={{ gap: 12 }}>
               {sampleTransfers.map((t, i) => (
                 <div key={i} className="card card-pad" style={{ padding: 14 }}>

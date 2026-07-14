@@ -1,4 +1,4 @@
-import { PageHeader, StatCard, Section, BackendNote } from "../../../components/ui";
+import { PageHeader, StatCard, Section } from "../../../components/ui";
 import { fetchTenants } from "../../../lib/api";
 import { sampleTenants } from "../../../lib/sample";
 import { TenantsManager, type TenantRow } from "./TenantsManager";
@@ -13,11 +13,7 @@ export default async function TenantsPage() {
 
   return (
     <>
-      <PageHeader
-        eyebrow="Plataforma · Super Admin"
-        title="Tenants"
-        lead="Todas as imobiliárias da plataforma — criação, suspensão, plano e uso. Gerido pelo endpoint real /admin/tenants."
-      />
+      <PageHeader title="Tenants" />
 
       <div className="grid grid-4 mb-4">
         <StatCard icon="building" label="Total de tenants" value={String(tenants.length)} tone="blue" />
@@ -28,9 +24,6 @@ export default async function TenantsPage() {
 
       <Section
         title="Imobiliárias"
-        action={isLive
-          ? <span className="badge badge-green"><span className="dot" /> ao vivo · /admin/tenants</span>
-          : <BackendNote endpoint="/admin/tenants" />}
       >
         <TenantsManager tenants={tenants} />
       </Section>
