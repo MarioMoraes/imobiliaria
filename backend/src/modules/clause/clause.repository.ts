@@ -1,76 +1,73 @@
 import { withTenant } from "../../shared/db.js";
-import type {
-  CreatePropertyTypeInput,
-  PropertyType,
-} from "./property-type.schema.js";
+import type { Clause, CreateClauseInput } from "./clause.schema.js";
 
 interface Row {
   id: string;
   tenant_id: string;
   name: string;
+  description: string;
   active: boolean;
   created_at: Date;
   updated_at: Date;
 }
 
-function toPropertyType(row: Row): PropertyType {
+function toClause(row: Row): Clause {
   return {
     id: row.id,
     tenantId: row.tenant_id,
     name: row.name,
+    description: row.description,
     active: row.active,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
   };
 }
 
-export async function listPropertyTypes(
-  tenantId: string,
-): Promise<PropertyType[]> {
+export async function listClauses(tenantId: string): Promise<Clause[]> {
   return withTenant(tenantId, async (client) => {
     const { rows } = await client.query<Row>(
-      "SELECT * FROM property_types ORDER BY name ASC",
+      "SELECT * FROM clauses ORDER BY name ASC",
     );
-    return rows.map(toPropertyType);
+    return rows.map(toClause);
   });
 }
 
 export async function findByName(
   tenantId: string,
   name: string,
-): Promise<PropertyType | null> {
+): Promise<Clause | null> {
   return withTenant(tenantId, async (client) => {
     const { rows } = await client.query<Row>(
-      "SELECT * FROM property_types WHERE lower(name) = lower($1)",
+      "SELECT * FROM clauses WHERE lower(name) = lower($1)",
       [name],
     );
-    return rows[0] ? toPropertyType(rows[0]) : null;
+    return rows[0] ? toClause(rows[0]) : null;
   });
 }
 
-export async function insertPropertyType(
+export async function insertClause(
   tenantId: string,
-  input: CreatePropertyTypeInput,
-): Promise<PropertyType> {
+  input: CreateClauseInput,
+): Promise<Clause> {
   return withTenant(tenantId, async (client) => {
     const { rows } = await client.query<Row>(
-      `INSERT INTO property_types (tenant_id, name)
-       VALUES ($1, $2)
+      `INSERT INTO clauses (tenant_id, name, description)
+       VALUES ($1, $2, $3)
        RETURNING *`,
-      [tenantId, input.name],
+      [tenantId, input.name, input.description],
     );
-    return toPropertyType(rows[0]!);
+    return toClause(rows[0]!);
   });
 }
 
-/** Remove um tipo de imóvel do tenant. Retorna true se algo foi removido. */
-export async function deletePropertyType(
+/** Remove uma cláusula do tenant. Retorna true se algo foi removido. */
+export async function deleteClause(
   tenantId: string,
   id: string,
 ): Promise<boolean> {
   return withTenant(tenantId, async (client) => {
     const { rowCount } = await client.query(
-      "DELETE FROM property_types WHERE id = $1",
+      "DELETE FROM clauses WHERE id = $1",
       [id],
     );
     return (rowCount ?? 0) > 0;

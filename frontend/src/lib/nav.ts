@@ -18,6 +18,7 @@ export const adminNav: NavGroup[] = [
   {
     label: "Cadastros",
     items: [
+      { label: "Tabelas", href: "/tabelas", icon: "database" },
       { label: "Imóveis", href: "/imoveis", icon: "building" },
       { label: "Locadores", href: "/proprietarios", icon: "user" },
       { label: "Locatários", href: "/clientes", icon: "users" },

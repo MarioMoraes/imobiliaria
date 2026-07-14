@@ -81,6 +81,21 @@ export interface PropertyType {
   active: boolean;
 }
 
+/** Cláusula contratual (lookup) — tela "Tabelas". */
+export interface Clause {
+  id: string;
+  name: string;
+  description: string;
+  active: boolean;
+}
+
+/** Item de vistoria (lookup) — tela "Tabelas". */
+export interface InspectionItem {
+  id: string;
+  description: string;
+  active: boolean;
+}
+
 /** Endereço de uma pessoa (residencial/comercial). */
 export interface PersonAddress {
   id?: string;
@@ -183,6 +198,16 @@ export function fetchPropertyTypes(): Promise<PropertyType[] | null> {
   return get<PropertyType[]>("/v1/property-types");
 }
 
+/** Cláusulas contratuais (lookup) do tenant da sessão. */
+export function fetchClauses(): Promise<Clause[] | null> {
+  return get<Clause[]>("/v1/clauses");
+}
+
+/** Itens de vistoria (lookup) do tenant da sessão. */
+export function fetchInspectionItems(): Promise<InspectionItem[] | null> {
+  return get<InspectionItem[]>("/v1/inspection-items");
+}
+
 /** Funcionários (colaboradores internos) do tenant da sessão. */
 export function fetchEmployees(): Promise<Employee[] | null> {
   return get<Employee[]>("/v1/employees");
@@ -209,10 +234,17 @@ export async function sendJson(
   body?: unknown,
 ): Promise<JsonResult> {
   try {
+    // Só declara Content-Type: application/json quando HÁ corpo. Um DELETE
+    // (sem body) com esse header faz o Fastify rejeitar com
+    // FST_ERR_CTP_EMPTY_JSON_BODY ("Body cannot be empty…") → 500.
+    const hasBody = body !== undefined;
     const res = await fetch(`${BACKEND_URL}${path}`, {
       method,
-      headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      headers: {
+        ...(hasBody ? { "Content-Type": "application/json" } : {}),
+        ...(await authHeaders()),
+      },
+      body: hasBody ? JSON.stringify(body) : undefined,
       cache: "no-store",
     });
     const json = (await res.json().catch(() => ({}))) as {

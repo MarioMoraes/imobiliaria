@@ -188,6 +188,66 @@ VALUES
 ON CONFLICT DO NOTHING;
 
 -- ─────────────────────────────────────────────────────────────
+-- Cláusulas contratuais (lookup editável por tenant) — compat. tela
+-- legada "Cadastro de Cláusulas". Reaproveitadas na montagem de contratos.
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS clauses (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  name        TEXT NOT NULL,
+  description TEXT NOT NULL,
+  active      BOOLEAN NOT NULL DEFAULT true,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_clauses_tenant ON clauses (tenant_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_clauses_tenant_name ON clauses (tenant_id, lower(name));
+
+ALTER TABLE clauses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE clauses FORCE  ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON clauses
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON clauses TO app_user;
+
+INSERT INTO clauses (tenant_id, name, description)
+VALUES
+  ('00000000-0000-0000-0000-000000000001', 'Cláusula de 1 ano',
+   'Fica convencionado que, se o Locatário desocupar o Imóvel na data em que o Contrato completar 1 ano, o mesmo ficará isento da multa contratual.')
+ON CONFLICT DO NOTHING;
+
+-- ─────────────────────────────────────────────────────────────
+-- Itens de Vistoria (lookup editável por tenant) — compat. tela legada
+-- "Cadastro de Itens de Vistoria". Itens conferidos na vistoria do imóvel.
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS inspection_items (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  description TEXT NOT NULL,
+  active      BOOLEAN NOT NULL DEFAULT true,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_inspection_items_tenant ON inspection_items (tenant_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_inspection_items_tenant_desc ON inspection_items (tenant_id, lower(description));
+
+ALTER TABLE inspection_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE inspection_items FORCE  ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON inspection_items
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON inspection_items TO app_user;
+
+INSERT INTO inspection_items (tenant_id, description)
+VALUES
+  ('00000000-0000-0000-0000-000000000001', 'Pintura externa'),
+  ('00000000-0000-0000-0000-000000000001', 'Pintura interna'),
+  ('00000000-0000-0000-0000-000000000001', 'Instalações elétricas'),
+  ('00000000-0000-0000-0000-000000000001', 'Instalações hidráulicas'),
+  ('00000000-0000-0000-0000-000000000001', 'Pisos e azulejos')
+ON CONFLICT DO NOTHING;
+
+-- ─────────────────────────────────────────────────────────────
 -- (Fiadores) — os antigos `guarantors`/`guarantor_addresses` foram
 -- absorvidos pelo cadastro unificado `persons` (papel FIADOR), definido
 -- mais abaixo. A tela /fiadores lê `persons` filtrando por roles=FIADOR.

@@ -10,7 +10,6 @@ import {
   type Property,
 } from "../../../lib/api";
 import { sampleProperties } from "../../../lib/sample";
-import { PropertyTypeManager } from "./PropertyTypeManager";
 import { PropertyOwnersCell } from "./PropertyOwnersCell";
 
 export default async function ImoveisPage() {
@@ -46,12 +45,6 @@ export default async function ImoveisPage() {
         <StatCard icon="key" label="Alugados" value={String(count("rented"))} tone="accent" />
         <StatCard icon="target" label="Reservados" value={String(count("reserved"))} tone="warning" />
       </div>
-
-      <Section
-        title="Tipos de imóvel (lookup do tenant)"
-      >
-        <PropertyTypeManager types={types} live={liveTypes !== null} />
-      </Section>
 
       <div className="mt-4">
         <Section

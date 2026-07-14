@@ -21,3 +21,10 @@ export async function create(
   }
   return repo.insertPropertyType(tenantId, input);
 }
+
+export async function remove(tenantId: string, id: string): Promise<void> {
+  const removed = await repo.deletePropertyType(tenantId, id);
+  if (!removed) {
+    throw AppError.notFound("Tipo de imóvel não encontrado");
+  }
+}

@@ -3,6 +3,8 @@ import { healthRoutes } from "../modules/health/health.routes.js";
 import { authRoutes } from "../modules/auth/auth.routes.js";
 import { propertyRoutes } from "../modules/property/property.routes.js";
 import { propertyTypeRoutes } from "../modules/property-type/property-type.routes.js";
+import { clauseRoutes } from "../modules/clause/clause.routes.js";
+import { inspectionItemRoutes } from "../modules/inspection-item/inspection-item.routes.js";
 import { tenantRoutes } from "../modules/tenant/tenant.routes.js";
 import { userRoutes } from "../modules/user/user.routes.js";
 import { employeeRoutes } from "../modules/employee/employee.routes.js";
@@ -38,6 +40,9 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       v1.addHook("onRequest", authContextHook);
       await v1.register(propertyRoutes, { prefix: "/properties" });
       await v1.register(propertyTypeRoutes, { prefix: "/property-types" });
+      // Tabelas auxiliares (lookups): cláusulas contratuais e itens de vistoria.
+      await v1.register(clauseRoutes, { prefix: "/clauses" });
+      await v1.register(inspectionItemRoutes, { prefix: "/inspection-items" });
       await v1.register(userRoutes, { prefix: "/users" });
       await v1.register(employeeRoutes, { prefix: "/employees" });
       // Cadastro unificado de pessoas (locador/locatário/fiador).
