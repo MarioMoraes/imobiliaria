@@ -3,17 +3,20 @@
 import { useState } from "react";
 import { Icon } from "../../../components/Icon";
 import { Modal } from "../../../components/Modal";
-import type { Clause, InspectionItem, PropertyType } from "../../../lib/api";
+import type { Clause, District, Event, InspectionItem, PropertyType } from "../../../lib/api";
 import { SingleFieldManager } from "./SingleFieldManager";
 import { ClauseManager } from "./ClauseManager";
+import { EventManager } from "./EventManager";
 import {
+  createDistrictAction,
   createItemAction,
   createTypeAction,
+  deleteDistrictAction,
   deleteItemAction,
   deleteTypeAction,
 } from "./actions";
 
-type CardKey = "types" | "clauses" | "items";
+type CardKey = "types" | "clauses" | "items" | "districts" | "events";
 
 interface CardMeta {
   key: CardKey;
@@ -34,16 +37,24 @@ export function TabelasGrid({
   types,
   clauses,
   items,
+  districts,
+  events,
   liveTypes,
   liveClauses,
   liveItems,
+  liveDistricts,
+  liveEvents,
 }: {
   types: PropertyType[];
   clauses: Clause[];
   items: InspectionItem[];
+  districts: District[];
+  events: Event[];
   liveTypes: boolean;
   liveClauses: boolean;
   liveItems: boolean;
+  liveDistricts: boolean;
+  liveEvents: boolean;
 }) {
   const [open, setOpen] = useState<CardKey | null>(null);
 
@@ -74,6 +85,24 @@ export function TabelasGrid({
       description: "Itens conferidos na vistoria do imóvel.",
       count: items.length,
       live: liveItems,
+    },
+    {
+      key: "districts",
+      title: "Bairros",
+      icon: "mapPin",
+      tone: "warning",
+      description: "Bairros usados nos endereços.",
+      count: districts.length,
+      live: liveDistricts,
+    },
+    {
+      key: "events",
+      title: "Eventos",
+      icon: "receipt",
+      tone: "accent",
+      description: "Eventos financeiros de cobrança (juros/multa).",
+      count: events.length,
+      live: liveEvents,
     },
   ];
 
@@ -138,6 +167,20 @@ export function TabelasGrid({
             createAction={createItemAction}
             deleteAction={deleteItemAction}
           />
+        )}
+        {active?.key === "districts" && (
+          <SingleFieldManager
+            rows={districts.map((d) => ({ id: d.id, label: d.name }))}
+            fieldName="name"
+            placeholder="Novo bairro (ex.: Centro)"
+            emptyLabel="Nenhum bairro cadastrado."
+            live={liveDistricts}
+            createAction={createDistrictAction}
+            deleteAction={deleteDistrictAction}
+          />
+        )}
+        {active?.key === "events" && (
+          <EventManager events={events} live={liveEvents} />
         )}
       </Modal>
     </>

@@ -38,6 +38,20 @@ const schema = z.object({
     .string()
     .default("true")
     .transform((v) => v.trim().toLowerCase() === "true" || v.trim() === "1"),
+
+  // ── Object storage (S3-compatível; MinIO em dev) ───────────────
+  // Mídia (fotos de imóveis) mora no bucket; o Postgres guarda só a chave.
+  // Defaults apontam para o MinIO local do docker-compose.
+  S3_ENDPOINT: z.string().default("http://localhost:9000"),
+  S3_REGION: z.string().default("us-east-1"),
+  S3_ACCESS_KEY: z.string().default("minioadmin"),
+  S3_SECRET_KEY: z.string().default("minioadmin"),
+  S3_BUCKET: z.string().default("imobiliaria-media"),
+  // MinIO exige path-style (host/bucket/key). S3/R2 aceitam ambos.
+  S3_FORCE_PATH_STYLE: z
+    .string()
+    .default("true")
+    .transform((v) => v.trim().toLowerCase() === "true" || v.trim() === "1"),
 });
 
 const parsed = schema.parse(process.env);

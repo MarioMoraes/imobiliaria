@@ -10,7 +10,13 @@ import { registerRoutes } from "./gateway/routes.js";
  * Constrói a instância Fastify (sem iniciar o listen — facilita testes).
  */
 export async function buildApp(): Promise<FastifyInstance> {
-  const app = Fastify({ logger: loggerOptions, genReqId: () => randomUUID() });
+  const app = Fastify({
+    logger: loggerOptions,
+    genReqId: () => randomUUID(),
+    // Fotos são enviadas embutidas (data URL base64) na Fase 0 — o default de
+    // 1 MB do Fastify é apertado. 8 MB dá folga (o cliente já comprime).
+    bodyLimit: 8 * 1024 * 1024,
+  });
 
   await app.register(cors, { origin: env.CORS_ORIGIN, credentials: true });
 

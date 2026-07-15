@@ -1,6 +1,12 @@
 import { withTenant } from "../../shared/db.js";
 import type { PoolClient } from "pg";
-import type { CreatePropertyInput, Property, PropertyOwner } from "./property.schema.js";
+import type {
+  CreatePropertyInput,
+  Property,
+  PropertyOwner,
+  StoredPhoto,
+  UpdatePropertyInput,
+} from "./property.schema.js";
 
 /**
  * Acesso a dados de imóveis. Toda operação roda dentro de `withTenant`,
@@ -11,6 +17,7 @@ import type { CreatePropertyInput, Property, PropertyOwner } from "./property.sc
 interface Row {
   id: string;
   tenant_id: string;
+  code: number | null;
   title: string;
   kind: string;
   purpose: string;
@@ -18,13 +25,131 @@ interface Row {
   is_development: boolean;
   status: string;
   price_cents: string | null;
+
+  contract_number: string | null;
+  condominium_id: string | null;
+  is_commercial: boolean;
+
+  street_type: string | null;
+  address: string | null;
+  district: string | null;
   city: string | null;
   state: string | null;
+  zip: string | null;
+  keys_location: string | null;
+  has_sign: boolean;
+  position_front: boolean;
+  position_back: boolean;
+
   bedrooms: number | null;
+  built_area: string | null;
+  land_area: string | null;
+  floor_info: string | null;
+  ceiling_info: string | null;
+  electricity_meter: string | null;
+  water_meter: string | null;
+  dependencies: string | null;
+  allow_pets: boolean;
+  allow_students: boolean;
+
+  condo_fee_cents: string | null;
+  iptu_cents: string | null;
+  iptu_charged_to: string | null;
+  iptu_reimburse_owner: boolean;
+  iptu_installments: number | null;
+  iptu_installment_cents: string | null;
+  admin_fee_percent: string | null;
+  charge_admin_fee: boolean;
+  is_guaranteed: boolean;
+
+  lease_term_months: number | null;
+  lease_start: string | null; // castado p/ text no SELECT (evita shift de fuso)
+  penalty_info: string | null;
+  has_commission: boolean;
+  commission_type: string | null;
+  entry_date: string | null;
+
+  broker_id: string | null;
+  capturer_id: string | null;
+  extra_data: string | null;
+  publish_web: boolean;
+  has_photos: boolean;
+  notes: string | null;
+
   owners: PropertyOwner[] | null;
   created_at: Date;
   updated_at: Date;
 }
+
+/** BIGINT/NUMERIC chegam como string no pg; converte preservando null. */
+const num = (v: string | null): number | null => (v === null ? null : Number(v));
+
+/**
+ * Mapa dos campos editáveis (input camelCase → coluna snake_case). Fonte única
+ * usada pelo INSERT e pelo UPDATE dinâmicos — evita contar placeholders à mão.
+ * `code`, `id`, timestamps e os donos ficam de fora (não vêm do input).
+ */
+const COLUMN = {
+  title: "title",
+  kind: "kind",
+  purpose: "purpose",
+  propertyTypeId: "property_type_id",
+  isDevelopment: "is_development",
+  status: "status",
+  priceCents: "price_cents",
+
+  contractNumber: "contract_number",
+  condominiumId: "condominium_id",
+  isCommercial: "is_commercial",
+
+  streetType: "street_type",
+  address: "address",
+  district: "district",
+  city: "city",
+  state: "state",
+  zip: "zip",
+  keysLocation: "keys_location",
+  hasSign: "has_sign",
+  positionFront: "position_front",
+  positionBack: "position_back",
+
+  bedrooms: "bedrooms",
+  builtArea: "built_area",
+  landArea: "land_area",
+  floorInfo: "floor_info",
+  ceilingInfo: "ceiling_info",
+  electricityMeter: "electricity_meter",
+  waterMeter: "water_meter",
+  dependencies: "dependencies",
+  allowPets: "allow_pets",
+  allowStudents: "allow_students",
+
+  condoFeeCents: "condo_fee_cents",
+  iptuCents: "iptu_cents",
+  iptuChargedTo: "iptu_charged_to",
+  iptuReimburseOwner: "iptu_reimburse_owner",
+  iptuInstallments: "iptu_installments",
+  iptuInstallmentCents: "iptu_installment_cents",
+  adminFeePercent: "admin_fee_percent",
+  chargeAdminFee: "charge_admin_fee",
+  isGuaranteed: "is_guaranteed",
+
+  leaseTermMonths: "lease_term_months",
+  leaseStart: "lease_start",
+  penaltyInfo: "penalty_info",
+  hasCommission: "has_commission",
+  commissionType: "commission_type",
+  entryDate: "entry_date",
+
+  brokerId: "broker_id",
+  capturerId: "capturer_id",
+  extraData: "extra_data",
+  publishWeb: "publish_web",
+  hasPhotos: "has_photos",
+  notes: "notes",
+} as const;
+
+type ColumnKey = keyof typeof COLUMN;
 
 // Subquery que agrega os donos (property_owners ⋈ persons) como jsonb — usada
 // no list e no detalhe para trazer os proprietários sem N+1.
@@ -38,20 +163,74 @@ const OWNERS_LATERAL = `
     WHERE po.property_id = p.id
   ) o ON true`;
 
+// Campos DATE cast para text (evita que o parser do pg desloque o dia por fuso).
+// Vêm depois de `p.*`, então sobrescrevem as colunas homônimas no objeto de linha.
+const SELECT_COLS = `p.*, p.lease_start::text AS lease_start, p.entry_date::text AS entry_date, o.owners`;
+const RETURNING_COLS = `*, lease_start::text AS lease_start, entry_date::text AS entry_date`;
+
 function toProperty(row: Row): Property {
   return {
     id: row.id,
     tenantId: row.tenant_id,
+    code: row.code,
     title: row.title,
     kind: row.kind,
     purpose: row.purpose,
     propertyTypeId: row.property_type_id,
     isDevelopment: row.is_development,
     status: row.status,
-    priceCents: row.price_cents === null ? null : Number(row.price_cents),
+    priceCents: num(row.price_cents),
+
+    contractNumber: row.contract_number,
+    condominiumId: row.condominium_id,
+    isCommercial: row.is_commercial,
+
+    streetType: row.street_type,
+    address: row.address,
+    district: row.district,
     city: row.city,
     state: row.state,
+    zip: row.zip,
+    keysLocation: row.keys_location,
+    hasSign: row.has_sign,
+    positionFront: row.position_front,
+    positionBack: row.position_back,
+
     bedrooms: row.bedrooms,
+    builtArea: num(row.built_area),
+    landArea: num(row.land_area),
+    floorInfo: row.floor_info,
+    ceilingInfo: row.ceiling_info,
+    electricityMeter: row.electricity_meter,
+    waterMeter: row.water_meter,
+    dependencies: row.dependencies,
+    allowPets: row.allow_pets,
+    allowStudents: row.allow_students,
+
+    condoFeeCents: num(row.condo_fee_cents),
+    iptuCents: num(row.iptu_cents),
+    iptuChargedTo: row.iptu_charged_to,
+    iptuReimburseOwner: row.iptu_reimburse_owner,
+    iptuInstallments: row.iptu_installments,
+    iptuInstallmentCents: num(row.iptu_installment_cents),
+    adminFeePercent: num(row.admin_fee_percent),
+    chargeAdminFee: row.charge_admin_fee,
+    isGuaranteed: row.is_guaranteed,
+
+    leaseTermMonths: row.lease_term_months,
+    leaseStart: row.lease_start,
+    penaltyInfo: row.penalty_info,
+    hasCommission: row.has_commission,
+    commissionType: row.commission_type,
+    entryDate: row.entry_date,
+
+    brokerId: row.broker_id,
+    capturerId: row.capturer_id,
+    extraData: row.extra_data,
+    publishWeb: row.publish_web,
+    hasPhotos: row.has_photos,
+    notes: row.notes,
+
     owners: (row.owners ?? []).map((o) => ({ ...o, sharePercent: Number(o.sharePercent) })),
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
@@ -60,7 +239,7 @@ function toProperty(row: Row): Property {
 
 async function loadProperty(client: PoolClient, id: string): Promise<Property> {
   const { rows } = await client.query<Row>(
-    `SELECT p.*, o.owners FROM properties p ${OWNERS_LATERAL} WHERE p.id = $1`,
+    `SELECT ${SELECT_COLS} FROM properties p ${OWNERS_LATERAL} WHERE p.id = $1`,
     [id],
   );
   return toProperty(rows[0]!);
@@ -69,7 +248,7 @@ async function loadProperty(client: PoolClient, id: string): Promise<Property> {
 export async function listProperties(tenantId: string): Promise<Property[]> {
   return withTenant(tenantId, async (client) => {
     const { rows } = await client.query<Row>(
-      `SELECT p.*, o.owners FROM properties p ${OWNERS_LATERAL}
+      `SELECT ${SELECT_COLS} FROM properties p ${OWNERS_LATERAL}
         ORDER BY p.created_at DESC LIMIT 100`,
     );
     return rows.map(toProperty);
@@ -127,25 +306,147 @@ export async function insertProperty(
   input: CreatePropertyInput,
 ): Promise<Property> {
   return withTenant(tenantId, async (client) => {
-    const { rows } = await client.query<Row>(
-      `INSERT INTO properties
-         (tenant_id, title, kind, purpose, property_type_id, is_development, status, price_cents, city, state, bedrooms)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-       RETURNING *`,
-      [
-        tenantId,
-        input.title,
-        input.kind,
-        input.purpose,
-        input.propertyTypeId ?? null,
-        input.isDevelopment,
-        input.status,
-        input.priceCents ?? null,
-        input.city ?? null,
-        input.state ?? null,
-        input.bedrooms ?? null,
-      ],
+    // Código sequencial por tenant (RLS já escopa o MAX ao tenant corrente).
+    const codeRes = await client.query<{ next: number }>(
+      "SELECT COALESCE(MAX(code), 0) + 1 AS next FROM properties",
     );
-    return toProperty(rows[0]!);
+    const code = Number(codeRes.rows[0]!.next);
+
+    const cols = ["tenant_id", "code"];
+    const values: unknown[] = [tenantId, code];
+    for (const [key, col] of Object.entries(COLUMN)) {
+      cols.push(col);
+      values.push((input as Record<string, unknown>)[key] ?? null);
+    }
+    const placeholders = values.map((_, i) => `$${i + 1}`).join(", ");
+    const { rows } = await client.query<Row>(
+      `INSERT INTO properties (${cols.join(", ")})
+       VALUES (${placeholders})
+       RETURNING ${RETURNING_COLS}`,
+      values,
+    );
+    // owners recém-criados são [] — recarrega no formato canônico.
+    return loadProperty(client, rows[0]!.id);
+  });
+}
+
+export async function updateProperty(
+  tenantId: string,
+  id: string,
+  input: UpdatePropertyInput,
+): Promise<Property | null> {
+  const sets: string[] = [];
+  const values: unknown[] = [];
+  for (const [key, col] of Object.entries(COLUMN)) {
+    const value = (input as Record<string, unknown>)[key as ColumnKey];
+    if (value !== undefined) {
+      values.push(value);
+      sets.push(`${col} = $${values.length}`);
+    }
+  }
+  if (sets.length === 0) return findProperty(tenantId, id);
+
+  return withTenant(tenantId, async (client) => {
+    values.push(id);
+    const { rowCount } = await client.query(
+      `UPDATE properties SET ${sets.join(", ")}, updated_at = now()
+       WHERE id = $${values.length}`,
+      values,
+    );
+    return (rowCount ?? 0) > 0 ? loadProperty(client, id) : null;
+  });
+}
+
+/** Remove um imóvel do tenant. Retorna true se algo foi removido. */
+export async function deleteProperty(
+  tenantId: string,
+  id: string,
+): Promise<boolean> {
+  return withTenant(tenantId, async (client) => {
+    const { rowCount } = await client.query(
+      "DELETE FROM properties WHERE id = $1",
+      [id],
+    );
+    return (rowCount ?? 0) > 0;
+  });
+}
+
+/* ---------------------------------------------------------- Fotos do imóvel */
+
+interface PhotoRow {
+  id: string;
+  property_id: string;
+  storage_key: string;
+  content_type: string | null;
+  size_bytes: string | null; // BIGINT chega como string
+  caption: string | null;
+  position: number;
+  created_at: Date;
+}
+
+function toStoredPhoto(r: PhotoRow): StoredPhoto {
+  return {
+    id: r.id,
+    propertyId: r.property_id,
+    storageKey: r.storage_key,
+    contentType: r.content_type,
+    sizeBytes: num(r.size_bytes),
+    caption: r.caption,
+    position: r.position,
+    createdAt: r.created_at.toISOString(),
+  };
+}
+
+const PHOTO_COLS =
+  "id, property_id, storage_key, content_type, size_bytes, caption, position, created_at";
+
+export async function listPhotos(
+  tenantId: string,
+  propertyId: string,
+): Promise<StoredPhoto[]> {
+  return withTenant(tenantId, async (client) => {
+    const { rows } = await client.query<PhotoRow>(
+      `SELECT ${PHOTO_COLS} FROM property_photos WHERE property_id = $1
+        ORDER BY position ASC, created_at ASC`,
+      [propertyId],
+    );
+    return rows.map(toStoredPhoto);
+  });
+}
+
+export async function insertPhoto(
+  tenantId: string,
+  propertyId: string,
+  photo: { storageKey: string; contentType: string; sizeBytes: number; caption?: string | null },
+): Promise<StoredPhoto> {
+  return withTenant(tenantId, async (client) => {
+    // Próxima posição = fim da fila (MAX+1 dentro do imóvel).
+    const { rows } = await client.query<PhotoRow>(
+      `INSERT INTO property_photos (tenant_id, property_id, storage_key, content_type, size_bytes, caption, position)
+       VALUES ($1, $2, $3, $4, $5, $6,
+         (SELECT COALESCE(MAX(position), -1) + 1 FROM property_photos WHERE property_id = $2))
+       RETURNING ${PHOTO_COLS}`,
+      [tenantId, propertyId, photo.storageKey, photo.contentType, photo.sizeBytes, photo.caption ?? null],
+    );
+    return toStoredPhoto(rows[0]!);
+  });
+}
+
+/**
+ * Remove a linha da foto e devolve a `storage_key` removida (para o service
+ * apagar o objeto no bucket). Retorna null se nada foi removido.
+ */
+export async function deletePhoto(
+  tenantId: string,
+  propertyId: string,
+  photoId: string,
+): Promise<string | null> {
+  return withTenant(tenantId, async (client) => {
+    const { rows } = await client.query<{ storage_key: string }>(
+      `DELETE FROM property_photos WHERE id = $1 AND property_id = $2
+       RETURNING storage_key`,
+      [photoId, propertyId],
+    );
+    return rows[0]?.storage_key ?? null;
   });
 }

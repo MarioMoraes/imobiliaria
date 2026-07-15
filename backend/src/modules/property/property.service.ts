@@ -1,9 +1,18 @@
 import { randomUUID } from "node:crypto";
 import { AppError } from "../../shared/errors.js";
 import { publish } from "../../shared/events.js";
+import { deleteObject, presignGetUrl, putObject } from "../../shared/storage.js";
 import * as repo from "./property.repository.js";
 import * as personService from "../person/person.service.js";
-import type { CreatePropertyInput, Property, PropertyOwner } from "./property.schema.js";
+import type {
+  AddPhotoInput,
+  CreatePropertyInput,
+  Property,
+  PropertyOwner,
+  PropertyPhoto,
+  StoredPhoto,
+  UpdatePropertyInput,
+} from "./property.schema.js";
 
 /**
  * Regras de negócio de imóveis. O service é a fronteira do módulo:
@@ -36,6 +45,30 @@ export async function create(
   });
 
   return property;
+}
+
+export async function update(
+  tenantId: string,
+  id: string,
+  input: UpdatePropertyInput,
+): Promise<Property> {
+  const updated = await repo.updateProperty(tenantId, id, input);
+  if (!updated) throw AppError.notFound("Imóvel não encontrado");
+
+  await publish({
+    type: "property.updated",
+    tenantId,
+    eventId: randomUUID(),
+    occurredAt: new Date().toISOString(),
+    payload: { propertyId: id },
+  });
+
+  return updated;
+}
+
+export async function remove(tenantId: string, id: string): Promise<void> {
+  const removed = await repo.deleteProperty(tenantId, id);
+  if (!removed) throw AppError.notFound("Imóvel não encontrado");
 }
 
 /** Donos (proprietários) de um imóvel. */
@@ -78,4 +111,77 @@ export async function removeOwner(
   const property = await repo.findProperty(tenantId, propertyId);
   if (!property) throw AppError.notFound("Imóvel não encontrado");
   return repo.removeOwner(tenantId, propertyId, personId);
+}
+
+/* ------------------------------------------------------------ Fotos */
+
+/** Data URL base64 → { buffer, contentType, ext }. */
+function decodeDataUrl(dataUrl: string): { buffer: Buffer; contentType: string; ext: string } {
+  const m = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/s.exec(dataUrl);
+  if (!m) throw AppError.badRequest("Imagem inválida");
+  const contentType = m[1]!;
+  const buffer = Buffer.from(m[2]!, "base64");
+  const ext = contentType.split("/")[1]!.replace("jpeg", "jpg").replace("+xml", "");
+  return { buffer, contentType, ext };
+}
+
+/** Transforma o registro do banco na foto exposta (URL presignada temporária). */
+async function toPublicPhoto(photo: StoredPhoto): Promise<PropertyPhoto> {
+  return {
+    id: photo.id,
+    propertyId: photo.propertyId,
+    url: await presignGetUrl(photo.storageKey),
+    caption: photo.caption,
+    position: photo.position,
+    createdAt: photo.createdAt,
+  };
+}
+
+export async function listPhotos(tenantId: string, propertyId: string): Promise<PropertyPhoto[]> {
+  await getById(tenantId, propertyId); // 404 se o imóvel não existir
+  const stored = await repo.listPhotos(tenantId, propertyId);
+  return Promise.all(stored.map(toPublicPhoto));
+}
+
+export async function addPhoto(
+  tenantId: string,
+  propertyId: string,
+  input: AddPhotoInput,
+): Promise<PropertyPhoto> {
+  await getById(tenantId, propertyId);
+
+  const { buffer, contentType, ext } = decodeDataUrl(input.dataUrl);
+  const storageKey = `${tenantId}/properties/${propertyId}/${randomUUID()}.${ext}`;
+  await putObject(storageKey, buffer, contentType);
+
+  const photo = await repo.insertPhoto(tenantId, propertyId, {
+    storageKey,
+    contentType,
+    sizeBytes: buffer.length,
+    caption: input.caption ?? null,
+  });
+
+  await publish({
+    type: "property.photo_added",
+    tenantId,
+    eventId: randomUUID(),
+    occurredAt: new Date().toISOString(),
+    payload: { propertyId, photoId: photo.id },
+  });
+  return toPublicPhoto(photo);
+}
+
+export async function removePhoto(
+  tenantId: string,
+  propertyId: string,
+  photoId: string,
+): Promise<void> {
+  const storageKey = await repo.deletePhoto(tenantId, propertyId, photoId);
+  if (!storageKey) throw AppError.notFound("Foto não encontrada");
+  // Remove o objeto do bucket (best-effort: a linha já saiu do banco).
+  try {
+    await deleteObject(storageKey);
+  } catch {
+    /* órfão no bucket é tolerável; um GC pode limpar depois */
+  }
 }

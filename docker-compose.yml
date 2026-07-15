@@ -45,5 +45,8 @@ services:
       timeout: 5s
       retries: 10
 
+  # Object storage (mídia/fotos) é externo em dev também: Cloudflare R2
+  # (S3-compatível). Configure as vars S3_* no backend/.env — sem container local.
+
 volumes:
   pgdata:

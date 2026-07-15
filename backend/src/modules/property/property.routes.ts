@@ -2,7 +2,12 @@ import type { FastifyInstance } from "fastify";
 import { getTenantId } from "../../shared/tenant-context.js";
 import { AppError } from "../../shared/errors.js";
 import { requirePermission } from "../rbac/authorize.js";
-import { addOwnerSchema, createPropertySchema } from "./property.schema.js";
+import {
+  addOwnerSchema,
+  addPhotoSchema,
+  createPropertySchema,
+  updatePropertySchema,
+} from "./property.schema.js";
 import * as service from "./property.service.js";
 
 /**
@@ -30,6 +35,27 @@ export async function propertyRoutes(app: FastifyInstance): Promise<void> {
     return { data: property };
   });
 
+  app.patch<{ Params: { id: string } }>(
+    "/:id",
+    { preHandler: requirePermission("property:write") },
+    async (req) => {
+      const parsed = updatePropertySchema.safeParse(req.body);
+      if (!parsed.success) {
+        throw AppError.badRequest("Atualização do imóvel inválida", parsed.error.flatten());
+      }
+      return { data: await service.update(getTenantId(), req.params.id, parsed.data) };
+    },
+  );
+
+  app.delete<{ Params: { id: string } }>(
+    "/:id",
+    { preHandler: requirePermission("property:delete") },
+    async (req) => {
+      await service.remove(getTenantId(), req.params.id);
+      return { data: { deleted: true } };
+    },
+  );
+
   // ── Donos (proprietários) do imóvel ──────────────────────────────
   app.get("/:id/owners", { preHandler: requirePermission("property:read") }, async (req) => {
     const { id } = req.params as { id: string };
@@ -53,6 +79,33 @@ export async function propertyRoutes(app: FastifyInstance): Promise<void> {
     async (req) => {
       const { id, personId } = req.params as { id: string; personId: string };
       return { data: await service.removeOwner(getTenantId(), id, personId) };
+    },
+  );
+
+  // ── Fotos do imóvel ──────────────────────────────────────────────
+  app.get("/:id/photos", { preHandler: requirePermission("property:read") }, async (req) => {
+    const { id } = req.params as { id: string };
+    return { data: await service.listPhotos(getTenantId(), id) };
+  });
+
+  app.post("/:id/photos", { preHandler: requirePermission("property:write") }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const parsed = addPhotoSchema.safeParse(req.body);
+    if (!parsed.success) {
+      throw AppError.badRequest("Foto inválida", parsed.error.flatten());
+    }
+    const photo = await service.addPhoto(getTenantId(), id, parsed.data);
+    reply.code(201);
+    return { data: photo };
+  });
+
+  app.delete(
+    "/:id/photos/:photoId",
+    { preHandler: requirePermission("property:write") },
+    async (req) => {
+      const { id, photoId } = req.params as { id: string; photoId: string };
+      await service.removePhoto(getTenantId(), id, photoId);
+      return { data: { deleted: true } };
     },
   );
 }

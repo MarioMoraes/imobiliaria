@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { listProperties, insertProperty } from "./property.repository.js";
+import { createPropertySchema } from "./property.schema.js";
 
 /**
  * Teste de ISOLAMENTO MULTI-TENANT (SPEC seções 3.1 e 14) — obrigatório no CI.
@@ -15,13 +16,15 @@ const DEMO_TENANT = "00000000-0000-0000-0000-000000000001";
 const OTHER_TENANT = "00000000-0000-0000-0000-0000000000ff"; // inexistente / sem dados
 
 test("um imóvel criado no tenant demo não é visível por outro tenant", async () => {
-  const created = await insertProperty(DEMO_TENANT, {
-    title: "Imóvel de teste de isolamento",
-    kind: "sale",
-    purpose: "sale",
-    isDevelopment: false,
-    status: "available",
-  });
+  const created = await insertProperty(
+    DEMO_TENANT,
+    createPropertySchema.parse({
+      title: "Imóvel de teste de isolamento",
+      kind: "sale",
+      purpose: "sale",
+      status: "available",
+    }),
+  );
 
   const visibleToDemo = await listProperties(DEMO_TENANT);
   assert.ok(

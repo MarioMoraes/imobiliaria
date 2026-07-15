@@ -103,6 +103,61 @@ CREATE TABLE IF NOT EXISTS properties (
 
 CREATE INDEX IF NOT EXISTS idx_properties_tenant ON properties (tenant_id);
 
+-- ── Cadastro completo "Imóveis a Alugar" (tela legada) ───────────
+-- Campos aditivos ao núcleo acima. ADD COLUMN IF NOT EXISTS mantém a
+-- compatibilidade com volumes/seed já existentes e é idempotente.
+-- Identificação
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS code               INT;              -- Código sequencial por tenant
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS contract_number    TEXT;             -- Contrato
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS condominium_id     UUID;             -- FK lógica → condominiums
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS is_commercial      BOOLEAN NOT NULL DEFAULT false; -- Comércio
+-- Endereço
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS street_type        TEXT;             -- Logradouro (Rua/Alameda/Av.)
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS address            TEXT;             -- Endereço
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS district           TEXT;             -- Bairro
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS zip                TEXT;             -- CEP
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS keys_location      TEXT;             -- Chaves
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS has_sign           BOOLEAN NOT NULL DEFAULT false; -- Placa
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS position_front     BOOLEAN NOT NULL DEFAULT false; -- Frente
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS position_back      BOOLEAN NOT NULL DEFAULT false; -- Fundos
+-- Características
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS built_area         NUMERIC(10,2);    -- Área Construída
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS land_area          NUMERIC(10,2);    -- Área Terreno
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS floor_info         TEXT;             -- Piso
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS ceiling_info       TEXT;             -- Teto
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS electricity_meter  TEXT;             -- Luz
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS water_meter        TEXT;             -- Água
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS dependencies       TEXT;             -- Depend
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS allow_pets         BOOLEAN NOT NULL DEFAULT false; -- Animais
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS allow_students     BOOLEAN NOT NULL DEFAULT false; -- Estudantes
+-- Valores / encargos
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS condo_fee_cents      BIGINT;         -- VL Cond
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS iptu_cents           BIGINT;         -- IPTU
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS iptu_charged_to      TEXT;           -- Descontar IPTU de (LOCATARIO|LOCADOR)
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS iptu_reimburse_owner BOOLEAN NOT NULL DEFAULT false; -- Ressarcir Locador (IPTU)
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS iptu_installments    INT;            -- Nº Parcelas
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS iptu_installment_cents BIGINT;       -- Valor Parcelas
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS admin_fee_percent    NUMERIC(5,2);   -- Tx Adm %
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS charge_admin_fee     BOOLEAN NOT NULL DEFAULT false; -- Tx Adm
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS is_guaranteed        BOOLEAN NOT NULL DEFAULT false; -- Garantido
+-- Locação / comissão
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS lease_term_months   INT;             -- Prazo Contrato de Locação
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS lease_start         DATE;            -- Início
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS penalty_info        TEXT;            -- Multa
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS has_commission      BOOLEAN NOT NULL DEFAULT false; -- Comissão
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS commission_type     TEXT;            -- (ex.: "1º Mês de Aluguel")
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS entry_date          DATE;            -- Entrada
+-- Captação / publicação / observações
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS broker_id           UUID;            -- Corretor (FK lógica → employees)
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS capturer_id         UUID;            -- Captador (FK lógica → employees)
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS extra_data          TEXT;            -- Dados
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS publish_web         BOOLEAN NOT NULL DEFAULT false; -- Publicar / Internet
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS has_photos          BOOLEAN NOT NULL DEFAULT false; -- Com Foto
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS notes               TEXT;            -- Obs
+
+-- Código sequencial por tenant (referência humana, como a tela legada).
+CREATE UNIQUE INDEX IF NOT EXISTS idx_properties_tenant_code ON properties (tenant_id, code);
+
 -- ── RLS: isola linhas por tenant ─────────────────────────────────
 -- A aplicação define o tenant corrente por transação com:
 --   SELECT set_config('app.tenant_id', '<uuid>', true);
@@ -245,6 +300,70 @@ VALUES
   ('00000000-0000-0000-0000-000000000001', 'Instalações elétricas'),
   ('00000000-0000-0000-0000-000000000001', 'Instalações hidráulicas'),
   ('00000000-0000-0000-0000-000000000001', 'Pisos e azulejos')
+ON CONFLICT DO NOTHING;
+
+-- ─────────────────────────────────────────────────────────────
+-- Bairros (lookup) — nome do bairro reaproveitado nos endereços. Tela
+-- "Tabelas". Tabela de domínio, protegida por RLS.
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS districts (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  name        TEXT NOT NULL,
+  active      BOOLEAN NOT NULL DEFAULT true,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_districts_tenant ON districts (tenant_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_districts_tenant_name ON districts (tenant_id, lower(name));
+
+ALTER TABLE districts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE districts FORCE  ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON districts
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON districts TO app_user;
+
+INSERT INTO districts (tenant_id, name)
+VALUES
+  ('00000000-0000-0000-0000-000000000001', 'Centro'),
+  ('00000000-0000-0000-0000-000000000001', 'Jardins'),
+  ('00000000-0000-0000-0000-000000000001', 'Zona Sul')
+ON CONFLICT DO NOTHING;
+
+-- ─────────────────────────────────────────────────────────────
+-- Eventos financeiros (lookup) — tela "Tabelas". Tipo (débito/crédito) +
+-- encargos por atraso (juros, juros de execução judicial, multa) e se incide
+-- a taxa de administração. Usados na composição de débitos/créditos da
+-- cobrança. Tabela de domínio, protegida por RLS.
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS events (
+  id                        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id                 UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  name                      TEXT NOT NULL,
+  kind                      TEXT NOT NULL DEFAULT 'DEBITO',   -- DEBITO | CREDITO
+  interest_percent          NUMERIC(6,3) NOT NULL DEFAULT 0,  -- Juros %
+  judicial_interest_percent NUMERIC(6,3) NOT NULL DEFAULT 0,  -- Juros Exec Judicial %
+  penalty_percent           NUMERIC(6,3) NOT NULL DEFAULT 0,  -- Multa %
+  applies_admin_fee         BOOLEAN NOT NULL DEFAULT false,   -- Incide Taxa de Administração
+  active                    BOOLEAN NOT NULL DEFAULT true,
+  created_at                TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at                TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_events_tenant ON events (tenant_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_events_tenant_name ON events (tenant_id, lower(name));
+
+ALTER TABLE events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE events FORCE  ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON events
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON events TO app_user;
+
+INSERT INTO events (tenant_id, name, kind, interest_percent, judicial_interest_percent, penalty_percent, applies_admin_fee)
+VALUES
+  ('00000000-0000-0000-0000-000000000001', 'ÁGUA',       'DEBITO', 0.000, 1.000, 0.000, false),
+  ('00000000-0000-0000-0000-000000000001', 'CONDOMÍNIO', 'DEBITO', 1.000, 1.000, 2.000, true)
 ON CONFLICT DO NOTHING;
 
 -- ─────────────────────────────────────────────────────────────
@@ -476,6 +595,30 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON person_addresses       TO app_user;
 GRANT SELECT, INSERT, UPDATE, DELETE ON person_search_profiles TO app_user;
 GRANT SELECT, INSERT, UPDATE, DELETE ON person_interactions    TO app_user;
 GRANT SELECT, INSERT, UPDATE, DELETE ON property_owners        TO app_user;
+
+-- ── Fotos do imóvel ──────────────────────────────────────────────
+-- A imagem mora no object storage (MinIO/S3); a base guarda só a CHAVE
+-- (storage_key) + metadados. Leitura no frontend via URL presignada. O
+-- cliente redimensiona/comprime antes de enviar.
+CREATE TABLE IF NOT EXISTS property_photos (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id    UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  property_id  UUID NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+  storage_key  TEXT NOT NULL,                    -- chave do objeto no bucket
+  content_type TEXT,                             -- ex.: image/jpeg
+  size_bytes   BIGINT,                           -- tamanho do objeto
+  caption      TEXT,
+  position     INT  NOT NULL DEFAULT 0,          -- ordem de exibição
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_property_photos_property ON property_photos (property_id, position, created_at);
+
+ALTER TABLE property_photos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE property_photos FORCE  ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON property_photos
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON property_photos TO app_user;
 
 -- Seed de pessoas demo (ids fixos p/ idempotência). Roda como superusuário do
 -- init (bypassa RLS). Dá dado real às páginas /clientes e /fiadores.

@@ -46,8 +46,19 @@ export interface PropertyOwner {
   sharePercent: number;
 }
 
+export interface PropertyPhoto {
+  id: string;
+  propertyId: string;
+  /** URL presignada (temporária) do object storage. */
+  url: string;
+  caption: string | null;
+  position: number;
+  createdAt: string;
+}
+
 export interface Property {
   id: string;
+  code?: number | null;
   title: string;
   kind: string;
   purpose?: string;
@@ -55,9 +66,57 @@ export interface Property {
   isDevelopment?: boolean;
   status: string;
   priceCents: number | null;
+
+  contractNumber?: string | null;
+  condominiumId?: string | null;
+  isCommercial?: boolean;
+
+  streetType?: string | null;
+  address?: string | null;
+  district?: string | null;
   city: string | null;
   state: string | null;
+  zip?: string | null;
+  keysLocation?: string | null;
+  hasSign?: boolean;
+  positionFront?: boolean;
+  positionBack?: boolean;
+
   bedrooms: number | null;
+  builtArea?: number | null;
+  landArea?: number | null;
+  floorInfo?: string | null;
+  ceilingInfo?: string | null;
+  electricityMeter?: string | null;
+  waterMeter?: string | null;
+  dependencies?: string | null;
+  allowPets?: boolean;
+  allowStudents?: boolean;
+
+  condoFeeCents?: number | null;
+  iptuCents?: number | null;
+  iptuChargedTo?: string | null;
+  iptuReimburseOwner?: boolean;
+  iptuInstallments?: number | null;
+  iptuInstallmentCents?: number | null;
+  adminFeePercent?: number | null;
+  chargeAdminFee?: boolean;
+  isGuaranteed?: boolean;
+
+  leaseTermMonths?: number | null;
+  leaseStart?: string | null;
+  penaltyInfo?: string | null;
+  hasCommission?: boolean;
+  commissionType?: string | null;
+  entryDate?: string | null;
+
+  brokerId?: string | null;
+  capturerId?: string | null;
+  extraData?: string | null;
+  publishWeb?: boolean;
+  hasPhotos?: boolean;
+  notes?: string | null;
+
   owners?: PropertyOwner[];
 }
 
@@ -93,6 +152,25 @@ export interface Clause {
 export interface InspectionItem {
   id: string;
   description: string;
+  active: boolean;
+}
+
+/** Bairro (lookup) — tela "Tabelas". Apenas o nome. */
+export interface District {
+  id: string;
+  name: string;
+  active: boolean;
+}
+
+/** Evento financeiro (lookup) — tela "Tabelas". */
+export interface Event {
+  id: string;
+  name: string;
+  kind: "DEBITO" | "CREDITO";
+  interestPercent: number;
+  judicialInterestPercent: number;
+  penaltyPercent: number;
+  appliesAdminFee: boolean;
   active: boolean;
 }
 
@@ -228,6 +306,16 @@ export function fetchInspectionItems(): Promise<InspectionItem[] | null> {
   return get<InspectionItem[]>("/v1/inspection-items");
 }
 
+/** Bairros (lookup) do tenant da sessão. */
+export function fetchDistricts(): Promise<District[] | null> {
+  return get<District[]>("/v1/districts");
+}
+
+/** Eventos financeiros (lookup) do tenant da sessão. */
+export function fetchEvents(): Promise<Event[] | null> {
+  return get<Event[]>("/v1/events");
+}
+
 /** Funcionários (colaboradores internos) do tenant da sessão. */
 export function fetchEmployees(): Promise<Employee[] | null> {
   return get<Employee[]>("/v1/employees");
@@ -245,6 +333,11 @@ export function fetchPersons(role?: PersonRole): Promise<Person[] | null> {
 /** Condomínios do tenant da sessão. */
 export function fetchCondominiums(): Promise<Condominium[] | null> {
   return get<Condominium[]>("/v1/condominiums");
+}
+
+/** Fotos de um imóvel (data URL base64 — Fase 0). */
+export function fetchPropertyPhotos(propertyId: string): Promise<PropertyPhoto[] | null> {
+  return get<PropertyPhoto[]>(`/v1/properties/${propertyId}/photos`);
 }
 
 type JsonResult = { ok: true; data: unknown } | { ok: false; error: string };

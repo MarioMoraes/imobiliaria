@@ -1,6 +1,9 @@
 import { PageHeader, StatCard, Section, StatusBadge } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
 import {
+  fetchCondominiums,
+  fetchDistricts,
+  fetchEmployees,
   fetchPersons,
   fetchProperties,
   fetchPropertyTypes,
@@ -10,20 +13,38 @@ import {
   type Property,
 } from "../../../lib/api";
 import { sampleProperties } from "../../../lib/sample";
-import { PropertyOwnersCell } from "./PropertyOwnersCell";
+import { PropertyFormButton, type Opt } from "./PropertyFormButton";
+import { DeletePropertyButton } from "./DeletePropertyButton";
 
 export default async function ImoveisPage() {
-  const [liveProps, liveTypes, liveLocadores] = await Promise.all([
-    fetchProperties(),
-    fetchPropertyTypes(),
-    fetchPersons("LOCADOR"),
-  ]);
+  const [liveProps, liveTypes, liveCondos, liveDistricts, liveEmployees, liveLocadores] =
+    await Promise.all([
+      fetchProperties(),
+      fetchPropertyTypes(),
+      fetchCondominiums(),
+      fetchDistricts(),
+      fetchEmployees(),
+      fetchPersons("LOCADOR"),
+    ]);
   const properties: Property[] = liveProps ?? sampleProperties;
   const isLive = liveProps !== null;
   const types = liveTypes ?? [];
   const typeName = new Map(types.map((t) => [t.id, t.name]));
-  // Candidatos a dono: pessoas com papel LOCADOR (para o vínculo imóvel↔dono).
-  const ownerCandidates = (liveLocadores ?? []).map((p) => ({ id: p.id, fullName: p.fullName }));
+
+  // Opções dos dropdowns do formulário de imóvel.
+  const typeOpts: Opt[] = types.map((t) => ({ id: t.id, label: t.name }));
+  const condoOpts: Opt[] = (liveCondos ?? []).map((c) => ({ id: c.id, label: c.name }));
+  const districtOpts: Opt[] = (liveDistricts ?? []).map((d) => ({ id: d.id, label: d.name }));
+  const employeeOpts: Opt[] = (liveEmployees ?? []).map((e) => ({ id: e.id, label: e.fullName }));
+  // Candidatos a proprietário: pessoas com papel LOCADOR.
+  const ownerCandidates: Opt[] = (liveLocadores ?? []).map((p) => ({ id: p.id, label: p.fullName }));
+  const formOpts = {
+    types: typeOpts,
+    condominiums: condoOpts,
+    districts: districtOpts,
+    employees: employeeOpts,
+    ownerCandidates,
+  };
 
   const count = (s: string) => properties.filter((p) => p.status === s).length;
 
@@ -34,7 +55,7 @@ export default async function ImoveisPage() {
         actions={
           <>
             <button className="btn btn-outline btn-sm"><Icon name="filter" /> Filtros</button>
-            <button className="btn btn-primary btn-sm"><Icon name="plus" /> Novo Imóvel</button>
+            <PropertyFormButton {...formOpts} disabled={!isLive} />
           </>
         }
       />
@@ -62,11 +83,9 @@ export default async function ImoveisPage() {
               <thead>
                 <tr>
                   <th>Imóvel</th>
-                  <th>Código</th>
                   <th>Finalidade</th>
                   <th>Tipo</th>
                   <th>Localização</th>
-                  <th>Donos</th>
                   <th>Valor</th>
                   <th>Status</th>
                   <th></th>
@@ -81,7 +100,6 @@ export default async function ImoveisPage() {
                         <span className="strong">{p.title}</span>
                       </div>
                     </td>
-                    <td className="text-xs subtle">{p.id}</td>
                     <td>
                       <span className="badge badge-slate">
                         {p.purpose
@@ -91,20 +109,13 @@ export default async function ImoveisPage() {
                     </td>
                     <td>{p.propertyTypeId ? typeName.get(p.propertyTypeId) ?? "—" : "—"}</td>
                     <td>{p.city ?? "—"}{p.state ? ` · ${p.state}` : ""}</td>
-                    <td>
-                      <PropertyOwnersCell
-                        propertyId={p.id}
-                        owners={p.owners ?? []}
-                        candidates={ownerCandidates}
-                        live={isLive}
-                      />
-                    </td>
                     <td className="strong">{formatPrice(p.priceCents)}</td>
                     <td><StatusBadge status={p.status} /></td>
                     <td>
-                      <button className="icon-btn" style={{ width: 30, height: 30 }} aria-label="Ações">
-                        <Icon name="ellipsis" size={15} />
-                      </button>
+                      <div className="row gap-8" style={{ justifyContent: "flex-end" }}>
+                        <PropertyFormButton property={p} {...formOpts} disabled={!isLive} />
+                        <DeletePropertyButton id={p.id} title={p.title} disabled={!isLive} />
+                      </div>
                     </td>
                   </tr>
                 ))}

@@ -10,6 +10,8 @@ import { userRoutes } from "../modules/user/user.routes.js";
 import { employeeRoutes } from "../modules/employee/employee.routes.js";
 import { personRoutes } from "../modules/person/person.routes.js";
 import { condominiumRoutes } from "../modules/condominium/condominium.routes.js";
+import { districtRoutes } from "../modules/district/district.routes.js";
+import { eventRoutes } from "../modules/event/event.routes.js";
 import { authContextHook } from "./auth-context.hook.js";
 
 /**
@@ -44,6 +46,8 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       // Tabelas auxiliares (lookups): cláusulas contratuais e itens de vistoria.
       await v1.register(clauseRoutes, { prefix: "/clauses" });
       await v1.register(inspectionItemRoutes, { prefix: "/inspection-items" });
+      await v1.register(districtRoutes, { prefix: "/districts" });
+      await v1.register(eventRoutes, { prefix: "/events" });
       await v1.register(userRoutes, { prefix: "/users" });
       await v1.register(employeeRoutes, { prefix: "/employees" });
       // Cadastro unificado de pessoas (locador/locatário/fiador).
