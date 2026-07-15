@@ -32,7 +32,10 @@ export type Operation =
   | "crm:write"
   | "person:read"
   | "person:write"
-  | "person:delete";
+  | "person:delete"
+  | "condominium:read"
+  | "condominium:write"
+  | "condominium:delete";
 
 const MATRIX: Record<Operation, Role[]> = {
   "users:read": ["SUPER_ADMIN", "ADMIN", "GESTOR"],
@@ -53,6 +56,11 @@ const MATRIX: Record<Operation, Role[]> = {
   "person:read": ["SUPER_ADMIN", "ADMIN", "GESTOR", "CORRETOR"],
   "person:write": ["SUPER_ADMIN", "ADMIN", "GESTOR", "CORRETOR", "AI_AGENT"],
   "person:delete": ["SUPER_ADMIN", "ADMIN", "GESTOR"],
+  // Condomínios (MOD-CONDOMINIO) — cadastro + parâmetros financeiros de
+  // cobrança. FINANCEIRO lê (repasse/boletos); escrita/remoção fica com gestão.
+  "condominium:read": ["SUPER_ADMIN", "ADMIN", "GESTOR", "FINANCEIRO"],
+  "condominium:write": ["SUPER_ADMIN", "ADMIN", "GESTOR"],
+  "condominium:delete": ["SUPER_ADMIN", "ADMIN"],
 };
 
 /** Papéis que podem executar `op`. */

@@ -28,6 +28,12 @@ export const adminNav: NavGroup[] = [
     ],
   },
   {
+    label: "Condomínios",
+    items: [
+      { label: "Condomínios", href: "/condominios", icon: "home" },
+    ],
+  },
+  {
     label: "Operação",
     items: [
       { label: "CRM", href: "/crm", icon: "kanban" },

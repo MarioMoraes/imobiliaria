@@ -155,6 +155,26 @@ export interface Person {
   searchProfiles: PersonSearchProfile[];
 }
 
+/**
+ * Condomínio (MOD-CONDOMINIO) — cadastro + parâmetros financeiros de cobrança.
+ * `balanceCents` (Saldo) é derivado da movimentação (somente leitura).
+ */
+export interface Condominium {
+  id: string;
+  name: string;
+  address: string | null;
+  number: string | null;
+  district: string | null;
+  zip: string | null;
+  city: string | null;
+  state: string | null;
+  balanceCents: number;
+  adminFeePercent: number;
+  adminFeeFixedCents: number;
+  interestPercent: number;
+  penaltyPercent: number;
+}
+
 /* ------------------------------------------------------------- Helpers */
 async function get<T>(
   path: string,
@@ -220,6 +240,11 @@ export function fetchEmployees(): Promise<Employee[] | null> {
 export function fetchPersons(role?: PersonRole): Promise<Person[] | null> {
   const q = role ? `?role=${encodeURIComponent(role)}` : "";
   return get<Person[]>(`/v1/persons${q}`);
+}
+
+/** Condomínios do tenant da sessão. */
+export function fetchCondominiums(): Promise<Condominium[] | null> {
+  return get<Condominium[]>("/v1/condominiums");
 }
 
 type JsonResult = { ok: true; data: unknown } | { ok: false; error: string };

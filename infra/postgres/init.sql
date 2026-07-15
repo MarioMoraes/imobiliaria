@@ -248,6 +248,47 @@ VALUES
 ON CONFLICT DO NOTHING;
 
 -- ─────────────────────────────────────────────────────────────
+-- Condomínios (MOD-CONDOMINIO) — condomínios administrados pela imobiliária:
+-- identificação (nome + endereço) e parâmetros financeiros de cobrança (taxa
+-- de administração em % e/ou valor fixo, juros e multa por atraso). O `saldo`
+-- (balance_cents) é DERIVADO da movimentação financeira (débitos/despesas/
+-- boletos — módulos futuros); nasce em 0. Tabela de domínio, protegida por RLS.
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS condominiums (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id             UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  name                  TEXT NOT NULL,
+  address               TEXT,                             -- logradouro (via CEP)
+  number                TEXT,                             -- número (único campo livre)
+  district              TEXT,
+  zip                   TEXT,
+  city                  TEXT,
+  state                 TEXT,                             -- UF (via CEP)
+  balance_cents         BIGINT NOT NULL DEFAULT 0,        -- Saldo (derivado)
+  admin_fee_percent     NUMERIC(5,2) NOT NULL DEFAULT 0,  -- Taxa Adm %
+  admin_fee_fixed_cents BIGINT NOT NULL DEFAULT 0,        -- Taxa Adm R$ (fixa)
+  interest_percent      NUMERIC(5,2) NOT NULL DEFAULT 0,  -- Juros
+  penalty_percent       NUMERIC(5,2) NOT NULL DEFAULT 0,  -- Multa
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_condominiums_tenant ON condominiums (tenant_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_condominiums_tenant_name ON condominiums (tenant_id, lower(name));
+
+ALTER TABLE condominiums ENABLE ROW LEVEL SECURITY;
+ALTER TABLE condominiums FORCE  ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON condominiums
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON condominiums TO app_user;
+
+INSERT INTO condominiums (tenant_id, name, address, district, zip, city, admin_fee_percent, interest_percent, penalty_percent)
+VALUES
+  ('00000000-0000-0000-0000-000000000001', 'Edifício Aurora',   'Rua das Palmeiras, 100', 'Centro',   '01310-100', 'São Paulo', 10.00, 1.00, 2.00),
+  ('00000000-0000-0000-0000-000000000001', 'Residencial Bosque', 'Av. Brasil, 2500',       'Jardins',  '01430-000', 'São Paulo',  8.00, 1.00, 2.00)
+ON CONFLICT DO NOTHING;
+
+-- ─────────────────────────────────────────────────────────────
 -- (Fiadores) — os antigos `guarantors`/`guarantor_addresses` foram
 -- absorvidos pelo cadastro unificado `persons` (papel FIADOR), definido
 -- mais abaixo. A tela /fiadores lê `persons` filtrando por roles=FIADOR.
