@@ -364,20 +364,6 @@ a {
   border: 1.5px solid var(--white);
 }
 
-.tenant-switch {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 6px 12px 6px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-full);
-  background: var(--white);
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-.tenant-switch:hover {
-  border-color: var(--primary);
-}
 .avatar {
   width: 32px;
   height: 32px;

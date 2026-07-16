@@ -18,9 +18,8 @@ export default function SuperadminLayout({
       <div className="main">
         <Topbar
           searchPlaceholder="Buscar tenants, planos, logs…"
-          contextLabel="Equipe Move AI"
-          contextSub="Plataforma · Super Admin"
-          avatar="MA"
+          userName="Equipe Move AI"
+          userRole="Super Admin"
         />
         <div className="content">{children}</div>
       </div>

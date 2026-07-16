@@ -2,20 +2,18 @@ import { Icon } from "./Icon";
 
 interface TopbarProps {
   searchPlaceholder?: string;
-  contextLabel: string;
-  contextSub: string;
-  avatar: string;
-  live?: string;
+  /** Nome do usuário logado, exibido ao lado do menu de conta. */
+  userName?: string;
+  /** Papel do usuário no sistema (ex.: "Gestor"). */
+  userRole?: string;
   /** Menu de conta (ex.: <UserButton/> do Clerk). Renderizado à direita. */
   accountSlot?: React.ReactNode;
 }
 
 export function Topbar({
   searchPlaceholder = "Buscar imóveis, clientes, contratos…",
-  contextLabel,
-  contextSub,
-  avatar,
-  live,
+  userName,
+  userRole,
   accountSlot,
 }: TopbarProps) {
   return (
@@ -26,29 +24,18 @@ export function Topbar({
       </div>
 
       <div className="right row gap-8">
-        {live && (
-          <span className="badge badge-cyan" title="Agentes de IA online">
-            <span className="pulse-dot">
-              <span />
-              <span />
-            </span>
-            {live}
-          </span>
-        )}
         <button className="icon-btn" aria-label="Notificações">
           <Icon name="bell" />
           <span className="dot-notify" />
         </button>
-        <button className="tenant-switch" aria-label="Trocar contexto">
-          <span className="avatar">{avatar}</span>
-          <span style={{ lineHeight: 1.15, textAlign: "left" }}>
+        {userName && (
+          <span style={{ lineHeight: 1.15, textAlign: "right" }}>
             <span style={{ fontWeight: 600, fontSize: "0.82rem", display: "block" }}>
-              {contextLabel}
+              {userName}
             </span>
-            <span className="text-xs subtle">{contextSub}</span>
+            {userRole && <span className="text-xs subtle">{userRole}</span>}
           </span>
-          <Icon name="chevronDown" size={15} />
-        </button>
+        )}
         {accountSlot}
       </div>
     </header>

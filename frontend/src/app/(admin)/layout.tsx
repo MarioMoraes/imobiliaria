@@ -1,17 +1,41 @@
 import { UserButton } from "@clerk/nextjs";
+import { currentUser } from "@clerk/nextjs/server";
 import { Sidebar } from "../../components/Sidebar";
 import { Topbar } from "../../components/Topbar";
 import { adminNav, adminFootNav } from "../../lib/nav";
-import { fetchCurrentTenant } from "../../lib/api";
+import { fetchCurrentTenant, fetchCurrentUser } from "../../lib/api";
+
+/** Rótulos em português dos papéis do sistema (RBAC). */
+const ROLE_LABELS: Record<string, string> = {
+  SUPER_ADMIN: "Super Admin",
+  ADMIN: "Administrador",
+  GESTOR: "Gestor",
+  FINANCEIRO: "Financeiro",
+  CORRETOR: "Corretor",
+  PROPRIETARIO: "Proprietário",
+  CLIENTE: "Cliente",
+  AI_AGENT: "Agente IA",
+};
 
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const tenant = await fetchCurrentTenant();
+  const [tenant, clerkUser, me] = await Promise.all([
+    fetchCurrentTenant(),
+    currentUser().catch(() => null),
+    fetchCurrentUser(),
+  ]);
   const brandName = tenant?.name ?? "Move AI";
-  const initials = brandName.slice(0, 2).toUpperCase();
+
+  const userName =
+    clerkUser?.fullName ||
+    [clerkUser?.firstName, clerkUser?.lastName].filter(Boolean).join(" ") ||
+    clerkUser?.primaryEmailAddress?.emailAddress ||
+    "Usuário";
+  const primaryRole = me?.roles[0];
+  const userRole = primaryRole ? (ROLE_LABELS[primaryRole] ?? primaryRole) : undefined;
 
   return (
     <div className="app-shell">
@@ -25,10 +49,8 @@ export default async function AdminLayout({
       />
       <div className="main">
         <Topbar
-          contextLabel={brandName}
-          contextSub={tenant ? `Plano ${tenant.plan} · Gestor` : "Plano Pro · Gestor"}
-          avatar={initials}
-          live="IA online"
+          userName={userName}
+          userRole={userRole}
           accountSlot={<UserButton />}
         />
         <div className="content">{children}</div>

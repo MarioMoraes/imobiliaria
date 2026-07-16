@@ -1,3 +1,4 @@
+import { currentUser } from "@clerk/nextjs/server";
 import { PageHeader, StatCard, Section, StatusBadge } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
 import { fetchProperties, formatPrice, propertyKindLabel } from "../../../lib/api";
@@ -10,16 +11,41 @@ import {
 const months = ["Fev", "Mar", "Abr", "Mai", "Jun", "Jul"];
 const revenue = [58, 64, 61, 72, 78, 86];
 
+/**
+ * Saudação conforme o horário no fuso de São Paulo (o dashboard renderiza no
+ * servidor, que pode estar em UTC — por isso fixamos o timezone brasileiro).
+ */
+function greeting(): string {
+  const hour = Number(
+    new Intl.DateTimeFormat("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      hour: "numeric",
+      hour12: false,
+    }).format(new Date()),
+  );
+  if (hour >= 5 && hour < 12) return "Bom dia";
+  if (hour >= 12 && hour < 18) return "Boa tarde";
+  return "Boa noite";
+}
+
 export default async function DashboardPage() {
-  const live = await fetchProperties();
+  const [live, clerkUser] = await Promise.all([
+    fetchProperties(),
+    currentUser().catch(() => null),
+  ]);
   const properties = live ?? sampleProperties;
   const isLive = live !== null;
   const available = properties.filter((p) => p.status === "available").length;
 
+  const firstName =
+    clerkUser?.firstName ??
+    clerkUser?.fullName?.split(" ")[0] ??
+    "bem-vindo";
+
   return (
     <>
       <PageHeader
-        title="Bom dia, Otávio 👋"
+        title={`${greeting()}, ${firstName} 👋`}
         actions={
           <>
             <button className="btn btn-outline btn-sm">

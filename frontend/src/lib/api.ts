@@ -313,6 +313,14 @@ export function fetchCurrentTenant(): Promise<Tenant | null> {
   return get<Tenant>(`/admin/tenants/${DEMO_TENANT_ID}`);
 }
 
+/**
+ * Perfil do usuário logado (papéis no sistema). O nome/e-mail vem do Clerk; aqui
+ * só resolvemos os papéis do token (ou fallback de dev). Usado pelo topbar.
+ */
+export function fetchCurrentUser(): Promise<{ userId: string | null; roles: string[] } | null> {
+  return get<{ userId: string | null; roles: string[] }>("/v1/users/me");
+}
+
 /** Tipos de imóvel (lookup) do tenant da sessão. */
 export function fetchPropertyTypes(): Promise<PropertyType[] | null> {
   return get<PropertyType[]>("/v1/property-types");

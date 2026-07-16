@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { getTenantId } from "../../shared/tenant-context.js";
+import { getTenantId, getAuthUser } from "../../shared/tenant-context.js";
 import { AppError } from "../../shared/errors.js";
 import { requirePermission } from "../rbac/authorize.js";
 import { changeRoleSchema } from "./user.schema.js";
@@ -10,6 +10,13 @@ import * as service from "./user.service.js";
  * Convite por e-mail (MOD-AUTH-06) fica como TODO.
  */
 export async function userRoutes(app: FastifyInstance): Promise<void> {
+  // Perfil do próprio usuário logado: papéis resolvidos do token (ou fallback de
+  // dev). Não exige permissão — todo usuário autenticado pode se consultar.
+  app.get("/me", async () => {
+    const { userId, roles } = getAuthUser();
+    return { data: { userId: userId ?? null, roles } };
+  });
+
   app.get("/", { preHandler: requirePermission("users:read") }, async () => {
     return { data: await service.list(getTenantId()) };
   });
