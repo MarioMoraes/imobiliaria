@@ -32,6 +32,7 @@ interface Row {
 
   street_type: string | null;
   address: string | null;
+  number: string | null;
   district: string | null;
   city: string | null;
   state: string | null;
@@ -76,6 +77,26 @@ interface Row {
   has_photos: boolean;
   notes: string | null;
 
+  is_authorized: boolean;
+  is_exclusive: boolean;
+  auth_term: string | null;
+  auth_days: number | null;
+  auth_expiry: string | null; // castado p/ text no SELECT (evita shift de fuso)
+  is_recorded: boolean;
+  has_deed: boolean;
+  is_registered: boolean;
+  is_sold: boolean;
+  registry_office: string | null;
+  registration_number: string | null;
+
+  topography: string | null;
+  lot_number: string | null;
+  block_number: string | null;
+  front_measure: string | null;
+  back_measure: string | null;
+  left_measure: string | null;
+  right_measure: string | null;
+
   owners: PropertyOwner[] | null;
   created_at: Date;
   updated_at: Date;
@@ -104,6 +125,7 @@ const COLUMN = {
 
   streetType: "street_type",
   address: "address",
+  number: "number",
   district: "district",
   city: "city",
   state: "state",
@@ -147,6 +169,26 @@ const COLUMN = {
   publishWeb: "publish_web",
   hasPhotos: "has_photos",
   notes: "notes",
+
+  isAuthorized: "is_authorized",
+  isExclusive: "is_exclusive",
+  authTerm: "auth_term",
+  authDays: "auth_days",
+  authExpiry: "auth_expiry",
+  isRecorded: "is_recorded",
+  hasDeed: "has_deed",
+  isRegistered: "is_registered",
+  isSold: "is_sold",
+  registryOffice: "registry_office",
+  registrationNumber: "registration_number",
+
+  topography: "topography",
+  lotNumber: "lot_number",
+  blockNumber: "block_number",
+  frontMeasure: "front_measure",
+  backMeasure: "back_measure",
+  leftMeasure: "left_measure",
+  rightMeasure: "right_measure",
 } as const;
 
 type ColumnKey = keyof typeof COLUMN;
@@ -165,8 +207,8 @@ const OWNERS_LATERAL = `
 
 // Campos DATE cast para text (evita que o parser do pg desloque o dia por fuso).
 // Vêm depois de `p.*`, então sobrescrevem as colunas homônimas no objeto de linha.
-const SELECT_COLS = `p.*, p.lease_start::text AS lease_start, p.entry_date::text AS entry_date, o.owners`;
-const RETURNING_COLS = `*, lease_start::text AS lease_start, entry_date::text AS entry_date`;
+const SELECT_COLS = `p.*, p.lease_start::text AS lease_start, p.entry_date::text AS entry_date, p.auth_expiry::text AS auth_expiry, o.owners`;
+const RETURNING_COLS = `*, lease_start::text AS lease_start, entry_date::text AS entry_date, auth_expiry::text AS auth_expiry`;
 
 function toProperty(row: Row): Property {
   return {
@@ -187,6 +229,7 @@ function toProperty(row: Row): Property {
 
     streetType: row.street_type,
     address: row.address,
+    number: row.number,
     district: row.district,
     city: row.city,
     state: row.state,
@@ -230,6 +273,26 @@ function toProperty(row: Row): Property {
     publishWeb: row.publish_web,
     hasPhotos: row.has_photos,
     notes: row.notes,
+
+    isAuthorized: row.is_authorized,
+    isExclusive: row.is_exclusive,
+    authTerm: row.auth_term,
+    authDays: row.auth_days,
+    authExpiry: row.auth_expiry,
+    isRecorded: row.is_recorded,
+    hasDeed: row.has_deed,
+    isRegistered: row.is_registered,
+    isSold: row.is_sold,
+    registryOffice: row.registry_office,
+    registrationNumber: row.registration_number,
+
+    topography: row.topography,
+    lotNumber: row.lot_number,
+    blockNumber: row.block_number,
+    frontMeasure: row.front_measure,
+    backMeasure: row.back_measure,
+    leftMeasure: row.left_measure,
+    rightMeasure: row.right_measure,
 
     owners: (row.owners ?? []).map((o) => ({ ...o, sharePercent: Number(o.sharePercent) })),
     createdAt: row.created_at.toISOString(),

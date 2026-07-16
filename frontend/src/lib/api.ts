@@ -71,8 +71,8 @@ export interface Property {
   condominiumId?: string | null;
   isCommercial?: boolean;
 
-  streetType?: string | null;
   address?: string | null;
+  number?: string | null;
   district?: string | null;
   city: string | null;
   state: string | null;
@@ -116,6 +116,28 @@ export interface Property {
   publishWeb?: boolean;
   hasPhotos?: boolean;
   notes?: string | null;
+
+  // Venda — autorização de venda / documentação
+  isAuthorized?: boolean;
+  isExclusive?: boolean;
+  authTerm?: string | null;
+  authDays?: number | null;
+  authExpiry?: string | null;
+  isRecorded?: boolean;
+  hasDeed?: boolean;
+  isRegistered?: boolean;
+  isSold?: boolean;
+  registryOffice?: string | null;
+  registrationNumber?: string | null;
+
+  // Venda — medidas do terreno
+  topography?: string | null;
+  lotNumber?: string | null;
+  blockNumber?: string | null;
+  frontMeasure?: string | null;
+  backMeasure?: string | null;
+  leftMeasure?: string | null;
+  rightMeasure?: string | null;
 
   owners?: PropertyOwner[];
 }

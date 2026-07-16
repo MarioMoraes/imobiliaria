@@ -9,7 +9,12 @@ import {
   type PropertyPhoto,
 } from "../../../lib/api";
 
-const PATH = "/imoveis";
+/** Revalida o hub e as duas listas (alugar/vender) após uma mutação. */
+function revalidateLists() {
+  revalidatePath("/imoveis");
+  revalidatePath("/imoveis/alugar");
+  revalidatePath("/imoveis/vender");
+}
 
 export interface OwnerActionResult {
   ok: boolean;
@@ -28,7 +33,7 @@ export async function addOwnerAction(
     sharePercent,
   });
   if (!res.ok) return { ok: false, error: res.error };
-  revalidatePath("/imoveis");
+  revalidateLists();
   return { ok: true };
 }
 
@@ -39,7 +44,7 @@ export async function removeOwnerAction(
 ): Promise<OwnerActionResult> {
   const res = await deleteJson(`/v1/properties/${propertyId}/owners/${personId}`);
   if (!res.ok) return { ok: false, error: res.error };
-  revalidatePath("/imoveis");
+  revalidateLists();
   return { ok: true };
 }
 
@@ -63,9 +68,9 @@ export interface PropertyFormInput {
   isCommercial: boolean;
 
   // Endereço
-  streetType: string;
   zip: string;
   address: string;
+  number: string;
   district: string;
   city: string;
   state: string;
@@ -113,6 +118,28 @@ export interface PropertyFormInput {
   publishWeb: boolean;
   hasPhotos: boolean;
   notes: string;
+
+  // Venda — autorização de venda / documentação
+  isAuthorized: boolean;
+  isExclusive: boolean;
+  authTerm: string;
+  authDays: string;
+  authExpiry: string; // YYYY-MM-DD
+  isRecorded: boolean;
+  hasDeed: boolean;
+  isRegistered: boolean;
+  isSold: boolean;
+  registryOffice: string;
+  registrationNumber: string;
+
+  // Venda — medidas do terreno
+  topography: string;
+  lotNumber: string;
+  blockNumber: string;
+  frontMeasure: string;
+  backMeasure: string;
+  leftMeasure: string;
+  rightMeasure: string;
 }
 
 export interface ActionResult {
@@ -183,9 +210,9 @@ function toPayload(input: PropertyFormInput, isEdit: boolean) {
     contractNumber: opt(toText(input.contractNumber)),
     isCommercial: input.isCommercial,
 
-    streetType: opt(toText(input.streetType)),
     zip: opt(toText(input.zip)),
     address: opt(toText(input.address)),
+    number: opt(toText(input.number)),
     district: opt(toText(input.district)),
     city: opt(toText(input.city)),
     state: opt(toText(input.state)),
@@ -229,6 +256,26 @@ function toPayload(input: PropertyFormInput, isEdit: boolean) {
     publishWeb: input.publishWeb,
     hasPhotos: input.hasPhotos,
     notes: opt(toText(input.notes)),
+
+    isAuthorized: input.isAuthorized,
+    isExclusive: input.isExclusive,
+    authTerm: opt(toText(input.authTerm)),
+    authDays: opt(toInt(input.authDays)),
+    authExpiry: opt(toDate(input.authExpiry)),
+    isRecorded: input.isRecorded,
+    hasDeed: input.hasDeed,
+    isRegistered: input.isRegistered,
+    isSold: input.isSold,
+    registryOffice: opt(toText(input.registryOffice)),
+    registrationNumber: opt(toText(input.registrationNumber)),
+
+    topography: opt(toText(input.topography)),
+    lotNumber: opt(toText(input.lotNumber)),
+    blockNumber: opt(toText(input.blockNumber)),
+    frontMeasure: opt(toText(input.frontMeasure)),
+    backMeasure: opt(toText(input.backMeasure)),
+    leftMeasure: opt(toText(input.leftMeasure)),
+    rightMeasure: opt(toText(input.rightMeasure)),
   };
 }
 
@@ -243,7 +290,7 @@ export async function createPropertyAction(input: PropertyFormInput): Promise<Ac
   if (err) return { ok: false, error: err };
   const res = await postJson("/v1/properties", toPayload(input, false));
   if (!res.ok) return { ok: false, error: res.error };
-  revalidatePath(PATH);
+  revalidateLists();
   return { ok: true };
 }
 
@@ -256,7 +303,7 @@ export async function updatePropertyAction(
   if (err) return { ok: false, error: err };
   const res = await patchJson(`/v1/properties/${id}`, toPayload(input, true));
   if (!res.ok) return { ok: false, error: res.error };
-  revalidatePath(PATH);
+  revalidateLists();
   return { ok: true };
 }
 
@@ -264,7 +311,7 @@ export async function deletePropertyAction(id: string): Promise<ActionResult> {
   if (!id) return { ok: false, error: "ID inválido." };
   const res = await deleteJson(`/v1/properties/${id}`);
   if (!res.ok) return { ok: false, error: res.error };
-  revalidatePath(PATH);
+  revalidateLists();
   return { ok: true };
 }
 
@@ -295,7 +342,7 @@ export async function addPhotoAction(
     caption: caption?.trim() || undefined,
   });
   if (!res.ok) return { ok: false, error: res.error };
-  revalidatePath(PATH);
+  revalidateLists();
   return { ok: true };
 }
 
@@ -306,6 +353,6 @@ export async function removePhotoAction(
   if (!propertyId || !photoId) return { ok: false, error: "ID inválido." };
   const res = await deleteJson(`/v1/properties/${propertyId}/photos/${photoId}`);
   if (!res.ok) return { ok: false, error: res.error };
-  revalidatePath(PATH);
+  revalidateLists();
   return { ok: true };
 }

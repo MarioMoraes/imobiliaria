@@ -56,6 +56,7 @@ const propertyFields = {
   // Endereço
   streetType: shortText,
   address: z.string().max(200),
+  number: z.string().max(30),
   district: z.string().max(120),
   city: z.string().max(120),
   state: z.string().length(2),
@@ -103,6 +104,28 @@ const propertyFields = {
   publishWeb: z.boolean(),
   hasPhotos: z.boolean(),
   notes: z.string().max(2000),
+
+  // Venda — autorização de venda / documentação (tela legada "Imóveis a Vender")
+  isAuthorized: z.boolean(),
+  isExclusive: z.boolean(),
+  authTerm: shortText,
+  authDays: z.number().int().nonnegative(),
+  authExpiry: isoDate,
+  isRecorded: z.boolean(),
+  hasDeed: z.boolean(),
+  isRegistered: z.boolean(),
+  isSold: z.boolean(),
+  registryOffice: shortText,
+  registrationNumber: shortText,
+
+  // Venda — medidas do terreno (texto livre)
+  topography: shortText,
+  lotNumber: shortText,
+  blockNumber: shortText,
+  frontMeasure: shortText,
+  backMeasure: shortText,
+  leftMeasure: shortText,
+  rightMeasure: shortText,
 } as const;
 
 /** Payload de criação de imóvel. */
@@ -121,6 +144,7 @@ export const createPropertySchema = z.object({
 
   streetType: propertyFields.streetType.optional(),
   address: propertyFields.address.optional(),
+  number: propertyFields.number.optional(),
   district: propertyFields.district.optional(),
   city: propertyFields.city.optional(),
   state: propertyFields.state.optional(),
@@ -164,6 +188,26 @@ export const createPropertySchema = z.object({
   publishWeb: z.boolean().default(false),
   hasPhotos: z.boolean().default(false),
   notes: propertyFields.notes.optional(),
+
+  isAuthorized: z.boolean().default(false),
+  isExclusive: z.boolean().default(false),
+  authTerm: propertyFields.authTerm.optional(),
+  authDays: propertyFields.authDays.optional(),
+  authExpiry: isoDate.optional(),
+  isRecorded: z.boolean().default(false),
+  hasDeed: z.boolean().default(false),
+  isRegistered: z.boolean().default(false),
+  isSold: z.boolean().default(false),
+  registryOffice: propertyFields.registryOffice.optional(),
+  registrationNumber: propertyFields.registrationNumber.optional(),
+
+  topography: propertyFields.topography.optional(),
+  lotNumber: propertyFields.lotNumber.optional(),
+  blockNumber: propertyFields.blockNumber.optional(),
+  frontMeasure: propertyFields.frontMeasure.optional(),
+  backMeasure: propertyFields.backMeasure.optional(),
+  leftMeasure: propertyFields.leftMeasure.optional(),
+  rightMeasure: propertyFields.rightMeasure.optional(),
 });
 
 export type CreatePropertyInput = z.infer<typeof createPropertySchema>;
@@ -188,6 +232,7 @@ export const updatePropertySchema = z
 
     streetType: propertyFields.streetType.nullable().optional(),
     address: propertyFields.address.nullable().optional(),
+    number: propertyFields.number.nullable().optional(),
     district: propertyFields.district.nullable().optional(),
     city: propertyFields.city.nullable().optional(),
     state: propertyFields.state.nullable().optional(),
@@ -231,6 +276,26 @@ export const updatePropertySchema = z
     publishWeb: z.boolean().optional(),
     hasPhotos: z.boolean().optional(),
     notes: propertyFields.notes.nullable().optional(),
+
+    isAuthorized: z.boolean().optional(),
+    isExclusive: z.boolean().optional(),
+    authTerm: propertyFields.authTerm.nullable().optional(),
+    authDays: propertyFields.authDays.nullable().optional(),
+    authExpiry: isoDate.nullable().optional(),
+    isRecorded: z.boolean().optional(),
+    hasDeed: z.boolean().optional(),
+    isRegistered: z.boolean().optional(),
+    isSold: z.boolean().optional(),
+    registryOffice: propertyFields.registryOffice.nullable().optional(),
+    registrationNumber: propertyFields.registrationNumber.nullable().optional(),
+
+    topography: propertyFields.topography.nullable().optional(),
+    lotNumber: propertyFields.lotNumber.nullable().optional(),
+    blockNumber: propertyFields.blockNumber.nullable().optional(),
+    frontMeasure: propertyFields.frontMeasure.nullable().optional(),
+    backMeasure: propertyFields.backMeasure.nullable().optional(),
+    leftMeasure: propertyFields.leftMeasure.nullable().optional(),
+    rightMeasure: propertyFields.rightMeasure.nullable().optional(),
   })
   .refine((d) => Object.keys(d).length > 0, { message: "Nada para atualizar" });
 export type UpdatePropertyInput = z.infer<typeof updatePropertySchema>;
@@ -302,6 +367,7 @@ export interface Property {
 
   streetType: string | null;
   address: string | null;
+  number: string | null;
   district: string | null;
   city: string | null;
   state: string | null;
@@ -345,6 +411,26 @@ export interface Property {
   publishWeb: boolean;
   hasPhotos: boolean;
   notes: string | null;
+
+  isAuthorized: boolean;
+  isExclusive: boolean;
+  authTerm: string | null;
+  authDays: number | null;
+  authExpiry: string | null;
+  isRecorded: boolean;
+  hasDeed: boolean;
+  isRegistered: boolean;
+  isSold: boolean;
+  registryOffice: string | null;
+  registrationNumber: string | null;
+
+  topography: string | null;
+  lotNumber: string | null;
+  blockNumber: string | null;
+  frontMeasure: string | null;
+  backMeasure: string | null;
+  leftMeasure: string | null;
+  rightMeasure: string | null;
 
   owners: PropertyOwner[];
   createdAt: string;

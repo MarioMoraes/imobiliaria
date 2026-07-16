@@ -708,6 +708,12 @@ a {
   background: var(--surface-highlight);
   flex-shrink: 0;
 }
+.thumb-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+}
 
 /* ----------------------------------------------------------------- Inputs */
 .field {

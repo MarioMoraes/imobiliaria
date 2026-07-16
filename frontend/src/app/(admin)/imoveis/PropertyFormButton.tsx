@@ -42,8 +42,6 @@ export interface Opt {
   label: string;
 }
 
-const STREET_TYPES = ["Rua", "Avenida", "Alameda", "Travessa", "Praça", "Rodovia", "Estrada", "Viela", "Largo"];
-
 const EMPTY: PropertyFormInput = {
   title: "",
   purpose: "rent",
@@ -52,9 +50,9 @@ const EMPTY: PropertyFormInput = {
   condominiumId: "",
   contractNumber: "",
   isCommercial: false,
-  streetType: "",
   zip: "",
   address: "",
+  number: "",
   district: "",
   city: "",
   state: "",
@@ -94,6 +92,26 @@ const EMPTY: PropertyFormInput = {
   publishWeb: false,
   hasPhotos: false,
   notes: "",
+
+  isAuthorized: false,
+  isExclusive: false,
+  authTerm: "",
+  authDays: "",
+  authExpiry: "",
+  isRecorded: false,
+  hasDeed: false,
+  isRegistered: false,
+  isSold: false,
+  registryOffice: "",
+  registrationNumber: "",
+
+  topography: "",
+  lotNumber: "",
+  blockNumber: "",
+  frontMeasure: "",
+  backMeasure: "",
+  leftMeasure: "",
+  rightMeasure: "",
 };
 
 const money = (cents: number | null | undefined) =>
@@ -112,9 +130,9 @@ function fromProperty(p: Property): PropertyFormInput {
     condominiumId: txt(p.condominiumId),
     contractNumber: txt(p.contractNumber),
     isCommercial: !!p.isCommercial,
-    streetType: txt(p.streetType),
     zip: txt(p.zip),
     address: txt(p.address),
+    number: txt(p.number),
     district: txt(p.district),
     city: txt(p.city),
     state: txt(p.state),
@@ -154,23 +172,61 @@ function fromProperty(p: Property): PropertyFormInput {
     publishWeb: !!p.publishWeb,
     hasPhotos: !!p.hasPhotos,
     notes: txt(p.notes),
+
+    isAuthorized: !!p.isAuthorized,
+    isExclusive: !!p.isExclusive,
+    authTerm: txt(p.authTerm),
+    authDays: numStr(p.authDays),
+    authExpiry: txt(p.authExpiry),
+    isRecorded: !!p.isRecorded,
+    hasDeed: !!p.hasDeed,
+    isRegistered: !!p.isRegistered,
+    isSold: !!p.isSold,
+    registryOffice: txt(p.registryOffice),
+    registrationNumber: txt(p.registrationNumber),
+
+    topography: txt(p.topography),
+    lotNumber: txt(p.lotNumber),
+    blockNumber: txt(p.blockNumber),
+    frontMeasure: txt(p.frontMeasure),
+    backMeasure: txt(p.backMeasure),
+    leftMeasure: txt(p.leftMeasure),
+    rightMeasure: txt(p.rightMeasure),
   };
 }
 
-const TABS = [
-  { id: "dados", label: "Dados" },
-  { id: "endereco", label: "Endereço" },
-  { id: "caracteristicas", label: "Características" },
-  { id: "valores", label: "Valores" },
-  { id: "locacao", label: "Locação & Comissão" },
-  { id: "captacao", label: "Captação & Obs" },
-  { id: "proprietarios", label: "Proprietários" },
-  { id: "fotos", label: "Fotos" },
-] as const;
-type TabId = (typeof TABS)[number]["id"];
+type TabId =
+  | "dados"
+  | "endereco"
+  | "caracteristicas"
+  | "valores"
+  | "locacao"
+  | "venda"
+  | "captacao"
+  | "proprietarios"
+  | "fotos";
+
+/** Abas do modal — a 5ª muda de "Locação & Comissão" (rent) para "Venda &
+ * Documentação" (sale); o resto é comum às duas finalidades. */
+function tabsFor(mode: "rent" | "sale"): { id: TabId; label: string }[] {
+  return [
+    { id: "dados", label: "Dados" },
+    { id: "endereco", label: "Endereço" },
+    { id: "caracteristicas", label: "Características" },
+    { id: "valores", label: "Valores" },
+    mode === "sale"
+      ? { id: "venda", label: "Venda & Documentação" }
+      : { id: "locacao", label: "Locação & Comissão" },
+    { id: "captacao", label: "Captação & Obs" },
+    { id: "proprietarios", label: "Proprietários" },
+    { id: "fotos", label: "Fotos" },
+  ];
+}
 
 interface Props {
   property?: Property;
+  /** Finalidade da tela: governa defaults e as abas de venda/locação. */
+  mode?: "rent" | "sale";
   types: Opt[];
   condominiums: Opt[];
   districts: Opt[];
@@ -194,8 +250,10 @@ interface ViaCepResponse {
  * legada). Serve para criar (`property` ausente) e editar. A aba Proprietários
  * gere o vínculo imóvel↔dono (só no modo edição — precisa do id do imóvel).
  */
-export function PropertyFormButton({ property, types, condominiums, districts, employees, ownerCandidates, disabled }: Props) {
+export function PropertyFormButton({ property, mode = "rent", types, condominiums, districts, employees, ownerCandidates, disabled }: Props) {
   const isEdit = !!property;
+  const isSale = mode === "sale";
+  const tabs = tabsFor(mode);
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [ownerPending, startOwnerTransition] = useTransition();
@@ -351,7 +409,7 @@ export function PropertyFormButton({ property, types, condominiums, districts, e
   }
 
   function openModal() {
-    setForm(property ? fromProperty(property) : EMPTY);
+    setForm(property ? fromProperty(property) : { ...EMPTY, purpose: mode });
     setTab("dados");
     setError(null);
     setOwnerError(null);
@@ -422,7 +480,7 @@ export function PropertyFormButton({ property, types, condominiums, districts, e
 
         {/* Abas */}
         <div className="row" style={{ gap: 4, flexWrap: "wrap", borderBottom: "1px solid var(--border)" }}>
-          {TABS.map((t) => (
+          {tabs.map((t) => (
             <button
               key={t.id}
               type="button"
@@ -494,11 +552,8 @@ export function PropertyFormButton({ property, types, condominiums, districts, e
                   onBlur={(e) => lookupCep(e.target.value)}
                 />
               </div>
-              <Select label="Logradouro" value={form.streetType} onChange={(v) => set({ streetType: v })}>
-                <option value="">—</option>
-                {STREET_TYPES.map((s) => <option key={s} value={s}>{s}</option>)}
-              </Select>
-              <Text label="Endereço" value={form.address} onChange={(v) => set({ address: v })} placeholder="Nome + número" />
+              <Text label="Endereço" value={form.address} onChange={(v) => set({ address: v })} placeholder="Preenchido pelo CEP" />
+              <Text label="Número" value={form.number} onChange={(v) => set({ number: v })} inputMode="numeric" placeholder="Nº" />
             </div>
             <div className="grid grid-3" style={{ gap: 12 }}>
               <div className="field">
@@ -519,7 +574,6 @@ export function PropertyFormButton({ property, types, condominiums, districts, e
             <div className="grid grid-2" style={{ gap: 12 }}>
               <Text label="Chaves" value={form.keysLocation} onChange={(v) => set({ keysLocation: v })} placeholder="Onde estão as chaves" />
               <div className="field">
-                <label>Localização</label>
                 <div className="row" style={{ gap: 16, paddingTop: 6 }}>
                   <Check label="Placa" checked={form.hasSign} onChange={(v) => set({ hasSign: v })} />
                   <Check label="Frente" checked={form.positionFront} onChange={(v) => set({ positionFront: v })} />
@@ -551,6 +605,23 @@ export function PropertyFormButton({ property, types, condominiums, districts, e
               <Check label="Aceita animais" checked={form.allowPets} onChange={(v) => set({ allowPets: v })} />
               <Check label="Aceita estudantes" checked={form.allowStudents} onChange={(v) => set({ allowStudents: v })} />
             </div>
+
+            {isSale && (
+              <div className="stack" style={{ gap: 12, borderTop: "1px solid var(--border)", paddingTop: 12 }}>
+                <span className="text-sm strong">Terreno</span>
+                <div className="grid grid-3" style={{ gap: 12 }}>
+                  <Text label="Topografia" value={form.topography} onChange={(v) => set({ topography: v })} placeholder="Ex.: Plano, Aclive" />
+                  <Text label="Lote" value={form.lotNumber} onChange={(v) => set({ lotNumber: v })} />
+                  <Text label="Quadra" value={form.blockNumber} onChange={(v) => set({ blockNumber: v })} />
+                </div>
+                <div className="grid grid-4" style={{ gap: 12 }}>
+                  <Text label="Frente" value={form.frontMeasure} onChange={(v) => set({ frontMeasure: v })} placeholder="m" />
+                  <Text label="Fundos" value={form.backMeasure} onChange={(v) => set({ backMeasure: v })} placeholder="m" />
+                  <Text label="Esquerda" value={form.leftMeasure} onChange={(v) => set({ leftMeasure: v })} placeholder="m" />
+                  <Text label="Direita" value={form.rightMeasure} onChange={(v) => set({ rightMeasure: v })} placeholder="m" />
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -558,7 +629,7 @@ export function PropertyFormButton({ property, types, condominiums, districts, e
         {tab === "valores" && (
           <div className="stack" style={{ gap: 12 }}>
             <div className="grid grid-3" style={{ gap: 12 }}>
-              <Text label="Preço / Aluguel (R$)" value={form.priceReais} onChange={(v) => set({ priceReais: v })} inputMode="decimal" placeholder="0,00" />
+              <Text label={isSale ? "Preço de Venda (R$)" : "Preço / Aluguel (R$)"} value={form.priceReais} onChange={(v) => set({ priceReais: v })} inputMode="decimal" placeholder="0,00" />
               <Text label="Valor condomínio (R$)" value={form.condoFeeReais} onChange={(v) => set({ condoFeeReais: v })} inputMode="decimal" placeholder="0,00" />
               <Text label="IPTU (R$)" value={form.iptuReais} onChange={(v) => set({ iptuReais: v })} inputMode="decimal" placeholder="0,00" />
             </div>
@@ -601,6 +672,40 @@ export function PropertyFormButton({ property, types, condominiums, districts, e
                 <div className="row" style={{ paddingTop: 6 }}>
                   <Check label="Cobra comissão" checked={form.hasCommission} onChange={(v) => set({ hasCommission: v })} />
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Aba: Venda & Documentação ──────────────────────────── */}
+        {tab === "venda" && (
+          <div className="stack" style={{ gap: 12 }}>
+            <span className="text-sm strong">Autorização de venda</span>
+            <div className="row" style={{ gap: 20 }}>
+              <Check label="Autorizado" checked={form.isAuthorized} onChange={(v) => set({ isAuthorized: v })} />
+              <Check label="Exclusivo" checked={form.isExclusive} onChange={(v) => set({ isExclusive: v })} />
+            </div>
+            <div className="grid grid-3" style={{ gap: 12 }}>
+              <Select label="Tempo" value={form.authTerm} onChange={(v) => set({ authTerm: v })}>
+                <option value="">—</option>
+                <option value="Tempo Determinado">Tempo Determinado</option>
+                <option value="Tempo Indeterminado">Tempo Indeterminado</option>
+              </Select>
+              <Text label="Dias" value={form.authDays} onChange={(v) => set({ authDays: v })} inputMode="numeric" />
+              <Text label="Vencimento" value={form.authExpiry} onChange={(v) => set({ authExpiry: v })} type="date" />
+            </div>
+
+            <div className="stack" style={{ gap: 12, borderTop: "1px solid var(--border)", paddingTop: 12 }}>
+              <span className="text-sm strong">Documentação</span>
+              <div className="row" style={{ gap: 20, flexWrap: "wrap" }}>
+                <Check label="Averbada" checked={form.isRecorded} onChange={(v) => set({ isRecorded: v })} />
+                <Check label="Escritura" checked={form.hasDeed} onChange={(v) => set({ hasDeed: v })} />
+                <Check label="Registrada" checked={form.isRegistered} onChange={(v) => set({ isRegistered: v })} />
+                <Check label="Vendido" checked={form.isSold} onChange={(v) => set({ isSold: v })} />
+              </div>
+              <div className="grid grid-2" style={{ gap: 12 }}>
+                <Text label="Cartório de Registro" value={form.registryOffice} onChange={(v) => set({ registryOffice: v })} />
+                <Text label="Matrícula" value={form.registrationNumber} onChange={(v) => set({ registrationNumber: v })} />
               </div>
             </div>
           </div>

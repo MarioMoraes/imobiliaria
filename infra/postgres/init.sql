@@ -113,7 +113,8 @@ ALTER TABLE properties ADD COLUMN IF NOT EXISTS condominium_id     UUID;        
 ALTER TABLE properties ADD COLUMN IF NOT EXISTS is_commercial      BOOLEAN NOT NULL DEFAULT false; -- Comércio
 -- Endereço
 ALTER TABLE properties ADD COLUMN IF NOT EXISTS street_type        TEXT;             -- Logradouro (Rua/Alameda/Av.)
-ALTER TABLE properties ADD COLUMN IF NOT EXISTS address            TEXT;             -- Endereço
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS address            TEXT;             -- Endereço (logradouro, via CEP)
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS number             TEXT;             -- Número
 ALTER TABLE properties ADD COLUMN IF NOT EXISTS district           TEXT;             -- Bairro
 ALTER TABLE properties ADD COLUMN IF NOT EXISTS zip                TEXT;             -- CEP
 ALTER TABLE properties ADD COLUMN IF NOT EXISTS keys_location      TEXT;             -- Chaves
@@ -154,6 +155,27 @@ ALTER TABLE properties ADD COLUMN IF NOT EXISTS extra_data          TEXT;       
 ALTER TABLE properties ADD COLUMN IF NOT EXISTS publish_web         BOOLEAN NOT NULL DEFAULT false; -- Publicar / Internet
 ALTER TABLE properties ADD COLUMN IF NOT EXISTS has_photos          BOOLEAN NOT NULL DEFAULT false; -- Com Foto
 ALTER TABLE properties ADD COLUMN IF NOT EXISTS notes               TEXT;            -- Obs
+-- Venda: autorização de venda (tela legada "Imóveis a Vender")
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS is_authorized       BOOLEAN NOT NULL DEFAULT false; -- Autoriz
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS is_exclusive        BOOLEAN NOT NULL DEFAULT false; -- Exclusivo
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS auth_term           TEXT;            -- Tempo (ex.: "Tempo Indeterminado")
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS auth_days           INT;             -- Dias
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS auth_expiry         DATE;            -- Vencto (da autorização)
+-- Venda: documentação
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS is_recorded         BOOLEAN NOT NULL DEFAULT false; -- Averbada
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS has_deed            BOOLEAN NOT NULL DEFAULT false; -- Escritura
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS is_registered       BOOLEAN NOT NULL DEFAULT false; -- Registrada
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS is_sold             BOOLEAN NOT NULL DEFAULT false; -- Vendido
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS registry_office     TEXT;            -- Cartório de Registro
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS registration_number TEXT;            -- Matrícula
+-- Venda: medidas do terreno (texto livre — aceitam "12,5m" etc.)
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS topography          TEXT;            -- Topografia
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS lot_number          TEXT;            -- Lote
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS block_number        TEXT;            -- Quadra
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS front_measure       TEXT;            -- Frente (medida)
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS back_measure        TEXT;            -- Fundos (medida)
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS left_measure        TEXT;            -- Esquerda (medida)
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS right_measure       TEXT;            -- Direita (medida)
 
 -- Código sequencial por tenant (referência humana, como a tela legada).
 CREATE UNIQUE INDEX IF NOT EXISTS idx_properties_tenant_code ON properties (tenant_id, code);
