@@ -38,7 +38,6 @@ export const adminNav: NavGroup[] = [
     items: [
       { label: "CRM", href: "/crm", icon: "kanban" },
       { label: "Agenda", href: "/agenda", icon: "calendar" },
-      { label: "Contratos", href: "/contratos", icon: "contract" },
       { label: "Aluguel", href: "/aluguel", icon: "key" },
       { label: "Manutenção", href: "/manutencao", icon: "wrench" },
       { label: "Documentos", href: "/documentos", icon: "folder" },

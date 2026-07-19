@@ -72,7 +72,11 @@ export function InventoryView({
     condominiums: condominiums.map<Opt>((c) => ({ id: c.id, label: c.name })),
     districts: districts.map<Opt>((d) => ({ id: d.id, label: d.name })),
     employees: employees.map<Opt>((e) => ({ id: e.id, label: e.fullName })),
-    ownerCandidates: locadores.map<Opt>((p) => ({ id: p.id, label: p.fullName })),
+    ownerCandidates: locadores.map<Opt>((p) => ({
+      id: p.id,
+      label: p.fullName,
+      sub: p.cpfCnpj ?? p.mobile ?? p.phone ?? undefined,
+    })),
   };
 
   const count = (s: string) => properties.filter((p) => p.status === s).length;

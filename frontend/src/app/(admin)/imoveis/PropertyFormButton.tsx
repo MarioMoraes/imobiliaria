@@ -40,7 +40,13 @@ async function fileToDataUrl(file: File, maxDim = 1400, quality = 0.72): Promise
 export interface Opt {
   id: string;
   label: string;
+  /** Linha secundária (ex.: CPF/telefone) — usada na busca do seletor de donos. */
+  sub?: string;
 }
+
+/** Minúsculas sem acento — para a busca por nome tolerar "Joao"/"João". */
+const fold = (s: string) =>
+  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 const EMPTY: PropertyFormInput = {
   title: "",
@@ -264,9 +270,9 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
   const [error, setError] = useState<string | null>(null);
   const [cepLoading, setCepLoading] = useState(false);
   // Estado local da aba Proprietários (vínculo é imediato, via server action).
-  const [ownerPersonId, setOwnerPersonId] = useState("");
   const [ownerShare, setOwnerShare] = useState("100");
   const [ownerError, setOwnerError] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
   // Estado local da aba Fotos.
   const [photos, setPhotos] = useState<PropertyPhoto[]>([]);
   const [photosLoaded, setPhotosLoaded] = useState(false);
@@ -359,16 +365,17 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
   const owners = property?.owners ?? [];
   const availableOwners = ownerCandidates.filter((c) => !owners.some((o) => o.personId === c.id));
 
-  function addOwner() {
-    if (!property || !ownerPersonId) return;
+  /** Vincula o dono escolhido no seletor; fecha o popup e recarrega a lista. */
+  function addOwner(personId: string) {
+    if (!property || !personId) return;
     setOwnerError(null);
+    setPickerOpen(false);
     startOwnerTransition(async () => {
-      const res = await addOwnerAction(property.id, ownerPersonId, Number(ownerShare) || 100);
+      const res = await addOwnerAction(property.id, personId, Number(ownerShare) || 100);
       if (!res.ok) {
         setOwnerError(res.error ?? "Falha ao vincular.");
         return;
       }
-      setOwnerPersonId("");
       setOwnerShare("100");
       router.refresh();
     });
@@ -413,8 +420,8 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
     setTab("dados");
     setError(null);
     setOwnerError(null);
-    setOwnerPersonId("");
     setOwnerShare("100");
+    setPickerOpen(false);
     setPhotos([]);
     setPhotosLoaded(false);
     setPhotoError(null);
@@ -505,16 +512,18 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
         {tab === "dados" && (
           <div className="stack" style={{ gap: 12 }}>
             <Text label="Título / Descrição *" value={form.title} onChange={(v) => set({ title: v })} placeholder="Apartamento 2 quartos no Centro" autoFocus />
-            <div className="grid grid-3" style={{ gap: 12 }}>
+            <div className={isSale ? "grid grid-2" : "grid grid-3"} style={{ gap: 12 }}>
               <Select label="Tipo" value={form.propertyTypeId} onChange={(v) => set({ propertyTypeId: v })}>
                 <option value="">—</option>
                 {types.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
               </Select>
-              <Select label="Finalidade" value={form.purpose} onChange={(v) => set({ purpose: v })}>
-                <option value="rent">Locação</option>
-                <option value="sale">Venda</option>
-                <option value="season">Temporada</option>
-              </Select>
+              {!isSale && (
+                <Select label="Finalidade" value={form.purpose} onChange={(v) => set({ purpose: v })}>
+                  <option value="rent">Locação</option>
+                  <option value="sale">Venda</option>
+                  <option value="season">Temporada</option>
+                </Select>
+              )}
               <Select label="Situação" value={form.status} onChange={(v) => set({ status: v })}>
                 <option value="available">Disponível</option>
                 <option value="reserved">Reservado</option>
@@ -529,9 +538,11 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
                 {condominiums.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
               </Select>
               <Text label="Contrato" value={form.contractNumber} onChange={(v) => set({ contractNumber: v })} />
-              <div className="field" style={{ justifyContent: "flex-end", paddingBottom: 8 }}>
-                <Check label="Comércio" checked={form.isCommercial} onChange={(v) => set({ isCommercial: v })} />
-              </div>
+              {!isSale && (
+                <div className="field" style={{ justifyContent: "flex-end", paddingBottom: 8 }}>
+                  <Check label="Comércio" checked={form.isCommercial} onChange={(v) => set({ isCommercial: v })} />
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -571,15 +582,17 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
               <Text label="Cidade" value={form.city} onChange={(v) => set({ city: v })} />
               <Text label="UF" value={form.state} onChange={(v) => set({ state: v.toUpperCase().slice(0, 2) })} maxLength={2} />
             </div>
-            <div className="grid grid-2" style={{ gap: 12 }}>
+            <div className={isSale ? "stack" : "grid grid-2"} style={{ gap: 12 }}>
               <Text label="Chaves" value={form.keysLocation} onChange={(v) => set({ keysLocation: v })} placeholder="Onde estão as chaves" />
-              <div className="field">
-                <div className="row" style={{ gap: 16, paddingTop: 6 }}>
-                  <Check label="Placa" checked={form.hasSign} onChange={(v) => set({ hasSign: v })} />
-                  <Check label="Frente" checked={form.positionFront} onChange={(v) => set({ positionFront: v })} />
-                  <Check label="Fundos" checked={form.positionBack} onChange={(v) => set({ positionBack: v })} />
+              {!isSale && (
+                <div className="field">
+                  <div className="row" style={{ gap: 16, paddingTop: 6 }}>
+                    <Check label="Placa" checked={form.hasSign} onChange={(v) => set({ hasSign: v })} />
+                    <Check label="Frente" checked={form.positionFront} onChange={(v) => set({ positionFront: v })} />
+                    <Check label="Fundos" checked={form.positionBack} onChange={(v) => set({ positionBack: v })} />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         )}
@@ -596,15 +609,19 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
               <Text label="Piso" value={form.floorInfo} onChange={(v) => set({ floorInfo: v })} />
               <Text label="Teto" value={form.ceilingInfo} onChange={(v) => set({ ceilingInfo: v })} />
             </div>
-            <div className="grid grid-2" style={{ gap: 12 }}>
-              <Text label="Luz (instalação)" value={form.electricityMeter} onChange={(v) => set({ electricityMeter: v })} />
-              <Text label="Água (instalação)" value={form.waterMeter} onChange={(v) => set({ waterMeter: v })} />
-            </div>
+            {!isSale && (
+              <div className="grid grid-2" style={{ gap: 12 }}>
+                <Text label="Luz (instalação)" value={form.electricityMeter} onChange={(v) => set({ electricityMeter: v })} />
+                <Text label="Água (instalação)" value={form.waterMeter} onChange={(v) => set({ waterMeter: v })} />
+              </div>
+            )}
             <Text label="Dependências" value={form.dependencies} onChange={(v) => set({ dependencies: v })} placeholder="Ex.: 2 vagas, área de serviço, sacada" />
-            <div className="row" style={{ gap: 20, paddingTop: 4 }}>
-              <Check label="Aceita animais" checked={form.allowPets} onChange={(v) => set({ allowPets: v })} />
-              <Check label="Aceita estudantes" checked={form.allowStudents} onChange={(v) => set({ allowStudents: v })} />
-            </div>
+            {!isSale && (
+              <div className="row" style={{ gap: 20, paddingTop: 4 }}>
+                <Check label="Aceita animais" checked={form.allowPets} onChange={(v) => set({ allowPets: v })} />
+                <Check label="Aceita estudantes" checked={form.allowStudents} onChange={(v) => set({ allowStudents: v })} />
+              </div>
+            )}
 
             {isSale && (
               <div className="stack" style={{ gap: 12, borderTop: "1px solid var(--border)", paddingTop: 12 }}>
@@ -628,31 +645,39 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
         {/* ── Aba: Valores ───────────────────────────────────────── */}
         {tab === "valores" && (
           <div className="stack" style={{ gap: 12 }}>
-            <div className="grid grid-3" style={{ gap: 12 }}>
-              <Text label={isSale ? "Preço de Venda (R$)" : "Preço / Aluguel (R$)"} value={form.priceReais} onChange={(v) => set({ priceReais: v })} inputMode="decimal" placeholder="0,00" />
-              <Text label="Valor condomínio (R$)" value={form.condoFeeReais} onChange={(v) => set({ condoFeeReais: v })} inputMode="decimal" placeholder="0,00" />
-              <Text label="IPTU (R$)" value={form.iptuReais} onChange={(v) => set({ iptuReais: v })} inputMode="decimal" placeholder="0,00" />
-            </div>
-            <div className="grid grid-3" style={{ gap: 12 }}>
-              <Select label="Descontar IPTU de" value={form.iptuChargedTo} onChange={(v) => set({ iptuChargedTo: v })}>
-                <option value="">—</option>
-                <option value="LOCATARIO">Locatário</option>
-                <option value="LOCADOR">Locador</option>
-              </Select>
-              <Text label="Nº parcelas IPTU" value={form.iptuInstallments} onChange={(v) => set({ iptuInstallments: v })} inputMode="numeric" />
-              <Text label="Valor parcela IPTU (R$)" value={form.iptuInstallmentReais} onChange={(v) => set({ iptuInstallmentReais: v })} inputMode="decimal" placeholder="0,00" />
-            </div>
-            <div className="grid grid-2" style={{ gap: 12 }}>
-              <Text label="Taxa de administração (%)" value={form.adminFeePercent} onChange={(v) => set({ adminFeePercent: v })} inputMode="decimal" placeholder="10" />
-              <div className="field">
-                <label>Encargos</label>
-                <div className="row" style={{ gap: 16, paddingTop: 6, flexWrap: "wrap" }}>
-                  <Check label="Cobrar taxa adm." checked={form.chargeAdminFee} onChange={(v) => set({ chargeAdminFee: v })} />
-                  <Check label="Ressarcir locador (IPTU)" checked={form.iptuReimburseOwner} onChange={(v) => set({ iptuReimburseOwner: v })} />
-                  <Check label="Garantido" checked={form.isGuaranteed} onChange={(v) => set({ isGuaranteed: v })} />
-                </div>
+            {isSale ? (
+              <div className="grid grid-3" style={{ gap: 12 }}>
+                <Text label="Preço de Venda (R$)" value={form.priceReais} onChange={(v) => set({ priceReais: v })} inputMode="decimal" placeholder="0,00" />
               </div>
-            </div>
+            ) : (
+              <>
+                <div className="grid grid-3" style={{ gap: 12 }}>
+                  <Text label="Preço / Aluguel (R$)" value={form.priceReais} onChange={(v) => set({ priceReais: v })} inputMode="decimal" placeholder="0,00" />
+                  <Text label="Valor condomínio (R$)" value={form.condoFeeReais} onChange={(v) => set({ condoFeeReais: v })} inputMode="decimal" placeholder="0,00" />
+                  <Text label="IPTU (R$)" value={form.iptuReais} onChange={(v) => set({ iptuReais: v })} inputMode="decimal" placeholder="0,00" />
+                </div>
+                <div className="grid grid-3" style={{ gap: 12 }}>
+                  <Select label="Descontar IPTU de" value={form.iptuChargedTo} onChange={(v) => set({ iptuChargedTo: v })}>
+                    <option value="">—</option>
+                    <option value="LOCATARIO">Locatário</option>
+                    <option value="LOCADOR">Locador</option>
+                  </Select>
+                  <Text label="Nº parcelas IPTU" value={form.iptuInstallments} onChange={(v) => set({ iptuInstallments: v })} inputMode="numeric" />
+                  <Text label="Valor parcela IPTU (R$)" value={form.iptuInstallmentReais} onChange={(v) => set({ iptuInstallmentReais: v })} inputMode="decimal" placeholder="0,00" />
+                </div>
+                <div className="grid grid-2" style={{ gap: 12 }}>
+                  <Text label="Taxa de administração (%)" value={form.adminFeePercent} onChange={(v) => set({ adminFeePercent: v })} inputMode="decimal" placeholder="10" />
+                  <div className="field">
+                    <label>Encargos</label>
+                    <div className="row" style={{ gap: 16, paddingTop: 6, flexWrap: "wrap" }}>
+                      <Check label="Cobrar taxa adm." checked={form.chargeAdminFee} onChange={(v) => set({ chargeAdminFee: v })} />
+                      <Check label="Ressarcir locador (IPTU)" checked={form.iptuReimburseOwner} onChange={(v) => set({ iptuReimburseOwner: v })} />
+                      <Check label="Garantido" checked={form.isGuaranteed} onChange={(v) => set({ isGuaranteed: v })} />
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -752,7 +777,7 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
             ) : (
               <>
                 <div className="stack" style={{ gap: 8 }}>
-                  <span className="text-sm strong">Donos vinculados</span>
+                  <span className="text-sm strong">Proprietários</span>
                   {owners.length === 0 ? (
                     <span className="text-sm subtle">Nenhum proprietário vinculado.</span>
                   ) : (
@@ -782,21 +807,13 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
                 </div>
 
                 <div className="stack" style={{ gap: 8, borderTop: "1px solid var(--border)", paddingTop: 12 }}>
-                  <span className="text-sm strong">Vincular proprietário</span>
                   {availableOwners.length === 0 ? (
                     <span className="text-xs subtle">
                       Sem pessoas LOCADOR disponíveis. Cadastre-as em Proprietários (papel LOCADOR).
                     </span>
                   ) : (
                     <div className="row" style={{ gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
-                      <div className="field" style={{ flex: "1 1 240px" }}>
-                        <label>Pessoa (LOCADOR)</label>
-                        <select className="input" value={ownerPersonId} onChange={(e) => setOwnerPersonId(e.target.value)}>
-                          <option value="">Selecione…</option>
-                          {availableOwners.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-                        </select>
-                      </div>
-                      <div className="field" style={{ width: 100 }}>
+                      <div className="field" style={{ width: 120 }}>
                         <label>Participação %</label>
                         <input
                           className="input"
@@ -808,10 +825,11 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
                       <button
                         className="btn btn-primary btn-sm"
                         type="button"
-                        disabled={ownerPending || !ownerPersonId}
-                        onClick={addOwner}
+                        disabled={ownerPending}
+                        onClick={() => { setOwnerError(null); setPickerOpen(true); }}
                       >
-                        {ownerPending ? "…" : "Vincular"}
+                        <Icon name={ownerPending ? "loader" : "plus"} className={ownerPending ? "spin" : undefined} size={14} />
+                        {ownerPending ? " Vinculando…" : " Adicionar Proprietário"}
                       </button>
                     </div>
                   )}
@@ -996,8 +1014,127 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
         </button>
       )}
       {open && mounted && createPortal(modal, document.body)}
+      {open && mounted && pickerOpen &&
+        createPortal(
+          <OwnerPicker
+            candidates={availableOwners}
+            onPick={addOwner}
+            onClose={() => setPickerOpen(false)}
+          />,
+          document.body,
+        )}
       {mounted && lightbox !== null && createPortal(lightboxEl, document.body)}
     </>
+  );
+}
+
+/**
+ * Popup de escolha do proprietário: busca por nome (ou CPF/telefone) sobre os
+ * LOCADORes já carregados e devolve o escolhido em um clique. Substitui o
+ * dropdown, que fica impraticável com muitos proprietários.
+ */
+function OwnerPicker({
+  candidates,
+  onPick,
+  onClose,
+}: {
+  candidates: Opt[];
+  onPick: (personId: string) => void;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const q = fold(query.trim());
+  const results = q
+    ? candidates.filter((c) => fold(c.label).includes(q) || fold(c.sub ?? "").includes(q))
+    : candidates;
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,.45)",
+        display: "flex",
+        alignItems: "flex-start",
+        justifyContent: "center",
+        padding: "10vh 16px",
+        overflowY: "auto",
+        zIndex: 2500,
+      }}
+    >
+      <div
+        className="card card-pad stack"
+        onClick={(e) => e.stopPropagation()}
+        style={{ gap: 12, width: 520, maxWidth: "94vw", boxShadow: "0 20px 60px rgba(0,0,0,.30)" }}
+      >
+        <div className="row" style={{ justifyContent: "space-between" }}>
+          <strong>Adicionar Proprietário</strong>
+          <button className="icon-btn" type="button" aria-label="Fechar" onClick={onClose}>
+            <Icon name="close" size={15} />
+          </button>
+        </div>
+
+        <input
+          className="input"
+          value={query}
+          autoFocus
+          placeholder="Buscar por nome, CPF/CNPJ ou telefone…"
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            // Enter escolhe o único/primeiro resultado — busca sem tirar a mão do teclado.
+            if (e.key === "Enter" && results[0]) onPick(results[0].id);
+          }}
+        />
+
+        <div className="stack" style={{ gap: 6, maxHeight: "46vh", overflowY: "auto" }}>
+          {results.length === 0 ? (
+            <span className="text-sm subtle" style={{ padding: "12px 0" }}>
+              Nenhum proprietário encontrado para “{query}”.
+            </span>
+          ) : (
+            results.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                className="row"
+                onClick={() => onPick(c.id)}
+                style={{
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 8,
+                  width: "100%",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  background: "transparent",
+                  border: "1px solid var(--border)",
+                  borderRadius: 8,
+                  padding: "8px 12px",
+                }}
+              >
+                <span className="stack" style={{ gap: 2 }}>
+                  <span className="text-sm strong">{c.label}</span>
+                  {c.sub && <span className="text-xs subtle">{c.sub}</span>}
+                </span>
+                <Icon name="chevronRight" size={14} />
+              </button>
+            ))
+          )}
+        </div>
+
+        <span className="text-xs subtle">
+          {results.length} de {candidates.length} proprietário(s) disponível(is).
+        </span>
+      </div>
+    </div>
   );
 }
 
