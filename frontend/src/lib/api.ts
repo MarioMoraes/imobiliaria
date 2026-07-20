@@ -275,6 +275,127 @@ export interface Condominium {
   penaltyPercent: number;
 }
 
+/** Parte de um contrato (locador/locatário/fiador). */
+export interface ContractParty {
+  id: string;
+  contractId: string;
+  role: "LOCADOR" | "LOCATARIO" | "FIADOR" | string;
+  personId: string;
+  personName: string;
+  signedAt: string | null;
+}
+
+/** Template de contrato do tenant (HTML com variáveis {{...}}). */
+export interface ContractTemplate {
+  id: string;
+  name: string;
+  /** Corpo do modelo em texto puro (modelos legados podem trazer HTML). */
+  content?: string;
+  variables: string[];
+  active: boolean;
+}
+
+/** Signatário de um envelope de assinatura (MOD-ASSINATURA). */
+export interface SignatureSigner {
+  id: string;
+  partyId: string | null;
+  role: string | null;
+  name: string;
+  email: string | null;
+  signUrl: string | null;
+  status: string; // PENDENTE | ASSINADO | RECUSADO
+  signedAt: string | null;
+}
+
+/** Envio do contrato ao provedor de assinatura (ZapSign). */
+export interface SignatureEnvelope {
+  id: string;
+  contractId: string;
+  version: number | null;
+  provider: string;
+  status: string; // PENDENTE | ASSINADO | RECUSADO | CANCELADO | EXPIRADO
+  authMode: string;
+  sandbox: boolean;
+  hasSignedPdf: boolean;
+  signedAt: string | null;
+  createdAt: string;
+  signers: SignatureSigner[];
+}
+
+/** Conexão da conta ZapSign do tenant. O token nunca vem do backend. */
+export interface SignatureSettings {
+  connected: boolean;
+  provider: string;
+  sandbox: boolean;
+  authMode: string;
+  tokenHint: string | null;
+  webhookUrl: string;
+  webhookRegisteredAt: string | null;
+  updatedAt: string | null;
+}
+
+/**
+ * Variável dinâmica (merge field) disponível nos templates. O catálogo vem do
+ * backend — é a mesma lista que a geração do PDF sabe preencher.
+ */
+export interface MergeField {
+  key: string;
+  label: string;
+  group: string;
+  example: string;
+}
+
+/**
+ * Contrato de locação (MOD-CONTRATO) — espelha a tela legada "Contratos de
+ * Locação". Valores monetários em centavos; percentuais 0–100; datas ISO.
+ */
+export interface Contract {
+  id: string;
+  code: number | null;
+  propertyId: string | null;
+  templateId: string | null;
+  status: string;
+
+  startsAt: string | null;
+  endsAt: string | null;
+  termMonths: number | null;
+  readjustIndex: string;
+  readjustPeriodMonths: number | null;
+  lastReadjustAt: string | null;
+  ownerPayDay: number | null;
+  tenantPayDay: number | null;
+  terminatedAt: string | null;
+
+  rentalValueCents: number | null;
+  interestPercent: number | null;
+  penaltyPercent: number | null;
+  adminFeePercent: number | null;
+  isAdministration: boolean;
+  incomeTaxDeclaration: boolean;
+  iptuChargedTo: string | null;
+  commissionType: string | null;
+  hasCommission: boolean;
+
+  guaranteeKind: string | null;
+  hasInsurance: boolean;
+  insuranceDescription: string | null;
+  insuranceValueCents: number | null;
+
+  isSettled: boolean;
+  hasEvictionOrder: boolean;
+  hasJudicialExecution: boolean;
+  processNumber: string | null;
+  court: string | null;
+
+  specialClauses: string | null;
+  guarantorPropertyInfo: string | null;
+
+  parties: ContractParty[];
+  latestVersion: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /* ------------------------------------------------------------- Helpers */
 async function get<T>(
   path: string,
@@ -363,6 +484,43 @@ export function fetchPersons(role?: PersonRole): Promise<Person[] | null> {
 /** Condomínios do tenant da sessão. */
 export function fetchCondominiums(): Promise<Condominium[] | null> {
   return get<Condominium[]>("/v1/condominiums");
+}
+
+/** Contratos do tenant da sessão. */
+export function fetchContracts(): Promise<Contract[] | null> {
+  return get<Contract[]>("/v1/contracts");
+}
+
+/** Um contrato pelo id. */
+export function fetchContract(id: string): Promise<Contract | null> {
+  return get<Contract>(`/v1/contracts/${id}`);
+}
+
+/**
+ * Templates de contrato do tenant da sessão. `includeInactive` traz também os
+ * desativados — usado pela tela de manutenção em "Tabelas".
+ */
+export function fetchContractTemplates(
+  includeInactive = false,
+): Promise<ContractTemplate[] | null> {
+  return get<ContractTemplate[]>(
+    `/v1/contract-templates${includeInactive ? "?all=true" : ""}`,
+  );
+}
+
+/** Envelope de assinatura mais recente do contrato (null se nunca enviado). */
+export function fetchContractSignature(contractId: string): Promise<SignatureEnvelope | null> {
+  return get<SignatureEnvelope>(`/v1/contracts/${contractId}/signature`);
+}
+
+/** Configuração da integração de assinatura do tenant. */
+export function fetchSignatureSettings(): Promise<SignatureSettings | null> {
+  return get<SignatureSettings>("/v1/signature-settings");
+}
+
+/** Catálogo de variáveis dinâmicas aceitas nos templates. */
+export function fetchMergeFields(): Promise<MergeField[] | null> {
+  return get<MergeField[]>("/v1/contract-templates/merge-fields");
 }
 
 /** Fotos de um imóvel (data URL base64 — Fase 0). */

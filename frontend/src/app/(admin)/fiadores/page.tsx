@@ -1,4 +1,4 @@
-import { PageHeader, StatCard, Section, StatusBadge, EmptyState } from "../../../components/ui";
+import { PageHeader, StatCard, Section, StatusBadge, EmptyState, initials } from "../../../components/ui";
 import { fetchPersons } from "../../../lib/api";
 import { PersonFormButton } from "../clientes/PersonFormButton";
 
@@ -49,16 +49,16 @@ export default async function FiadoresPage() {
               <tbody>
                 {guarantors.map((g) => (
                   <tr key={g.id}>
-                    <td>
+                    <td className="cell-status tone-teal">
                       <div className="cell-main">
-                        <span className="avatar" style={{ width: 34, height: 34, fontSize: "0.72rem" }}>
-                          {g.fullName.slice(0, 2).toUpperCase()}
+                        <span className="avatar-initials" style={{ width: 34, height: 34 }}>
+                          {initials(g.fullName)}
                         </span>
                         <span className="strong">{g.fullName}</span>
                       </div>
                     </td>
                     <td><span className="badge badge-slate">{g.personType}</span></td>
-                    <td className="text-sm subtle">{g.cpfCnpj ?? "—"}</td>
+                    <td className="text-sm subtle tabular">{g.cpfCnpj ?? "—"}</td>
                     <td className="text-sm">{g.maritalStatus ? maritalLabel[g.maritalStatus] ?? g.maritalStatus : "—"}</td>
                     <td className="text-sm">
                       {g.addresses[0]?.city ?? "—"}

@@ -52,6 +52,34 @@ const schema = z.object({
     .string()
     .default("true")
     .transform((v) => v.trim().toLowerCase() === "true" || v.trim() === "1"),
+
+  // ── Gotenberg (HTML → PDF, MOD-CONTRATO) ───────────────────────
+  // Serviço stateless de conversão. Default aponta para o container local
+  // (docker-compose expõe 3050→3000 p/ não colidir com o frontend :3000).
+  GOTENBERG_URL: z.string().default("http://localhost:3050"),
+
+  // ── Segredos em repouso (shared/crypto.ts) ─────────────────────
+  // Chave AES-256 em base64 (32 bytes): `openssl rand -base64 32`. O default é
+  // um valor FIXO de desenvolvimento — em produção o boot exige uma chave real
+  // (ver o fail-fast abaixo), senão os tokens de terceiros estariam "cifrados"
+  // com uma chave pública neste repositório.
+  // `.env` copiado do exemplo costuma trazer a chave VAZIA — isso passaria pelo
+  // z.string() e só quebraria na 1ª cifragem, com um erro obscuro. Tratamos
+  // vazio como ausente.
+  APP_ENCRYPTION_KEY: z
+    .string()
+    .optional()
+    .transform((v) => (v?.trim() ? v.trim() : "ZGV2LW9ubHkta2V5LWRvLW5vdC11c2UtaW4tcHJvZCE=")), // "dev-only-key-do-not-use-in-prod!"
+
+  // ── Assinatura eletrônica (MOD-ASSINATURA / ZapSign) ───────────
+  // O token da API NÃO fica aqui: é por tenant, cifrado no banco
+  // (tenant_signature_settings). Aqui ficam só os endereços do provedor.
+  ZAPSIGN_API_URL: z.string().default("https://api.zapsign.com.br/api/v1"),
+  ZAPSIGN_SANDBOX_API_URL: z.string().default("https://sandbox.api.zapsign.com.br/api/v1"),
+  // URL pública deste backend — compõe o endereço do webhook registrado na
+  // ZapSign. Em localhost o registro automático é pulado (o provedor não
+  // alcançaria a máquina); use o botão "Sincronizar" no contrato.
+  PUBLIC_BASE_URL: z.string().default("http://localhost:3001"),
 });
 
 const parsed = schema.parse(process.env);
@@ -60,6 +88,14 @@ const parsed = schema.parse(process.env);
 if (parsed.NODE_ENV === "production" && parsed.AUTH_DEV_MODE) {
   throw new Error(
     "AUTH_DEV_MODE não pode estar ligado em produção (bypass de autenticação). Defina AUTH_DEV_MODE=false.",
+  );
+}
+
+// Fail-fast: a chave de desenvolvimento está versionada — usá-la em produção
+// equivale a guardar os tokens dos tenants em texto claro.
+if (parsed.NODE_ENV === "production" && !process.env.APP_ENCRYPTION_KEY?.trim()) {
+  throw new Error(
+    "APP_ENCRYPTION_KEY é obrigatória em produção (gere com: openssl rand -base64 32).",
   );
 }
 

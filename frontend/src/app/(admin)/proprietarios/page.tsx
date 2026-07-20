@@ -1,4 +1,4 @@
-import { PageHeader, StatCard, Section, StatusBadge, EmptyState } from "../../../components/ui";
+import { PageHeader, StatCard, Section, StatusBadge, EmptyState, initials } from "../../../components/ui";
 import { fetchPersons } from "../../../lib/api";
 import { PersonFormButton } from "../clientes/PersonFormButton";
 
@@ -47,16 +47,16 @@ export default async function ProprietariosPage() {
               <tbody>
                 {owners.map((o) => (
                   <tr key={o.id}>
-                    <td>
+                    <td className="cell-status tone-indigo">
                       <div className="cell-main">
-                        <span className="avatar" style={{ width: 34, height: 34, fontSize: "0.72rem" }}>
-                          {o.fullName.slice(0, 2).toUpperCase()}
+                        <span className="avatar-initials" style={{ width: 34, height: 34 }}>
+                          {initials(o.fullName)}
                         </span>
                         <span className="strong">{o.fullName}</span>
                       </div>
                     </td>
                     <td><span className="badge badge-slate">{o.personType}</span></td>
-                    <td className="text-sm subtle">{o.cpfCnpj ?? "—"}</td>
+                    <td className="text-sm subtle tabular">{o.cpfCnpj ?? "—"}</td>
                     <td className="text-sm">{o.email ?? o.phone ?? o.mobile ?? "—"}</td>
                     <td><StatusBadge status={o.status} /></td>
                   </tr>

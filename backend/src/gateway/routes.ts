@@ -4,6 +4,12 @@ import { authRoutes } from "../modules/auth/auth.routes.js";
 import { propertyRoutes } from "../modules/property/property.routes.js";
 import { propertyTypeRoutes } from "../modules/property-type/property-type.routes.js";
 import { clauseRoutes } from "../modules/clause/clause.routes.js";
+import { contractRoutes, contractTemplateRoutes } from "../modules/contract/contract.routes.js";
+import {
+  signatureRoutes,
+  signatureSettingsRoutes,
+  signatureWebhookRoutes,
+} from "../modules/signature/signature.routes.js";
 import { inspectionItemRoutes } from "../modules/inspection-item/inspection-item.routes.js";
 import { tenantRoutes } from "../modules/tenant/tenant.routes.js";
 import { userRoutes } from "../modules/user/user.routes.js";
@@ -25,6 +31,11 @@ import { authContextHook } from "./auth-context.hook.js";
 export async function registerRoutes(app: FastifyInstance): Promise<void> {
   // Público
   await app.register(healthRoutes);
+
+  // Callback do provedor de assinatura (ZapSign). Fica FORA de /v1: o provedor
+  // não manda header de tenant nem token de sessão. O tenant vem da URL e a
+  // autenticidade, de um header secreto por tenant (ver signature.routes.ts).
+  await app.register(signatureWebhookRoutes, { prefix: "/webhooks/zapsign" });
 
   // Administração da plataforma (Super Admin). Fora de /v1: não é escopado por
   // tenant. TODO: proteger com autorização de Super Admin.
@@ -56,6 +67,13 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       await v1.register(personRoutes, { prefix: "/persons" });
       // Cadastro de condomínios (identificação + parâmetros de cobrança).
       await v1.register(condominiumRoutes, { prefix: "/condominiums" });
+      // Contratos (locação) + templates (MOD-CONTRATO).
+      await v1.register(contractRoutes, { prefix: "/contracts" });
+      await v1.register(contractTemplateRoutes, { prefix: "/contract-templates" });
+      // Assinatura eletrônica (MOD-ASSINATURA). Compartilha o prefixo /contracts
+      // com contractRoutes — os paths não colidem (send-to-sign, signature…).
+      await v1.register(signatureRoutes, { prefix: "/contracts" });
+      await v1.register(signatureSettingsRoutes, { prefix: "/signature-settings" });
     },
     { prefix: "/v1" },
   );

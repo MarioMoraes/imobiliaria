@@ -3,9 +3,18 @@
 import { useState } from "react";
 import { Icon } from "../../../components/Icon";
 import { Modal } from "../../../components/Modal";
-import type { Clause, District, Event, InspectionItem, PropertyType } from "../../../lib/api";
+import type {
+  Clause,
+  ContractTemplate,
+  District,
+  Event,
+  InspectionItem,
+  MergeField,
+  PropertyType,
+} from "../../../lib/api";
 import { SingleFieldManager } from "./SingleFieldManager";
 import { ClauseManager } from "./ClauseManager";
+import { ContractTemplateManager } from "./ContractTemplateManager";
 import { EventManager } from "./EventManager";
 import {
   createDistrictAction,
@@ -16,7 +25,7 @@ import {
   deleteTypeAction,
 } from "./actions";
 
-type CardKey = "types" | "clauses" | "items" | "districts" | "events";
+type CardKey = "types" | "clauses" | "templates" | "items" | "districts" | "events";
 
 interface CardMeta {
   key: CardKey;
@@ -36,22 +45,28 @@ interface CardMeta {
 export function TabelasGrid({
   types,
   clauses,
+  templates,
+  mergeFields,
   items,
   districts,
   events,
   liveTypes,
   liveClauses,
+  liveTemplates,
   liveItems,
   liveDistricts,
   liveEvents,
 }: {
   types: PropertyType[];
   clauses: Clause[];
+  templates: ContractTemplate[];
+  mergeFields: MergeField[];
   items: InspectionItem[];
   districts: District[];
   events: Event[];
   liveTypes: boolean;
   liveClauses: boolean;
+  liveTemplates: boolean;
   liveItems: boolean;
   liveDistricts: boolean;
   liveEvents: boolean;
@@ -76,6 +91,15 @@ export function TabelasGrid({
       description: "Cláusulas reaproveitadas nos contratos.",
       count: clauses.length,
       live: liveClauses,
+    },
+    {
+      key: "templates",
+      title: "Modelos de Contrato",
+      icon: "fileText",
+      tone: "blue",
+      description: "HTML com variáveis dinâmicas do contrato.",
+      count: templates.length,
+      live: liveTemplates,
     },
     {
       key: "items",
@@ -156,6 +180,13 @@ export function TabelasGrid({
         )}
         {active?.key === "clauses" && (
           <ClauseManager clauses={clauses} live={liveClauses} />
+        )}
+        {active?.key === "templates" && (
+          <ContractTemplateManager
+            templates={templates}
+            mergeFields={mergeFields}
+            live={liveTemplates}
+          />
         )}
         {active?.key === "items" && (
           <SingleFieldManager

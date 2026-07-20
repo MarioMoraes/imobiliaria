@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { deleteJson, postJson } from "../../../lib/api";
+import { deleteJson, patchJson, postJson } from "../../../lib/api";
 
 export interface LookupFormState {
   ok?: boolean;
@@ -64,6 +64,53 @@ export async function createClauseAction(
 export async function deleteClauseAction(id: string): Promise<DeleteResult> {
   if (!id) return { ok: false, error: "ID inválido." };
   const res = await deleteJson(`/v1/clauses/${id}`);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath(PATH);
+  return { ok: true };
+}
+
+/* ------------------------------------------------- Modelos de contrato */
+
+/** Shape do editor de template no client. */
+export interface ContractTemplateFormInput {
+  name: string;
+  content: string;
+  active: boolean;
+}
+
+export async function saveContractTemplateAction(
+  id: string | null,
+  input: ContractTemplateFormInput,
+): Promise<DeleteResult> {
+  const name = input.name.trim();
+  const content = input.content.trim();
+  if (name.length < 2) return { ok: false, error: "Informe o nome do modelo." };
+  if (content.length < 10) return { ok: false, error: "Informe o texto do modelo." };
+
+  const body = { name, content, active: input.active };
+  const res = id
+    ? await patchJson(`/v1/contract-templates/${id}`, body)
+    : await postJson("/v1/contract-templates", body);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath(PATH);
+  return { ok: true };
+}
+
+/**
+ * Pré-visualização renderizada pelo backend — o MESMO caminho da geração do PDF
+ * (texto → HTML → variáveis), então o que aparece aqui é o que sai no documento.
+ */
+export async function previewContractTemplateAction(
+  content: string,
+): Promise<{ ok: boolean; html?: string; error?: string }> {
+  const res = await postJson("/v1/contract-templates/preview", { content });
+  if (!res.ok) return { ok: false, error: res.error };
+  return { ok: true, html: (res.data as { html?: string })?.html ?? "" };
+}
+
+export async function deleteContractTemplateAction(id: string): Promise<DeleteResult> {
+  if (!id) return { ok: false, error: "ID inválido." };
+  const res = await deleteJson(`/v1/contract-templates/${id}`);
   if (!res.ok) return { ok: false, error: res.error };
   revalidatePath(PATH);
   return { ok: true };

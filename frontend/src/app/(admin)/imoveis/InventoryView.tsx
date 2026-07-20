@@ -32,6 +32,18 @@ function propertyTypeIcon(typeName: string | undefined): string {
   return "building";
 }
 
+/**
+ * Tom (cor) de cada situação do imóvel, usado na faixa lateral da linha —
+ * mesma escala de globals.css que colore as abas das fichas.
+ */
+const STATUS_TONE: Record<string, string> = {
+  available: "tone-esmeralda",
+  reserved: "tone-ambar",
+  rented: "tone-indigo",
+  sold: "tone-ciano",
+  inactive: "tone-muted",
+};
+
 interface Props {
   /** Finalidade desta lista — governa rótulos, colunas e o form. */
   mode: "rent" | "sale";
@@ -135,7 +147,7 @@ export function InventoryView({
               <tbody>
                 {properties.map((p) => (
                   <tr key={p.id}>
-                    <td>
+                    <td className={`cell-status ${STATUS_TONE[p.status] ?? "tone-muted"}`}>
                       <div className="cell-main">
                         <span className="thumb thumb-icon">
                           <Icon name={propertyTypeIcon(p.propertyTypeId ? typeName.get(p.propertyTypeId) : undefined)} size={20} />
@@ -152,7 +164,7 @@ export function InventoryView({
                     </td>
                     <td>{p.propertyTypeId ? typeName.get(p.propertyTypeId) ?? "—" : "—"}</td>
                     <td>{p.city ?? "—"}{p.state ? ` · ${p.state}` : ""}</td>
-                    <td className="strong">{formatPrice(p.priceCents)}</td>
+                    <td className="strong tabular">{formatPrice(p.priceCents)}</td>
                     <td><StatusBadge status={p.status} /></td>
                     <td>
                       <div className="row gap-8" style={{ justifyContent: "flex-end" }}>

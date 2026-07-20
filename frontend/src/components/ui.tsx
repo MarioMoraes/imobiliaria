@@ -147,3 +147,77 @@ export function EmptyState({
   );
 }
 
+
+/* -------------------------------------------------------------- FieldBlock */
+/**
+ * Bloco de campos de uma ficha: filete na cor do tópico + ícone em chip +
+ * título. `tone` é uma classe `tone-*` de globals.css — quem mapeia assunto →
+ * cor é a tela, o bloco só consome `var(--tone)`.
+ */
+export function FieldBlock({
+  tone,
+  icon,
+  title,
+  hint,
+  children,
+}: {
+  tone: string;
+  icon: string;
+  title: string;
+  hint?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={`field-block ${tone}`}>
+      <div className="field-block-head">
+        <span className="field-block-chip">
+          <Icon name={icon} size={15} />
+        </span>
+        <span className="field-block-title">{title}</span>
+        {hint && <span className="field-block-hint">{hint}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ TabBar */
+/**
+ * Abas de ficha, cada uma com a cor do seu tópico no marcador e no sublinhado.
+ */
+export function TabBar<T extends string>({
+  tabs,
+  active,
+  onSelect,
+}: {
+  tabs: { id: T; label: string; tone: string }[];
+  active: T;
+  onSelect: (id: T) => void;
+}) {
+  return (
+    <div className="tabbar" role="tablist">
+      {tabs.map((t) => (
+        <button
+          key={t.id}
+          type="button"
+          role="tab"
+          aria-selected={active === t.id}
+          className={`tabbar-item ${t.tone}`}
+          onClick={() => onSelect(t.id)}
+        >
+          <span className="tab-bullet" />
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** "Ana Maria Lima" → "AL": primeira e última inicial, para avatares. */
+export function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  const first = parts[0]![0]!;
+  const last = parts.length > 1 ? parts[parts.length - 1]![0]! : "";
+  return (first + last).toUpperCase();
+}

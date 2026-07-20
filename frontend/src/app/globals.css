@@ -1077,3 +1077,224 @@ select.input {
   margin-top: auto;
   color: var(--primary);
 }
+
+/* =========================================================================
+   Cor por tópico — escala compartilhada pelas fichas (contrato, imóvel, pessoa)
+   Cada assunto recebe uma matiz fixa que reaparece sempre nos mesmos três
+   lugares: marcador da aba, filete do bloco e chip do ícone. Os nomes são de
+   PALETA (azul, ciano…), não de assunto: quem mapeia assunto → cor é cada
+   tela, então a mesma escala serve para qualquer ficha.
+   As sete matizes ficam na mesma faixa de luminosidade/saturação — é o que
+   as faz ler como sistema, e não como arco-íris. Âmbar e esmeralda já
+   existiam como cores semânticas nos tokens acima.
+   A cor entra em doses: filete de 3px e fundo tingido a 10%. O fundo da
+   página continua claro e silencioso.
+   ========================================================================= */
+.tone-azul { --tone: #2563eb; }
+.tone-ciano { --tone: #0891b2; }
+.tone-ambar { --tone: #d97706; }
+.tone-indigo { --tone: #4f46e5; }
+.tone-teal { --tone: #0d9488; }
+.tone-ardosia { --tone: #475569; }
+.tone-esmeralda { --tone: #059669; }
+.tone-danger { --tone: #dc2626; }
+.tone-muted { --tone: #94a3b8; }
+
+/* Números que se alinham em coluna (valores, datas, códigos). */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------- Abas da ficha */
+.tabbar {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.tabbar-item {
+  appearance: none;
+  background: none;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  padding: 8px 12px 10px;
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 550;
+  position: relative;
+  transition: color 0.18s ease, background 0.18s ease;
+}
+.tabbar-item .tab-bullet {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--r-full);
+  background: var(--tone, var(--primary));
+  opacity: 0.45;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.tabbar-item:hover {
+  color: var(--dark-text);
+  background: color-mix(in srgb, var(--tone, var(--primary)) 7%, transparent);
+}
+.tabbar-item[aria-selected="true"] {
+  color: var(--tone, var(--primary));
+  font-weight: 640;
+}
+.tabbar-item[aria-selected="true"] .tab-bullet {
+  opacity: 1;
+  transform: scale(1.15);
+}
+.tabbar-item[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: var(--r-full);
+  background: var(--tone, var(--primary));
+}
+.tabbar-item:focus-visible {
+  outline: 2px solid var(--tone, var(--primary));
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------ Bloco de campos */
+.field-block {
+  position: relative;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 12px 16px 14px 18px;
+  overflow: hidden;
+}
+.field-block::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--tone, var(--primary));
+}
+.field-block-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 10px;
+}
+.field-block-chip {
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  background: color-mix(in srgb, var(--tone, var(--primary)) 10%, transparent);
+  color: var(--tone, var(--primary));
+}
+.field-block-title {
+  font-size: 0.82rem;
+  font-weight: 640;
+  color: var(--dark);
+}
+.field-block-hint {
+  margin-left: auto;
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+/* Campo preenchido pelo sistema (ex.: vencimento calculado). */
+.input.is-computed {
+  background: color-mix(in srgb, var(--primary) 6%, var(--white));
+  border-color: color-mix(in srgb, var(--primary) 28%, var(--border-strong));
+}
+
+/* ------------------------------------------------------- Parte / pessoa */
+.avatar-initials {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  background: color-mix(in srgb, var(--tone, var(--primary)) 12%, transparent);
+  color: var(--tone, var(--primary));
+}
+
+/* Pill na cor do tópico — complementa .badge-* (que são fixas). */
+.badge-tone {
+  background: color-mix(in srgb, var(--tone, var(--primary)) 10%, transparent);
+  color: var(--tone, var(--primary));
+  border: 1px solid color-mix(in srgb, var(--tone, var(--primary)) 22%, transparent);
+}
+
+/* ------------------------------------------- Faixa de estado na listagem */
+.cell-status {
+  position: relative;
+  padding-left: 20px !important;
+}
+.cell-status::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: var(--r-full);
+  background: var(--tone, var(--primary));
+}
+
+/* Progresso de assinatura: marcas preenchidas em vez de "2/3". */
+.sign-ticks {
+  display: inline-flex;
+  gap: 3px;
+  vertical-align: middle;
+}
+.sign-tick {
+  width: 14px;
+  height: 4px;
+  border-radius: var(--r-full);
+  background: var(--border-strong);
+}
+.sign-tick.is-on {
+  background: var(--tone, var(--success));
+}
+
+/* Marca discreta de campo preenchido pelo sistema. */
+.field-auto {
+  color: var(--primary);
+  font-weight: 600;
+  font-size: 0.68rem;
+}
+
+/* --------------------------------------------------------- Modal em ficha */
+/**
+ * Ficha alta (contrato, imóvel, pessoa): o cartão nunca passa da altura da
+ * janela — rola só o miolo, mantendo abas e botões de ação sempre à vista.
+ * `min-height: 0` é o que permite o filho encolher dentro do flex container.
+ */
+.modal-sheet {
+  max-height: 88vh;
+}
+.modal-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-right: 4px;
+}

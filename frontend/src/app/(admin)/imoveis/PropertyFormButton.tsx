@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "../../../components/Icon";
+import { FieldBlock, TabBar, initials } from "../../../components/ui";
 import { formatCep } from "../../../lib/br-doc";
 import type { Property, PropertyPhoto } from "../../../lib/api";
 import {
@@ -214,18 +215,18 @@ type TabId =
 
 /** Abas do modal — a 5ª muda de "Locação & Comissão" (rent) para "Venda &
  * Documentação" (sale); o resto é comum às duas finalidades. */
-function tabsFor(mode: "rent" | "sale"): { id: TabId; label: string }[] {
+function tabsFor(mode: "rent" | "sale"): { id: TabId; label: string; tone: string }[] {
   return [
-    { id: "dados", label: "Dados" },
-    { id: "endereco", label: "Endereço" },
-    { id: "caracteristicas", label: "Características" },
-    { id: "valores", label: "Valores" },
+    { id: "dados", label: "Dados", tone: "tone-azul" },
+    { id: "endereco", label: "Endereço", tone: "tone-ciano" },
+    { id: "caracteristicas", label: "Características", tone: "tone-teal" },
+    { id: "valores", label: "Valores", tone: "tone-esmeralda" },
     mode === "sale"
-      ? { id: "venda", label: "Venda & Documentação" }
-      : { id: "locacao", label: "Locação & Comissão" },
-    { id: "captacao", label: "Captação & Obs" },
-    { id: "proprietarios", label: "Proprietários" },
-    { id: "fotos", label: "Fotos" },
+      ? { id: "venda", label: "Venda & Documentação", tone: "tone-ambar" }
+      : { id: "locacao", label: "Locação & Comissão", tone: "tone-ambar" },
+    { id: "captacao", label: "Captação & Obs", tone: "tone-ardosia" },
+    { id: "proprietarios", label: "Proprietários", tone: "tone-indigo" },
+    { id: "fotos", label: "Fotos", tone: "tone-ciano" },
   ];
 }
 
@@ -471,7 +472,7 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
       }}
     >
       <div
-        className="card card-pad stack"
+        className="card card-pad stack modal-sheet"
         onClick={(e) => e.stopPropagation()}
         style={{ gap: 14, width: 920, maxWidth: "96vw", boxShadow: "0 20px 60px rgba(0,0,0,.30)" }}
       >
@@ -485,34 +486,17 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
           </button>
         </div>
 
-        {/* Abas */}
-        <div className="row" style={{ gap: 4, flexWrap: "wrap", borderBottom: "1px solid var(--border)" }}>
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              className="btn btn-sm"
-              onClick={() => setTab(t.id)}
-              style={{
-                borderRadius: 0,
-                background: "transparent",
-                whiteSpace: "nowrap",
-                flex: "0 0 auto",
-                borderBottom: tab === t.id ? "2px solid var(--primary)" : "2px solid transparent",
-                color: tab === t.id ? "var(--primary)" : "var(--muted-text, #64748b)",
-                fontWeight: tab === t.id ? 600 : 500,
-              }}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        {/* Abas — cada tópico com a própria cor no marcador e no sublinhado. */}
+        <TabBar tabs={tabs} active={tab} onSelect={setTab} />
+
+        <div className="modal-scroll">
 
         {/* ── Aba: Dados ─────────────────────────────────────────── */}
         {tab === "dados" && (
-          <div className="stack" style={{ gap: 12 }}>
+          <div className="stack" style={{ gap: 14 }}>
+            <FieldBlock tone="tone-azul" icon="building" title="Identificação">
             <Text label="Título / Descrição *" value={form.title} onChange={(v) => set({ title: v })} placeholder="Apartamento 2 quartos no Centro" autoFocus />
-            <div className={isSale ? "grid grid-2" : "grid grid-3"} style={{ gap: 12 }}>
+            <div className={isSale ? "grid grid-2" : "grid grid-3"} style={{ gap: 12, marginTop: 12 }}>
               <Select label="Tipo" value={form.propertyTypeId} onChange={(v) => set({ propertyTypeId: v })}>
                 <option value="">—</option>
                 {types.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
@@ -532,24 +516,28 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
                 <option value="inactive">Suspenso</option>
               </Select>
             </div>
-            <div className="grid grid-3" style={{ gap: 12 }}>
-              <Select label="Condomínio" value={form.condominiumId} onChange={(v) => set({ condominiumId: v })}>
-                <option value="">—</option>
-                {condominiums.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-              </Select>
-              <Text label="Contrato" value={form.contractNumber} onChange={(v) => set({ contractNumber: v })} />
-              {!isSale && (
-                <div className="field" style={{ justifyContent: "flex-end", paddingBottom: 8 }}>
-                  <Check label="Comércio" checked={form.isCommercial} onChange={(v) => set({ isCommercial: v })} />
-                </div>
-              )}
-            </div>
+            </FieldBlock>
+            <FieldBlock tone="tone-azul" icon="folder" title="Vínculos">
+              <div className="grid grid-3" style={{ gap: 12 }}>
+                <Select label="Condomínio" value={form.condominiumId} onChange={(v) => set({ condominiumId: v })}>
+                  <option value="">—</option>
+                  {condominiums.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                </Select>
+                <Text label="Contrato" value={form.contractNumber} onChange={(v) => set({ contractNumber: v })} />
+                {!isSale && (
+                  <div className="field" style={{ justifyContent: "flex-end", paddingBottom: 8 }}>
+                    <Check label="Comércio" checked={form.isCommercial} onChange={(v) => set({ isCommercial: v })} />
+                  </div>
+                )}
+              </div>
+            </FieldBlock>
           </div>
         )}
 
         {/* ── Aba: Endereço ──────────────────────────────────────── */}
         {tab === "endereco" && (
-          <div className="stack" style={{ gap: 12 }}>
+          <FieldBlock tone="tone-ciano" icon="mapPin" title="Localização">
+            <div className="stack" style={{ gap: 12 }}>
             <div className="grid grid-3" style={{ gap: 12 }}>
               <div className="field">
                 <label>CEP {cepLoading && <span className="text-xs subtle">buscando…</span>}</label>
@@ -595,11 +583,13 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
               )}
             </div>
           </div>
+          </FieldBlock>
         )}
 
         {/* ── Aba: Características ─────────────────────────────────── */}
         {tab === "caracteristicas" && (
-          <div className="stack" style={{ gap: 12 }}>
+          <FieldBlock tone="tone-teal" icon="home" title="Características do imóvel">
+            <div className="stack" style={{ gap: 12 }}>
             <div className="grid grid-3" style={{ gap: 12 }}>
               <Text label="Quartos" value={form.bedrooms} onChange={(v) => set({ bedrooms: v })} inputMode="numeric" />
               <Text label="Área construída (m²)" value={form.builtArea} onChange={(v) => set({ builtArea: v })} inputMode="decimal" />
@@ -640,11 +630,13 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
               </div>
             )}
           </div>
+          </FieldBlock>
         )}
 
         {/* ── Aba: Valores ───────────────────────────────────────── */}
         {tab === "valores" && (
-          <div className="stack" style={{ gap: 12 }}>
+          <FieldBlock tone="tone-esmeralda" icon="banknote" title="Valores e encargos">
+            <div className="stack" style={{ gap: 12 }}>
             {isSale ? (
               <div className="grid grid-3" style={{ gap: 12 }}>
                 <Text label="Preço de Venda (R$)" value={form.priceReais} onChange={(v) => set({ priceReais: v })} inputMode="decimal" placeholder="0,00" />
@@ -679,11 +671,13 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
               </>
             )}
           </div>
+          </FieldBlock>
         )}
 
         {/* ── Aba: Locação & Comissão ────────────────────────────── */}
         {tab === "locacao" && (
-          <div className="stack" style={{ gap: 12 }}>
+          <FieldBlock tone="tone-ambar" icon="key" title="Locação e comissão">
+            <div className="stack" style={{ gap: 12 }}>
             <div className="grid grid-3" style={{ gap: 12 }}>
               <Text label="Prazo de locação (meses)" value={form.leaseTermMonths} onChange={(v) => set({ leaseTermMonths: v })} inputMode="numeric" />
               <Text label="Início" value={form.leaseStart} onChange={(v) => set({ leaseStart: v })} type="date" />
@@ -700,11 +694,13 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
               </div>
             </div>
           </div>
+          </FieldBlock>
         )}
 
         {/* ── Aba: Venda & Documentação ──────────────────────────── */}
         {tab === "venda" && (
-          <div className="stack" style={{ gap: 12 }}>
+          <FieldBlock tone="tone-ambar" icon="creci" title="Venda e documentação">
+            <div className="stack" style={{ gap: 12 }}>
             <span className="text-sm strong">Autorização de venda</span>
             <div className="row" style={{ gap: 20 }}>
               <Check label="Autorizado" checked={form.isAuthorized} onChange={(v) => set({ isAuthorized: v })} />
@@ -734,11 +730,13 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
               </div>
             </div>
           </div>
+          </FieldBlock>
         )}
 
         {/* ── Aba: Captação & Obs ────────────────────────────────── */}
         {tab === "captacao" && (
-          <div className="stack" style={{ gap: 12 }}>
+          <FieldBlock tone="tone-ardosia" icon="user" title="Captação e observações">
+            <div className="stack" style={{ gap: 12 }}>
             <div className="grid grid-2" style={{ gap: 12 }}>
               <Select label="Corretor" value={form.brokerId} onChange={(v) => set({ brokerId: v })}>
                 <option value="">—</option>
@@ -765,6 +763,7 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
               />
             </div>
           </div>
+          </FieldBlock>
         )}
 
         {/* ── Aba: Proprietários ─────────────────────────────────── */}
@@ -787,9 +786,12 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
                         className="row"
                         style={{ justifyContent: "space-between", alignItems: "center", border: "1px solid var(--border)", borderRadius: 8, padding: "8px 12px" }}
                       >
-                        <span className="text-sm">
-                          <span className="strong">{o.personName}</span>
-                          <span className="subtle"> · {o.sharePercent}%</span>
+                        <span className="row gap-8 tone-indigo">
+                          <span className="avatar-initials">{initials(o.personName)}</span>
+                          <span className="text-sm">
+                            <span className="strong">{o.personName}</span>
+                            <span className="subtle tabular"> · {o.sharePercent}%</span>
+                          </span>
                         </span>
                         <button
                           type="button"
@@ -920,6 +922,8 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
             )}
           </div>
         )}
+
+        </div>
 
         {error && <span className="text-sm" style={{ color: "var(--danger, #dc2626)" }}>{error}</span>}
 

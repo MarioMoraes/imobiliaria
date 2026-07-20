@@ -28,6 +28,7 @@ export type Operation =
   | "finance:write"
   | "contract:read"
   | "contract:write"
+  | "contract:delete"
   | "crm:read"
   | "crm:write"
   | "person:read"
@@ -48,7 +49,8 @@ const MATRIX: Record<Operation, Role[]> = {
   "finance:read": ["SUPER_ADMIN", "ADMIN", "GESTOR", "FINANCEIRO"],
   "finance:write": ["SUPER_ADMIN", "ADMIN", "FINANCEIRO"],
   "contract:read": ["SUPER_ADMIN", "ADMIN", "GESTOR", "FINANCEIRO", "CORRETOR"],
-  "contract:write": ["SUPER_ADMIN", "ADMIN", "GESTOR"],
+  "contract:write": ["SUPER_ADMIN", "ADMIN", "GESTOR", "CORRETOR"],
+  "contract:delete": ["SUPER_ADMIN", "ADMIN"],
   "crm:read": ["SUPER_ADMIN", "ADMIN", "GESTOR", "CORRETOR"],
   "crm:write": ["SUPER_ADMIN", "ADMIN", "GESTOR", "CORRETOR"],
   // Pessoas (MOD-PESSOA: locador/locatário/fiador). AI_AGENT

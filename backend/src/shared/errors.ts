@@ -27,7 +27,14 @@ export type ErrorCode =
   | "ERR_PESSOA_001" // pessoa não encontrada
   | "ERR_PESSOA_002" // sem contato (email/telefone)
   | "ERR_PESSOA_004" // duplicata (retorna existingId)
-  | "ERR_PESSOA_005"; // transição de stage manual proibida (INQUILINO/COMPRADOR)
+  | "ERR_PESSOA_005" // transição de stage manual proibida (INQUILINO/COMPRADOR)
+  // Códigos do MOD-CONTRATO (contratos_08 §5).
+  | "ERR_CONTRATO_002" // locação sem garantia definida (bloqueia envio à assinatura)
+  // Códigos do MOD-ASSINATURA (integração de assinatura eletrônica).
+  | "ERR_ASSINATURA_001" // integração de assinatura não configurada no tenant
+  | "ERR_ASSINATURA_002" // parte sem o contato exigido pelo modo de autenticação
+  | "ERR_ASSINATURA_003" // contrato sem as partes mínimas para assinar
+  | "ERR_ASSINATURA_004"; // envelope de assinatura não encontrado
 
 export class AppError extends Error {
   constructor(
@@ -78,6 +85,22 @@ export function toErrorBody(err: unknown): {
       body: { error: { code: err.code, message: err.message, details: err.details } },
     };
   }
+  // Erros do próprio Fastify (JSON malformado, corpo vazio com content-type
+  // json, payload grande) já trazem um statusCode 4xx e uma mensagem útil.
+  // Reportá-los como 500 esconde um erro do cliente atrás de "erro interno".
+  const status = (err as { statusCode?: unknown })?.statusCode;
+  if (typeof status === "number" && status >= 400 && status < 500) {
+    return {
+      statusCode: status,
+      body: {
+        error: {
+          code: status === 401 ? "UNAUTHORIZED" : status === 404 ? "NOT_FOUND" : "BAD_REQUEST",
+          message: err instanceof Error ? err.message : "Requisição inválida",
+        },
+      },
+    };
+  }
+
   return {
     statusCode: 500,
     body: { error: { code: "INTERNAL", message: "Erro interno do servidor" } },

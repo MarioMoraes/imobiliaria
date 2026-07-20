@@ -1,4 +1,4 @@
-import { PageHeader, StatCard, Section } from "../../../components/ui";
+import { PageHeader, StatCard, Section, initials } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
 import { fetchPersons, formatPrice, type Person } from "../../../lib/api";
 import { sampleCustomers } from "../../../lib/sample";
@@ -10,6 +10,15 @@ const stageBadge: Record<string, string> = {
   INQUILINO: "badge-green",
   COMPRADOR: "badge-green",
   INATIVO: "badge-slate",
+};
+
+/** Tom da faixa lateral por estágio — mesma escala de cores das fichas. */
+const stageTone: Record<string, string> = {
+  LEAD: "tone-ciano",
+  CLIENTE: "tone-azul",
+  INQUILINO: "tone-esmeralda",
+  COMPRADOR: "tone-esmeralda",
+  INATIVO: "tone-muted",
 };
 
 const intentLabel: Record<string, string> = { COMPRA: "Compra", LOCACAO: "Locação" };
@@ -112,10 +121,10 @@ export default async function ClientesPage() {
             <tbody>
               {rows.map((c) => (
                 <tr key={c.id}>
-                  <td>
+                  <td className={`cell-status ${stageTone[c.stage] ?? "tone-muted"}`}>
                     <div className="cell-main">
-                      <span className="avatar" style={{ width: 34, height: 34, fontSize: "0.72rem" }}>
-                        {c.name.slice(0, 2).toUpperCase()}
+                      <span className="avatar-initials" style={{ width: 34, height: 34 }}>
+                        {initials(c.name)}
                       </span>
                       <span className="strong">{c.name}</span>
                     </div>
@@ -131,7 +140,7 @@ export default async function ClientesPage() {
                   </td>
                   <td><span className={`badge ${stageBadge[c.stage]}`}>{c.stage}</span></td>
                   <td>{c.intent}</td>
-                  <td className="text-sm">{c.budget}</td>
+                  <td className="text-sm tabular">{c.budget}</td>
                   <td className="text-sm subtle">{c.source}</td>
                   <td className="text-sm">{c.broker}</td>
                   <td><button className="icon-btn" style={{ width: 30, height: 30 }}><Icon name="ellipsis" size={15} /></button></td>

@@ -1,5 +1,7 @@
 import { PageHeader, Section } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
+import { fetchSignatureSettings } from "../../../lib/api";
+import { SignatureSettingsCard } from "./SignatureSettingsCard";
 
 const integrations = [
   { name: "Asaas", desc: "Cobrança nacional e repasses", icon: "wallet", on: true },
@@ -10,7 +12,9 @@ const integrations = [
   { name: "Cloudflare", desc: "DNS e domínio do tenant", icon: "globe", on: true },
 ];
 
-export default function ConfiguracoesPage() {
+export default async function ConfiguracoesPage() {
+  const signature = await fetchSignatureSettings();
+
   return (
     <>
       <PageHeader title="Configurações" />
@@ -24,6 +28,10 @@ export default function ConfiguracoesPage() {
             <div className="field"><label>Subdomínio</label><input className="input" defaultValue="demo.moveai.com.br" readOnly /></div>
             <button className="btn btn-primary btn-sm" style={{ alignSelf: "flex-start" }}>Salvar Alterações</button>
           </div>
+        </Section>
+
+        <Section title="Assinatura Digital (ZapSign)" pad>
+          <SignatureSettingsCard settings={signature} />
         </Section>
 
         <Section title="Integrações">

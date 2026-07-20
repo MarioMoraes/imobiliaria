@@ -642,6 +642,299 @@ CREATE POLICY tenant_isolation ON property_photos
   WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
 GRANT SELECT, INSERT, UPDATE, DELETE ON property_photos TO app_user;
 
+-- ═════════════════════════════════════════════════════════════════
+-- MOD-CONTRATO (contratos_08) — contrato de locação: cabeçalho + partes +
+-- templates + versões (PDF imutável). Espelha a tela legada "Contratos de
+-- Locação". Todas as tabelas com tenant_id + RLS (isolamento é o invariante).
+-- ═════════════════════════════════════════════════════════════════
+
+-- Templates de contrato do tenant (HTML com variáveis {{...}}).
+CREATE TABLE IF NOT EXISTS contract_templates (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  name        TEXT NOT NULL,
+  html        TEXT NOT NULL,
+  variables   TEXT[] NOT NULL DEFAULT '{}',
+  active      BOOLEAN NOT NULL DEFAULT true,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_contract_templates_tenant ON contract_templates (tenant_id);
+
+ALTER TABLE contract_templates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE contract_templates FORCE  ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON contract_templates
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON contract_templates TO app_user;
+
+-- Contrato (cabeçalho + valores + situação). property_id/template_id são FKs
+-- lógicas (soft) — segue o padrão de property_type_id.
+CREATE TABLE IF NOT EXISTS contracts (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id     UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  code          INT,                                   -- Contrato (sequencial por tenant)
+  property_id   UUID,                                  -- Dados do Imóvel (FK lógica → properties)
+  template_id   UUID,                                  -- Template usado na geração (FK lógica)
+  status        TEXT NOT NULL DEFAULT 'RASCUNHO',      -- RASCUNHO|EM_ASSINATURA|VIGENTE|RENOVADO|ENCERRADO|DISTRATADO
+
+  -- Cabeçalho / vigência
+  starts_at              DATE,                         -- Início
+  ends_at                DATE,                         -- Vencto
+  term_months            INT,                          -- Meses
+  readjust_index         TEXT NOT NULL DEFAULT 'IPCA', -- IPCA|IGP_M|INPC|FIXO
+  readjust_period_months INT,                          -- Reaj (periodicidade)
+  last_readjust_at       DATE,                         -- Último Reajuste
+  owner_pay_day          INT,                          -- Dia Prop
+  tenant_pay_day         INT,                          -- Dia Inq
+  terminated_at          DATE,                         -- Rescisão
+
+  -- Valores / encargos
+  rental_value_cents     BIGINT,                       -- Preço
+  interest_percent       NUMERIC(5,2),                 -- Juros
+  penalty_percent        NUMERIC(5,2),                 -- Multa
+  admin_fee_percent      NUMERIC(5,2),                 -- Taxa Adm
+  is_administration      BOOLEAN NOT NULL DEFAULT false, -- Administração
+  income_tax_declaration BOOLEAN NOT NULL DEFAULT false, -- Dec (declaração de IR)
+  iptu_charged_to        TEXT,                         -- LOCATARIO|LOCADOR
+  commission_type        TEXT,                         -- Tipo de Comissão
+  has_commission         BOOLEAN NOT NULL DEFAULT false, -- Comissão
+
+  -- Garantia / seguro
+  guarantee_kind         TEXT,                         -- FIADOR|CAUCAO|SEGURO_FIANCA|TITULO_CAP
+  has_insurance          BOOLEAN NOT NULL DEFAULT false, -- Seguro Fiança
+  insurance_description   TEXT,                         -- Descrição do Seguro
+  insurance_value_cents   BIGINT,                       -- Seguro
+
+  -- Situação do Contrato (judicial)
+  is_settled             BOOLEAN NOT NULL DEFAULT false, -- Liquidado
+  has_eviction_order     BOOLEAN NOT NULL DEFAULT false, -- Ordem de Despejo
+  has_judicial_execution BOOLEAN NOT NULL DEFAULT false, -- Execução Judicial
+  process_number         TEXT,                         -- Nº Processo
+  court                  TEXT,                         -- Vara
+
+  -- Cláusulas / fiador
+  special_clauses         TEXT,                         -- Cláusulas Especiais
+  guarantor_property_info TEXT,                         -- Imóvel do Fiador (texto livre)
+
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_contracts_tenant        ON contracts (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_contracts_tenant_status ON contracts (tenant_id, status);
+CREATE INDEX IF NOT EXISTS idx_contracts_ends_at       ON contracts (tenant_id, ends_at) WHERE status = 'VIGENTE';
+
+ALTER TABLE contracts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE contracts FORCE  ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON contracts
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON contracts TO app_user;
+
+-- Partes do contrato (locador/locatário/fiador — várias por papel). person_id
+-- é FK lógica → persons (cadastro unificado).
+CREATE TABLE IF NOT EXISTS contract_parties (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  contract_id UUID NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
+  role        TEXT NOT NULL,                           -- LOCADOR|LOCATARIO|FIADOR
+  person_id   UUID NOT NULL,
+  signed_at   TIMESTAMPTZ,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (contract_id, role, person_id)
+);
+CREATE INDEX IF NOT EXISTS idx_contract_parties_tenant   ON contract_parties (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_contract_parties_contract ON contract_parties (contract_id);
+
+ALTER TABLE contract_parties ENABLE ROW LEVEL SECURITY;
+ALTER TABLE contract_parties FORCE  ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON contract_parties
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON contract_parties TO app_user;
+
+-- Versões do documento gerado (imutável, create-only). Guarda a chave do PDF no
+-- object storage (o binário nunca entra no banco).
+CREATE TABLE IF NOT EXISTS contract_versions (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  contract_id     UUID NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
+  version         INT NOT NULL,
+  snapshot_json   JSONB,
+  pdf_storage_key TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (contract_id, version)
+);
+CREATE INDEX IF NOT EXISTS idx_contract_versions ON contract_versions (contract_id, version DESC);
+
+ALTER TABLE contract_versions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE contract_versions FORCE  ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON contract_versions
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON contract_versions TO app_user;
+
+-- ═════════════════════════════════════════════════════════════════
+-- MOD-ASSINATURA — assinatura eletrônica via ZapSign (contratos_08 §91).
+-- Cada tenant conecta a PRÓPRIA conta ZapSign; o token fica cifrado
+-- (AES-256-GCM, ver backend/src/shared/crypto.ts) — o banco nunca vê o valor.
+--
+-- As policies abaixo usam DROP IF EXISTS antes do CREATE (diferente do resto do
+-- arquivo) porque este bloco também é aplicado em bancos já existentes, sem
+-- `npm run infra:reset`.
+-- ═════════════════════════════════════════════════════════════════
+
+-- Configuração da integração de assinatura, uma linha por tenant.
+CREATE TABLE IF NOT EXISTS tenant_signature_settings (
+  tenant_id             UUID PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,
+  provider              TEXT NOT NULL DEFAULT 'ZAPSIGN',
+  api_token_enc         TEXT,                             -- token cifrado (v1.<iv>.<tag>.<ct>)
+  api_token_hint        TEXT,                             -- últimos 4 caracteres, só p/ exibir
+  sandbox               BOOLEAN NOT NULL DEFAULT true,    -- usa sandbox.api.zapsign.com.br
+  auth_mode             TEXT NOT NULL DEFAULT 'assinaturaTela-tokenEmail',
+  webhook_secret        TEXT,                             -- header que autentica o callback
+  webhook_registered_at TIMESTAMPTZ,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE tenant_signature_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tenant_signature_settings FORCE  ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON tenant_signature_settings;
+CREATE POLICY tenant_isolation ON tenant_signature_settings
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON tenant_signature_settings TO app_user;
+
+-- Envelope de assinatura: um por envio do contrato ao provedor. `version` é a
+-- versão de contract_versions que foi enviada; provider_doc_token é a chave de
+-- correlação com o webhook (por isso UNIQUE).
+CREATE TABLE IF NOT EXISTS contract_signature_envelopes (
+  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id              UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  contract_id            UUID NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
+  version                INT,
+  provider               TEXT NOT NULL DEFAULT 'ZAPSIGN',
+  provider_doc_token     TEXT NOT NULL UNIQUE,
+  status                 TEXT NOT NULL DEFAULT 'PENDENTE', -- PENDENTE|ASSINADO|RECUSADO|CANCELADO|EXPIRADO
+  auth_mode              TEXT NOT NULL,
+  sandbox                BOOLEAN NOT NULL DEFAULT false,
+  signed_pdf_storage_key TEXT,                             -- PDF assinado no nosso storage
+  provider_snapshot      JSONB,                            -- último estado do provedor (auditoria)
+  signed_at              TIMESTAMPTZ,
+  created_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at             TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_signature_envelopes_tenant   ON contract_signature_envelopes (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_signature_envelopes_contract ON contract_signature_envelopes (contract_id, created_at DESC);
+
+ALTER TABLE contract_signature_envelopes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE contract_signature_envelopes FORCE  ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON contract_signature_envelopes;
+CREATE POLICY tenant_isolation ON contract_signature_envelopes
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON contract_signature_envelopes TO app_user;
+
+-- Signatários do envelope. party_id liga de volta a contract_parties (cuja
+-- coluna signed_at é espelhada aqui) — ON DELETE SET NULL para o histórico de
+-- assinatura sobreviver à remoção de uma parte do contrato.
+CREATE TABLE IF NOT EXISTS contract_signature_signers (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id             UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  envelope_id           UUID NOT NULL REFERENCES contract_signature_envelopes(id) ON DELETE CASCADE,
+  party_id              UUID REFERENCES contract_parties(id) ON DELETE SET NULL,
+  provider_signer_token TEXT NOT NULL,
+  role                  TEXT,                              -- LOCADOR|LOCATARIO|FIADOR (cópia p/ exibir)
+  name                  TEXT NOT NULL,
+  email                 TEXT,
+  sign_url              TEXT,
+  status                TEXT NOT NULL DEFAULT 'PENDENTE',  -- PENDENTE|ASSINADO|RECUSADO
+  signed_at             TIMESTAMPTZ,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (envelope_id, provider_signer_token)
+);
+CREATE INDEX IF NOT EXISTS idx_signature_signers_tenant   ON contract_signature_signers (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_signature_signers_envelope ON contract_signature_signers (envelope_id);
+
+ALTER TABLE contract_signature_signers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE contract_signature_signers FORCE  ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON contract_signature_signers;
+CREATE POLICY tenant_isolation ON contract_signature_signers
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON contract_signature_signers TO app_user;
+
+-- Template padrão de locação residencial (seed do tenant demo). O texto usa
+-- variáveis {{...}} resolvidas pelo contract-service na geração do PDF.
+INSERT INTO contract_templates (tenant_id, name, html, variables)
+VALUES (
+  '00000000-0000-0000-0000-000000000001',
+  'Contrato de Locação Residencial (padrão)',
+  $tpl$CONTRATO DE LOCAÇÃO RESIDENCIAL
+
+LOCADOR(ES): {{locador.nome}}, {{locador.nacionalidade}}, {{locador.estado_civil}}, {{locador.profissao}}, portador(a) do RG nº {{locador.rg}} {{locador.rg_orgao}} e inscrito(a) no CPF/CNPJ sob nº {{locador.cpf_cnpj}}, residente e domiciliado(a) em {{locador.endereco}}, {{locador.cidade}}/{{locador.uf}}.
+
+LOCATÁRIO(S): {{locatario.nome}}, {{locatario.nacionalidade}}, {{locatario.estado_civil}}, {{locatario.profissao}}, portador(a) do RG nº {{locatario.rg}} {{locatario.rg_orgao}} e inscrito(a) no CPF/CNPJ sob nº {{locatario.cpf_cnpj}}.
+
+FIADOR(ES): {{fiadores.nomes}}.
+
+As partes acima identificadas têm, entre si, justo e contratado o presente Contrato de Locação Residencial, que se regerá pelas cláusulas seguintes e pelas condições da Lei nº 8.245/91.
+
+CLÁUSULA 1ª — DO OBJETO
+
+O LOCADOR dá em locação ao LOCATÁRIO o imóvel situado em {{imovel.endereco}}, {{imovel.cidade}}/{{imovel.uf}}, destinado exclusivamente a fins residenciais.
+
+CLÁUSULA 2ª — DO PRAZO
+
+A locação tem prazo de {{contrato.meses}} meses, com início em {{contrato.inicio}} e término em {{contrato.vencimento}}, independentemente de aviso, notificação ou interpelação judicial ou extrajudicial.
+
+CLÁUSULA 3ª — DO ALUGUEL
+
+O aluguel mensal é de R$ {{contrato.valor}}, a ser pago até o dia {{contrato.dia_pagamento}} de cada mês. O valor será reajustado a cada {{contrato.periodo_reajuste}} meses pelo índice {{contrato.indice_reajuste}}.
+
+CLÁUSULA 4ª — DOS ENCARGOS E DA MORA
+
+O atraso no pagamento sujeitará o LOCATÁRIO a multa de {{contrato.multa}}% e juros de {{contrato.juros}}% ao mês sobre o valor em atraso, sem prejuízo da correção monetária. O IPTU do imóvel será suportado pelo {{contrato.iptu_responsavel}}.
+
+CLÁUSULA 5ª — DA GARANTIA
+
+Para garantia das obrigações assumidas, fica constituída garantia locatícia na modalidade {{contrato.garantia}}, respondendo o(s) garantidor(es) solidariamente até a efetiva entrega das chaves.
+
+CLÁUSULA 6ª — DAS DISPOSIÇÕES GERAIS
+
+{{contrato.clausulas_especiais}}
+
+E, por estarem assim justas e contratadas, as partes assinam o presente em duas vias de igual teor.
+
+{{imovel.cidade}}, {{contrato.data_hoje}}.
+
+
+_______________________________
+LOCADOR
+
+_______________________________
+LOCATÁRIO
+
+_______________________________
+FIADOR$tpl$,
+  ARRAY[
+    'locador.nome','locador.nacionalidade','locador.estado_civil','locador.profissao',
+    'locador.rg','locador.rg_orgao','locador.cpf_cnpj','locador.endereco',
+    'locador.cidade','locador.uf',
+    'locatario.nome','locatario.nacionalidade','locatario.estado_civil',
+    'locatario.profissao','locatario.rg','locatario.rg_orgao','locatario.cpf_cnpj',
+    'fiadores.nomes',
+    'imovel.endereco','imovel.cidade','imovel.uf',
+    'contrato.meses','contrato.inicio','contrato.vencimento','contrato.valor',
+    'contrato.dia_pagamento','contrato.periodo_reajuste','contrato.indice_reajuste',
+    'contrato.multa','contrato.juros','contrato.iptu_responsavel','contrato.garantia',
+    'contrato.clausulas_especiais','contrato.data_hoje'
+  ]
+)
+ON CONFLICT DO NOTHING;
+
 -- Seed de pessoas demo (ids fixos p/ idempotência). Roda como superusuário do
 -- init (bypassa RLS). Dá dado real às páginas /clientes e /fiadores.
 INSERT INTO persons (id, tenant_id, roles, person_type, full_name, cpf_cnpj, email, phone, stage, source) VALUES

@@ -34,7 +34,8 @@ Regras de fronteira:
 | `broker/`            | broker-service         | 1    | ⬜            |
 | `employee/`          | employee-service       | 1    | ⬜            |
 | `scheduling/`        | scheduling-service     | 1    | ⬜            |
-| `contract/`          | contract-service       | 1    | ⬜            |
+| `contract/`          | contract-service       | 1    | ✅ CRUD + partes + templates + PDF |
+| `signature/`         | (parte do contract)    | 2    | ✅ ZapSign: envio, webhook, sync |
 | `document/`          | document-service       | 1    | ⬜            |
 | `crm/`               | crm-service            | 2    | ⬜            |
 | `financial/`         | financial-service      | 2    | ⬜            |

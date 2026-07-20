@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "../../../components/Icon";
+import { FieldBlock, TabBar } from "../../../components/ui";
 import { AddressBlock } from "./AddressBlock";
 import { formatCpf, formatCpfCnpj, validateCpfCnpj } from "../../../lib/br-doc";
 import { createPersonAction, type NewPersonInput, type PersonRole } from "./actions";
@@ -16,12 +17,13 @@ const ROLES: { value: PersonRole; label: string }[] = [
 
 type TabKey = "pessoais" | "bancarios" | "residenciais" | "comerciais" | "observacoes";
 
-const TABS: { key: TabKey; label: string }[] = [
-  { key: "pessoais", label: "Dados Pessoais" },
-  { key: "bancarios", label: "Dados Bancários" },
-  { key: "residenciais", label: "Dados Residenciais" },
-  { key: "comerciais", label: "Dados Comerciais" },
-  { key: "observacoes", label: "Observações" },
+/** Cada aba com a cor do seu tópico (escala compartilhada, globals.css). */
+const TABS: { id: TabKey; label: string; tone: string }[] = [
+  { id: "pessoais", label: "Dados Pessoais", tone: "tone-azul" },
+  { id: "bancarios", label: "Dados Bancários", tone: "tone-esmeralda" },
+  { id: "residenciais", label: "Dados Residenciais", tone: "tone-ciano" },
+  { id: "comerciais", label: "Dados Comerciais", tone: "tone-teal" },
+  { id: "observacoes", label: "Observações", tone: "tone-ardosia" },
 ];
 
 function makeEmpty(defaultRoles: PersonRole[]): NewPersonInput {
@@ -145,7 +147,7 @@ export function PersonFormButton({
       }}
     >
       <div
-        className="card card-pad stack"
+        className="card card-pad stack modal-sheet"
         onClick={(e) => e.stopPropagation()}
         style={{ gap: 14, width: 780, maxWidth: "96vw", boxShadow: "0 20px 60px rgba(0,0,0,.30)" }}
       >
@@ -180,38 +182,13 @@ export function PersonFormButton({
         {/* Abas — cada grupo de campos numa aba (evita rolar a tela). Os painéis
             ficam sempre montados (display:none) para preservar estado local do
             AddressBlock (trava do CEP) ao alternar. */}
-        <div
-          className="row"
-          style={{ gap: 2, borderBottom: "1px solid var(--border)", overflowX: "auto", flexWrap: "nowrap" }}
-        >
-          {TABS.map((t) => {
-            const active = tab === t.key;
-            return (
-              <button
-                key={t.key}
-                type="button"
-                onClick={() => setTab(t.key)}
-                className="text-sm"
-                style={{
-                  padding: "8px 12px",
-                  whiteSpace: "nowrap",
-                  background: "none",
-                  border: "none",
-                  borderBottom: active ? "2px solid var(--primary)" : "2px solid transparent",
-                  color: active ? "var(--primary)" : "var(--muted)",
-                  fontWeight: active ? 600 : 500,
-                  cursor: "pointer",
-                  marginBottom: -1,
-                }}
-              >
-                {t.label}
-              </button>
-            );
-          })}
-        </div>
+        <TabBar tabs={TABS} active={tab} onSelect={setTab} />
+
+        <div className="modal-scroll">
 
         {/* Dados pessoais */}
         <div className="stack" style={{ gap: 14, display: tab === "pessoais" ? "flex" : "none" }}>
+          <FieldBlock tone="tone-azul" icon="user" title="Identificação">
           <div className="grid grid-3" style={{ gap: 12 }}>
             <div className="field">
               <label>Tipo</label>
@@ -317,10 +294,12 @@ export function PersonFormButton({
               </div>
             </div>
           )}
+          </FieldBlock>
         </div>
 
         {/* Dados bancários (repasse) */}
         <div className="stack" style={{ gap: 12, display: tab === "bancarios" ? "flex" : "none" }}>
+          <FieldBlock tone="tone-esmeralda" icon="banknote" title="Conta para repasse">
           <div className="grid grid-3" style={{ gap: 12 }}>
             <div className="field">
               <label>Banco</label>
@@ -345,21 +324,32 @@ export function PersonFormButton({
               <input className="input" value={form.paymentAuthorization} onChange={(e) => set({ paymentAuthorization: e.target.value })} placeholder="Autorização de depósito bancário" />
             </div>
           </div>
+          </FieldBlock>
         </div>
 
         {/* Dados residenciais */}
         <div className="stack" style={{ gap: 10, display: tab === "residenciais" ? "flex" : "none" }}>
-          <AddressBlock title="" value={form.residential} onChange={(patch) => set({ residential: { ...form.residential, ...patch } })} />
-          <span className="text-xs subtle">Informe ao menos um contato (e-mail ou telefone/celular) nos dados residenciais.</span>
+          <FieldBlock
+            tone="tone-ciano"
+            icon="home"
+            title="Endereço residencial"
+            hint="ao menos um contato é obrigatório"
+          >
+            <AddressBlock title="" value={form.residential} onChange={(patch) => set({ residential: { ...form.residential, ...patch } })} />
+            <span className="text-xs subtle">Informe ao menos um contato (e-mail ou telefone/celular) nos dados residenciais.</span>
+          </FieldBlock>
         </div>
 
         {/* Dados comerciais */}
         <div className="stack" style={{ gap: 10, display: tab === "comerciais" ? "flex" : "none" }}>
-          <AddressBlock title="" value={form.commercial} onChange={(patch) => set({ commercial: { ...form.commercial, ...patch } })} />
+          <FieldBlock tone="tone-teal" icon="store" title="Endereço comercial">
+            <AddressBlock title="" value={form.commercial} onChange={(patch) => set({ commercial: { ...form.commercial, ...patch } })} />
+          </FieldBlock>
         </div>
 
         {/* Observações + referências + perfil de busca */}
         <div className="stack" style={{ gap: 12, display: tab === "observacoes" ? "flex" : "none" }}>
+          <FieldBlock tone="tone-ardosia" icon="list" title="Observações e referências">
           <div className="grid grid-2" style={{ gap: 12 }}>
             <div className="field">
               <label>Observações</label>
@@ -403,6 +393,9 @@ export function PersonFormButton({
               </div>
             </>
           )}
+          </FieldBlock>
+        </div>
+
         </div>
 
         {error && <span className="text-sm" style={{ color: "var(--danger, #dc2626)" }}>{error}</span>}

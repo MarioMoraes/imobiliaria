@@ -45,6 +45,19 @@ services:
       timeout: 5s
       retries: 10
 
+  # Gotenberg: conversão HTML → PDF (MOD-CONTRATO). Stateless. Escuta na 3000
+  # dentro do container; mapeada para 3050 no host (evita colidir com o frontend).
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    container_name: imobiliaria-gotenberg
+    ports:
+      - "3050:3000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   # Object storage (mídia/fotos) é externo em dev também: Cloudflare R2
   # (S3-compatível). Configure as vars S3_* no backend/.env — sem container local.
 

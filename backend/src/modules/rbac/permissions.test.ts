@@ -16,6 +16,14 @@ test("apenas SUPER_ADMIN/ADMIN deletam imóvel", () => {
   assert.equal(can(["ADMIN"], "property:delete"), true);
 });
 
+test("contrato: CORRETOR escreve; FINANCEIRO só lê; delete só ADMIN", () => {
+  assert.equal(can(["CORRETOR"], "contract:write"), true);
+  assert.equal(can(["FINANCEIRO"], "contract:write"), false);
+  assert.equal(can(["FINANCEIRO"], "contract:read"), true);
+  assert.deepEqual([...rolesFor("contract:delete")], ["SUPER_ADMIN", "ADMIN"]);
+  assert.equal(can(["GESTOR"], "contract:delete"), false);
+});
+
 test("gestão de usuários é restrita a SUPER_ADMIN/ADMIN", () => {
   assert.equal(can(["GESTOR"], "users:manage"), false);
   assert.equal(can(["ADMIN"], "users:manage"), true);
