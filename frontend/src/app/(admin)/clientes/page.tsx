@@ -3,6 +3,7 @@ import { Icon } from "../../../components/Icon";
 import { fetchPersons, formatPrice, type Person } from "../../../lib/api";
 import { sampleCustomers } from "../../../lib/sample";
 import { PersonFormButton } from "./PersonFormButton";
+import { DeletePersonButton } from "./DeletePersonButton";
 
 const stageBadge: Record<string, string> = {
   LEAD: "badge-cyan",
@@ -143,7 +144,22 @@ export default async function ClientesPage() {
                   <td className="text-sm tabular">{c.budget}</td>
                   <td className="text-sm subtle">{c.source}</td>
                   <td className="text-sm">{c.broker}</td>
-                  <td><button className="icon-btn" style={{ width: 30, height: 30 }}><Icon name="ellipsis" size={15} /></button></td>
+                  <td>
+                    {/* Editar/remover só com dado real (as linhas de amostra não
+                        têm id no backend). */}
+                    <div className="row gap-8" style={{ justifyContent: "flex-end" }}>
+                      {isLive ? (
+                        <>
+                          <PersonFormButton person={{ id: c.id, fullName: c.name }} />
+                          <DeletePersonButton id={c.id} name={c.name} />
+                        </>
+                      ) : (
+                        <button className="icon-btn" style={{ width: 30, height: 30 }} disabled>
+                          <Icon name="ellipsis" size={15} />
+                        </button>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>

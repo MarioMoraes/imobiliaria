@@ -177,7 +177,7 @@ export function CondominiumFormButton({
       <div
         className="card card-pad stack"
         onClick={(e) => e.stopPropagation()}
-        style={{ gap: 14, width: 640, maxWidth: "96vw", boxShadow: "0 20px 60px rgba(0,0,0,.30)" }}
+        style={{ gap: 14, width: 740, maxWidth: "96vw", boxShadow: "0 20px 60px rgba(0,0,0,.30)" }}
       >
         <div className="row" style={{ justifyContent: "space-between" }}>
           <strong>{isEdit ? "Editar Condomínio" : "Novo Condomínio"}</strong>

@@ -130,11 +130,16 @@ export async function addInteraction(
   return repo.insertInteraction(tenantId, id, input);
 }
 
-/** Inativação (soft delete): marca stage=INATIVO em vez de remover a pessoa. */
+/**
+ * Inativação (soft delete): marca stage=INATIVO e status=inactive em vez de
+ * remover a pessoa — a ficha sai das listas mas o histórico (contratos,
+ * interações) continua íntegro.
+ */
 export async function inactivate(tenantId: string, id: string): Promise<Person> {
   const current = await repo.findPerson(tenantId, id);
   if (!current) throw ERR_NOT_FOUND;
-  const updated = await repo.updatePerson(tenantId, id, { stage: "INATIVO" });
+  await repo.updatePerson(tenantId, id, { stage: "INATIVO" });
+  const updated = await repo.setStatus(tenantId, id, "inactive");
   if (current.stage !== "INATIVO") {
     await publish({
       type: "person.stage_changed",

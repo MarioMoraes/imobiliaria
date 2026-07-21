@@ -7,7 +7,15 @@ import { Icon } from "../../../components/Icon";
 import { FieldBlock, TabBar } from "../../../components/ui";
 import { AddressBlock } from "./AddressBlock";
 import { formatCpf, formatCpfCnpj, validateCpfCnpj } from "../../../lib/br-doc";
-import { createPersonAction, type NewPersonInput, type PersonRole } from "./actions";
+import type { Person } from "../../../lib/api";
+import {
+  createPersonAction,
+  loadPersonAction,
+  updatePersonAction,
+  type AddressInput,
+  type NewPersonInput,
+  type PersonRole,
+} from "./actions";
 
 const ROLES: { value: PersonRole; label: string }[] = [
   { value: "LOCADOR", label: "Locador" },
@@ -62,22 +70,98 @@ function makeEmpty(defaultRoles: PersonRole[]): NewPersonInput {
   };
 }
 
+/** Só a data (YYYY-MM-DD) — `<input type="date">` não aceita ISO completo. */
+const dateOnly = (v: string | null) => (v ? v.slice(0, 10) : "");
+
+/** Extrai o bloco de endereço de um tipo para o formato do formulário. */
+function addressOf(person: Person, kind: "RESIDENCIAL" | "COMERCIAL"): AddressInput {
+  const a = person.addresses.find((x) => x.kind === kind);
+  if (!a) return {};
+  return {
+    zip: a.zip ?? "",
+    street: a.street ?? "",
+    number: a.number ?? "",
+    district: a.district ?? "",
+    city: a.city ?? "",
+    state: a.state ?? "",
+    phone: a.phone ?? "",
+    mobile: a.mobile ?? "",
+    fax: a.fax ?? "",
+    email: a.email ?? "",
+  };
+}
+
+/** Ficha do backend → estado do formulário (com as máscaras já aplicadas). */
+function toForm(person: Person): NewPersonInput {
+  const personType = person.personType === "PJ" ? "PJ" : "PF";
+  const profile = person.searchProfiles[0];
+  const residential = addressOf(person, "RESIDENCIAL");
+  // A ficha exige um contato nos dados residenciais; se a pessoa foi criada sem
+  // bloco de endereço, cai no contato principal para não travar o "Salvar".
+  if (!residential.email && !residential.mobile && !residential.phone) {
+    residential.email = person.email ?? "";
+    residential.mobile = person.mobile ?? "";
+    residential.phone = person.phone ?? "";
+  }
+  return {
+    roles: person.roles.filter((r): r is PersonRole =>
+      ROLES.some((x) => x.value === r),
+    ),
+    personType,
+    fullName: person.fullName,
+    cpfCnpj: formatCpfCnpj(person.cpfCnpj ?? "", personType),
+    rg: person.rg ?? "",
+    rgIssuer: person.rgIssuer ?? "",
+    gender: (person.gender ?? "") as NewPersonInput["gender"],
+    birthDate: dateOnly(person.birthDate),
+    maritalStatus: person.maritalStatus ?? "",
+    nationality: person.nationality ?? "BRASILEIRA",
+    occupation: person.occupation ?? "",
+    spouseName: person.spouseName ?? "",
+    spouseCpf: formatCpf(person.spouseCpf ?? ""),
+    spouseRg: person.spouseRg ?? "",
+    spouseOccupation: person.spouseOccupation ?? "",
+    spouseBirthDate: dateOnly(person.spouseBirthDate),
+    bank: person.bank ?? "",
+    agency: person.agency ?? "",
+    account: person.account ?? "",
+    holderName: person.holderName ?? "",
+    paymentAuthorization: person.paymentAuthorization ?? "",
+    notes: person.notes ?? "",
+    references: person.references ?? "",
+    source: person.source,
+    residential,
+    commercial: addressOf(person, "COMERCIAL"),
+    intent: profile?.intent ?? "",
+    minPriceReais: profile?.minPriceCents ? String(profile.minPriceCents / 100) : "",
+    maxPriceReais: profile?.maxPriceCents ? String(profile.maxPriceCents / 100) : "",
+    districts: profile?.districts.join(", ") ?? "",
+    bedroomsMin: profile?.bedroomsMin ? String(profile.bedroomsMin) : "",
+  };
+}
+
 /**
  * Botão + modal com a ficha COMPLETA de pessoa (MOD-PESSOA), compartilhado pelas
  * views por papel (Proprietários/Clientes/Fiadores). `defaultRoles` pré-marca o
  * papel da tela. Paridade com a tela legada "Cadastro de Locadores": PF/PJ, RG +
  * órgão emissor, cônjuge (RG/CPF/profissão/nascimento), dados bancários +
  * autorização de recebimento, endereços residencial e comercial (com CEP/ViaCEP)
- * e observações. Envia para POST /v1/persons via Server Action.
+ * e observações.
+ *
+ * Com `person`, vira o botão de EDIÇÃO daquela linha (ícone de lápis): abre a
+ * ficha carregada do backend (`GET /v1/persons/:id`, pois a listagem não traz
+ * endereços) e salva via PATCH. Sem `person`, cria (POST /v1/persons).
  */
 export function PersonFormButton({
   defaultRoles = [],
   label = "Novo Cadastro",
   title = "Novo Cadastro de Pessoa",
+  person,
 }: {
   defaultRoles?: PersonRole[];
   label?: string;
   title?: string;
+  person?: { id: string; fullName: string };
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -87,8 +171,29 @@ export function PersonFormButton({
   const [form, setForm] = useState<NewPersonInput>(empty);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<TabKey>("pessoais");
+  const [loading, setLoading] = useState(false);
+  const isEdit = Boolean(person);
 
   useEffect(() => setMounted(true), []);
+
+  /** Abre o modal — na edição, carrega a ficha completa antes de exibir. */
+  function openModal() {
+    setError(null);
+    if (!person) {
+      setForm(makeEmpty(defaultRoles));
+      setOpen(true);
+      return;
+    }
+    setLoading(true);
+    setOpen(true);
+    void loadPersonAction(person.id)
+      .then((full) => {
+        if (full) setForm(toForm(full));
+        else setError("Não foi possível carregar a ficha.");
+      })
+      .catch(() => setError("Não foi possível carregar a ficha."))
+      .finally(() => setLoading(false));
+  }
 
   const set = (patch: Partial<NewPersonInput>) => setForm((f) => ({ ...f, ...patch }));
 
@@ -119,12 +224,14 @@ export function PersonFormButton({
       return;
     }
     startTransition(async () => {
-      const res = await createPersonAction(form);
+      const res = person
+        ? await updatePersonAction(person.id, form)
+        : await createPersonAction(form);
       if (!res.ok) {
         setError(res.error ?? "Não foi possível salvar.");
         return;
       }
-      setForm(makeEmpty(defaultRoles));
+      if (!person) setForm(makeEmpty(defaultRoles));
       setTab("pessoais");
       setOpen(false);
       router.refresh();
@@ -149,10 +256,10 @@ export function PersonFormButton({
       <div
         className="card card-pad stack modal-sheet"
         onClick={(e) => e.stopPropagation()}
-        style={{ gap: 14, width: 780, maxWidth: "96vw", boxShadow: "0 20px 60px rgba(0,0,0,.30)" }}
+        style={{ gap: 14, width: 900, maxWidth: "96vw", boxShadow: "0 20px 60px rgba(0,0,0,.30)" }}
       >
         <div className="row" style={{ justifyContent: "space-between" }}>
-          <strong>{title}</strong>
+          <strong>{isEdit ? `Editar ${person!.fullName}` : title}</strong>
           <button className="icon-btn" type="button" aria-label="Fechar" onClick={close}>
             <Icon name="x" size={15} />
           </button>
@@ -185,6 +292,8 @@ export function PersonFormButton({
         <TabBar tabs={TABS} active={tab} onSelect={setTab} />
 
         <div className="modal-scroll">
+
+        {loading && <span className="text-sm subtle">Carregando ficha…</span>}
 
         {/* Dados pessoais */}
         <div className="stack" style={{ gap: 14, display: tab === "pessoais" ? "flex" : "none" }}>
@@ -404,8 +513,13 @@ export function PersonFormButton({
           <button className="btn btn-ghost btn-sm" type="button" onClick={close} disabled={pending}>
             Cancelar
           </button>
-          <button className="btn btn-primary btn-sm" type="button" onClick={submit} disabled={pending}>
-            {pending ? "Salvando…" : "Salvar Cadastro"}
+          <button
+            className="btn btn-primary btn-sm"
+            type="button"
+            onClick={submit}
+            disabled={pending || loading}
+          >
+            {pending ? "Salvando…" : isEdit ? "Salvar Alterações" : "Salvar Cadastro"}
           </button>
         </div>
       </div>
@@ -414,9 +528,22 @@ export function PersonFormButton({
 
   return (
     <>
-      <button className="btn btn-primary btn-sm" type="button" onClick={() => setOpen(true)}>
-        <Icon name="plus" /> {label}
-      </button>
+      {isEdit ? (
+        <button
+          className="icon-btn"
+          style={{ width: 30, height: 30 }}
+          type="button"
+          onClick={openModal}
+          aria-label={`Editar ${person!.fullName}`}
+          title="Editar"
+        >
+          <Icon name="edit" size={15} />
+        </button>
+      ) : (
+        <button className="btn btn-primary btn-sm" type="button" onClick={openModal}>
+          <Icon name="plus" /> {label}
+        </button>
+      )}
       {open && mounted && createPortal(modal, document.body)}
     </>
   );

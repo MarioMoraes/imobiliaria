@@ -1,6 +1,7 @@
 import { PageHeader, StatCard, Section, StatusBadge, EmptyState, initials } from "../../../components/ui";
 import { fetchPersons } from "../../../lib/api";
 import { PersonFormButton } from "../clientes/PersonFormButton";
+import { DeletePersonButton } from "../clientes/DeletePersonButton";
 
 const maritalLabel: Record<string, string> = {
   SOLTEIRO: "Solteiro(a)",
@@ -44,7 +45,7 @@ export default async function FiadoresPage() {
           <div className="table-wrap">
             <table className="table">
               <thead>
-                <tr><th>Nome</th><th>Tipo</th><th>CPF/CNPJ</th><th>Estado civil</th><th>Cidade</th><th>Status</th></tr>
+                <tr><th>Nome</th><th>Tipo</th><th>CPF/CNPJ</th><th>Estado civil</th><th>Cidade</th><th>Status</th><th></th></tr>
               </thead>
               <tbody>
                 {guarantors.map((g) => (
@@ -65,6 +66,12 @@ export default async function FiadoresPage() {
                       {g.addresses[0]?.state ? ` · ${g.addresses[0].state}` : ""}
                     </td>
                     <td><StatusBadge status={g.status} /></td>
+                    <td>
+                      <div className="row gap-8" style={{ justifyContent: "flex-end" }}>
+                        <PersonFormButton person={g} />
+                        <DeletePersonButton id={g.id} name={g.fullName} />
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>

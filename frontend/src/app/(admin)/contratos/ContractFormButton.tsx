@@ -351,7 +351,7 @@ export function ContractFormButton({
       <div
         className="card card-pad stack modal-sheet"
         onClick={(e) => e.stopPropagation()}
-        style={{ gap: 12, width: 900, maxWidth: "96vw", boxShadow: "0 20px 60px rgba(0,0,0,.30)" }}
+        style={{ gap: 12, width: 1040, maxWidth: "96vw", boxShadow: "0 20px 60px rgba(0,0,0,.30)" }}
       >
         <div className="row" style={{ justifyContent: "space-between" }}>
           <strong>
@@ -643,7 +643,7 @@ function PersonPicker({
       <div
         className="card card-pad stack"
         onClick={(e) => e.stopPropagation()}
-        style={{ gap: 12, width: 520, maxWidth: "94vw", boxShadow: "0 20px 60px rgba(0,0,0,.30)" }}
+        style={{ gap: 12, width: 600, maxWidth: "94vw", boxShadow: "0 20px 60px rgba(0,0,0,.30)" }}
       >
         <div className="row" style={{ justifyContent: "space-between" }}>
           <strong>{title}</strong>

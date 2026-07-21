@@ -206,6 +206,10 @@ export interface PersonAddress {
   city?: string;
   state?: string;
   zip?: string;
+  phone?: string;
+  mobile?: string;
+  fax?: string;
+  email?: string;
 }
 
 export interface Employee {
@@ -229,6 +233,7 @@ export interface PersonSearchProfile {
   maxPriceCents: number | null;
   propertyTypes: string[];
   districts: string[];
+  bedroomsMin?: number | null;
 }
 
 export type PersonRole = "LOCADOR" | "LOCATARIO" | "FIADOR";
@@ -243,10 +248,28 @@ export interface Person {
   personType: string;
   fullName: string;
   cpfCnpj: string | null;
+  rg: string | null;
+  rgIssuer: string | null;
+  gender: string | null;
+  birthDate: string | null;
   maritalStatus: string | null;
+  nationality: string | null;
+  occupation: string | null;
   email: string | null;
   phone: string | null;
   mobile: string | null;
+  bank: string | null;
+  agency: string | null;
+  account: string | null;
+  holderName: string | null;
+  paymentAuthorization: string | null;
+  spouseName: string | null;
+  spouseCpf: string | null;
+  spouseRg: string | null;
+  spouseOccupation: string | null;
+  spouseBirthDate: string | null;
+  notes: string | null;
+  references: string | null;
   stage: "LEAD" | "CLIENTE" | "INQUILINO" | "COMPRADOR" | "INATIVO";
   source: string;
   status: string;
@@ -479,6 +502,14 @@ export function fetchEmployees(): Promise<Employee[] | null> {
 export function fetchPersons(role?: PersonRole): Promise<Person[] | null> {
   const q = role ? `?role=${encodeURIComponent(role)}` : "";
   return get<Person[]>(`/v1/persons${q}`);
+}
+
+/**
+ * Uma pessoa pelo id — ficha COMPLETA (endereços, perfis de busca e
+ * interações), que a listagem não traz. É o que o formulário de edição carrega.
+ */
+export function fetchPerson(id: string): Promise<Person | null> {
+  return get<Person>(`/v1/persons/${id}`);
 }
 
 /** Condomínios do tenant da sessão. */

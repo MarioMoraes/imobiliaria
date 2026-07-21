@@ -474,7 +474,7 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
       <div
         className="card card-pad stack modal-sheet"
         onClick={(e) => e.stopPropagation()}
-        style={{ gap: 14, width: 920, maxWidth: "96vw", boxShadow: "0 20px 60px rgba(0,0,0,.30)" }}
+        style={{ gap: 14, width: 1040, maxWidth: "96vw", boxShadow: "0 20px 60px rgba(0,0,0,.30)" }}
       >
         <div className="row" style={{ justifyContent: "space-between" }}>
           <strong>
@@ -1078,7 +1078,7 @@ function OwnerPicker({
       <div
         className="card card-pad stack"
         onClick={(e) => e.stopPropagation()}
-        style={{ gap: 12, width: 520, maxWidth: "94vw", boxShadow: "0 20px 60px rgba(0,0,0,.30)" }}
+        style={{ gap: 12, width: 600, maxWidth: "94vw", boxShadow: "0 20px 60px rgba(0,0,0,.30)" }}
       >
         <div className="row" style={{ justifyContent: "space-between" }}>
           <strong>Adicionar Proprietário</strong>

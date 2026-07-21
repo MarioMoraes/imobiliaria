@@ -87,7 +87,7 @@ export function EmployeeInviteButton() {
       <div
         className="card card-pad stack"
         onClick={(e) => e.stopPropagation()}
-        style={{ gap: 14, width: 560, maxWidth: "96vw", boxShadow: "0 20px 60px rgba(0,0,0,.30)" }}
+        style={{ gap: 14, width: 660, maxWidth: "96vw", boxShadow: "0 20px 60px rgba(0,0,0,.30)" }}
       >
         <div className="row" style={{ justifyContent: "space-between" }}>
           <strong>Convidar Membro</strong>

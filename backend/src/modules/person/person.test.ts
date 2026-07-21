@@ -133,4 +133,41 @@ test("interações são append-only; inativação = soft delete", async () => {
 
   const inactivated = await service.inactivate(t.id, p.id);
   assert.equal(inactivated.stage, "INATIVO");
+  assert.equal(inactivated.status, "inactive");
+
+  const listed = await service.list(t.id, {});
+  assert.ok(!listed.some((x) => x.id === p.id), "inativada não aparece na listagem");
+  assert.equal((await service.getById(t.id, p.id)).id, p.id, "ficha continua acessível");
+});
+
+test("edição: endereço e perfil de busca são upsert (não duplicam)", async () => {
+  const t = await freshTenant("Pes-Edit");
+  const p = await service.create(
+    t.id,
+    newPerson({
+      addresses: [{ kind: "RESIDENCIAL", city: "Belo Horizonte", state: "MG" }],
+      searchProfile: { intent: "LOCACAO", propertyTypes: [], districts: ["Centro"] },
+    }),
+  );
+
+  const updated = await service.update(t.id, p.id, { fullName: "Nome Editado", rg: null });
+  assert.equal(updated.fullName, "Nome Editado");
+  assert.equal(updated.rg, null);
+
+  // Reenviar o mesmo bloco (o que a edição na UI faz) substitui, não acumula.
+  const readdressed = await service.addAddress(t.id, p.id, {
+    kind: "RESIDENCIAL",
+    city: "Contagem",
+    state: "MG",
+  });
+  assert.equal(readdressed.addresses.length, 1);
+  assert.equal(readdressed.addresses[0]!.city, "Contagem");
+
+  const reprofiled = await service.addSearchProfile(t.id, p.id, {
+    intent: "LOCACAO",
+    propertyTypes: [],
+    districts: ["Savassi"],
+  });
+  assert.equal(reprofiled.searchProfiles.length, 1);
+  assert.deepEqual(reprofiled.searchProfiles[0]!.districts, ["Savassi"]);
 });

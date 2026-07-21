@@ -217,10 +217,12 @@ async function loadOne(client: PoolClient, id: string): Promise<Person> {
 
 export function listPersons(
   tenantId: string,
-  filters: { role?: string; stage?: string; brokerId?: string } = {},
+  filters: { role?: string; stage?: string; brokerId?: string; includeInactive?: boolean } = {},
 ): Promise<Person[]> {
   return withTenant(tenantId, async (client) => {
-    const conds: string[] = [];
+    // Inativados (soft delete) ficam fora por padrão — a remoção pela UI marca
+    // status = 'inactive' em vez de apagar a ficha (histórico de contratos).
+    const conds: string[] = filters.includeInactive ? [] : ["p.status <> 'inactive'"];
     const params: unknown[] = [];
     if (filters.role) {
       params.push(filters.role);
@@ -473,23 +475,51 @@ export function updatePerson(
   });
 }
 
+/**
+ * Grava o endereço de um tipo (RESIDENCIAL/COMERCIAL). É um upsert por `kind`:
+ * a pessoa tem no máximo um endereço de cada tipo, então reenviar o bloco pela
+ * edição substitui o anterior em vez de duplicar.
+ */
 export function insertAddress(
   tenantId: string,
   personId: string,
   input: PersonAddress | { kind: string; street?: string; number?: string; district?: string; city?: string; state?: string; zip?: string },
 ): Promise<Person> {
   return withTenant(tenantId, async (client) => {
+    await client.query("DELETE FROM person_addresses WHERE person_id = $1 AND kind = $2", [
+      personId,
+      input.kind,
+    ]);
     await insertAddressRow(client, tenantId, personId, input);
     return loadOne(client, personId);
   });
 }
 
+/** Soft delete: marca a ficha como inativa (some das listas, preserva histórico). */
+export function setStatus(tenantId: string, id: string, status: string): Promise<Person> {
+  return withTenant(tenantId, async (client) => {
+    await client.query("UPDATE persons SET status = $2, updated_at = now() WHERE id = $1", [
+      id,
+      status,
+    ]);
+    return loadOne(client, id);
+  });
+}
+
+/**
+ * Grava o perfil de busca. Upsert por `intent`: a UI mantém um perfil por
+ * intenção (compra/locação), então reenviar pela edição substitui o anterior.
+ */
 export function insertSearchProfile(
   tenantId: string,
   personId: string,
   input: SearchProfileInput,
 ): Promise<Person> {
   return withTenant(tenantId, async (client) => {
+    await client.query(
+      "DELETE FROM person_search_profiles WHERE person_id = $1 AND intent = $2",
+      [personId, input.intent],
+    );
     await insertProfileRow(client, tenantId, personId, input);
     return loadOne(client, personId);
   });

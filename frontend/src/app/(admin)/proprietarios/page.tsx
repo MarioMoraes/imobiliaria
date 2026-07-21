@@ -1,6 +1,7 @@
 import { PageHeader, StatCard, Section, StatusBadge, EmptyState, initials } from "../../../components/ui";
 import { fetchPersons } from "../../../lib/api";
 import { PersonFormButton } from "../clientes/PersonFormButton";
+import { DeletePersonButton } from "../clientes/DeletePersonButton";
 
 /**
  * Proprietários (locadores) — view por papel do cadastro unificado `persons`
@@ -41,7 +42,7 @@ export default async function ProprietariosPage() {
               <thead>
                 <tr>
                   <th>Nome / Razão social</th><th>Tipo</th><th>CPF/CNPJ</th>
-                  <th>Contato</th><th>Status</th>
+                  <th>Contato</th><th>Status</th><th></th>
                 </tr>
               </thead>
               <tbody>
@@ -59,6 +60,12 @@ export default async function ProprietariosPage() {
                     <td className="text-sm subtle tabular">{o.cpfCnpj ?? "—"}</td>
                     <td className="text-sm">{o.email ?? o.phone ?? o.mobile ?? "—"}</td>
                     <td><StatusBadge status={o.status} /></td>
+                    <td>
+                      <div className="row gap-8" style={{ justifyContent: "flex-end" }}>
+                        <PersonFormButton person={o} />
+                        <DeletePersonButton id={o.id} name={o.fullName} />
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
