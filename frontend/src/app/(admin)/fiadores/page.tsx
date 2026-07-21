@@ -1,5 +1,6 @@
-import { PageHeader, StatCard, Section, StatusBadge, EmptyState, initials } from "../../../components/ui";
+import { PageHeader, StatCard, Section, StatusBadge, EmptyState, initials, FilterNotice } from "../../../components/ui";
 import { fetchPersons } from "../../../lib/api";
+import { matches, readQuery } from "../../../lib/filter";
 import { PersonFormButton } from "../clientes/PersonFormButton";
 import { DeletePersonButton } from "../clientes/DeletePersonButton";
 
@@ -15,9 +16,17 @@ const maritalLabel: Record<string, string> = {
  * Fiadores — view por papel do cadastro unificado `persons` (role=FIADOR). Mesma
  * ficha completa das demais partes; fiança de pessoa casada exige o cônjuge.
  */
-export default async function FiadoresPage() {
+export default async function FiadoresPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ q?: string }>;
+}) {
+  // `q` vem da busca global do topo — a lista chega já filtrada.
+  const q = await readQuery(searchParams);
   const live = await fetchPersons("FIADOR");
-  const guarantors = live ?? [];
+  const guarantors = (live ?? []).filter((p) =>
+    matches(q, p.fullName, p.cpfCnpj, p.email, p.phone, p.mobile),
+  );
   const isLive = live !== null;
 
   return (
@@ -26,6 +35,8 @@ export default async function FiadoresPage() {
         title="Fiadores"
         actions={<PersonFormButton defaultRoles={["FIADOR"]} label="Novo Fiador" title="Novo Fiador" />}
       />
+
+      <FilterNotice term={q} count={guarantors.length} clearHref="/fiadores" />
 
       <div className="grid grid-4 mb-4">
         <StatCard icon="shield" label="Fiadores cadastrados" value={String(guarantors.length)} tone="blue" />

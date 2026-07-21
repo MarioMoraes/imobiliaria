@@ -67,3 +67,31 @@ export async function disconnectPaymentAction(): Promise<SettingsResult> {
   revalidatePath(PATH);
   return { ok: true };
 }
+
+/**
+ * Cadastro da própria imobiliária (nome, CNPJ, CRECI e logo). Vai para
+ * `/v1/tenant`, que resolve o tenant pela sessão — não há id na URL, então um
+ * admin não alcança o cadastro de outra imobiliária.
+ *
+ * O logo trafega como data URL (Fase 0, coluna `tenants.logo_url`), já
+ * redimensionado no cliente. `null` remove o logo.
+ */
+export async function saveTenantProfileAction(input: {
+  name: string;
+  cnpj: string;
+  creci: string;
+  logoUrl?: string | null;
+}): Promise<SettingsResult> {
+  const cnpj = input.cnpj.replace(/\D/g, "");
+  const res = await sendJson("PATCH", "/v1/tenant", {
+    name: input.name.trim(),
+    cnpj: cnpj || null,
+    creci: input.creci.trim() || null,
+    ...(input.logoUrl === undefined ? {} : { logoUrl: input.logoUrl }),
+  });
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath(PATH);
+  // O logo e o nome aparecem na sidebar/topbar, montadas no layout.
+  revalidatePath("/", "layout");
+  return { ok: true };
+}

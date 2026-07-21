@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PageHeader, StatCard, Section, StatusBadge } from "../../../components/ui";
+import { PageHeader, StatCard, Section, StatusBadge, FilterNotice } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
 import {
   formatPrice,
@@ -87,13 +87,15 @@ interface Props {
   fiadores: Person[];
   templates: ContractTemplate[];
   isLive: boolean;
+  /** Termo da busca global que filtrou esta lista (`?q=`), se houver. */
+  filterTerm?: string;
 }
 
 /**
  * Lista de contratos de locação (tabela + indicadores). Reúne os lookups
  * (imóveis/pessoas/templates) e os repassa ao formulário em abas.
  */
-export function ContractsView({ contracts, properties, locatarios, fiadores, templates, isLive }: Props) {
+export function ContractsView({ contracts, properties, locatarios, fiadores, templates, isLive, filterTerm = "" }: Props) {
   const propTitle = new Map(properties.map((p) => [p.id, p.title]));
 
   const personOpt = (p: Person): Opt => ({
@@ -128,6 +130,8 @@ export function ContractsView({ contracts, properties, locatarios, fiadores, tem
           </>
         }
       />
+
+      <FilterNotice term={filterTerm} count={contracts.length} clearHref="/contratos" />
 
       <div className="grid grid-4 mb-4">
         {/* Os indicadores usam a mesma cor que a situação tem na tabela. */}

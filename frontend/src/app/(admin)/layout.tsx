@@ -49,6 +49,8 @@ export default async function AdminLayout({
       />
       <div className="main">
         <Topbar
+          brandLogo={tenant?.logoUrl ?? null}
+          brandName={brandName}
           userName={userName}
           userRole={userRole}
           accountSlot={<UserButton />}

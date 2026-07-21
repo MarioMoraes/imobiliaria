@@ -19,6 +19,11 @@ import type {
  * routes chamam o service, nunca o repository direto.
  */
 
+/** Busca livre (barra global). Ver `searchProperties` no repositório. */
+export function search(tenantId: string, term: string, limit?: number): Promise<Property[]> {
+  return repo.searchProperties(tenantId, term, limit);
+}
+
 export function list(tenantId: string): Promise<Property[]> {
   return repo.listProperties(tenantId);
 }

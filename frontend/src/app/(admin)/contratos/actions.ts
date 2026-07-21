@@ -116,7 +116,11 @@ function toPayload(input: ContractFormInput, isEdit: boolean) {
   return {
     propertyId: opt(toText(input.propertyId)),
     templateId: opt(toText(input.templateId)),
-    status: input.status || "RASCUNHO",
+    // O status NÃO vai no update: quem o move é o fluxo de assinatura (e as
+    // ações de encerramento). Reenviá-lo daqui devolvia o contrato recém-
+    // assinado para "Em assinatura" — o formulário sobrescrevia com o valor
+    // que carregou ao abrir o modal.
+    ...(isEdit ? {} : { status: "RASCUNHO" }),
 
     startsAt: opt(toDate(input.startsAt)),
     endsAt: opt(toDate(input.endsAt)),
@@ -180,6 +184,26 @@ export async function updateContractAction(
   const err = validate(input);
   if (err) return { ok: false, error: err };
   const res = await patchJson(`/v1/contracts/${id}`, toPayload(input, true));
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidateContracts();
+  return { ok: true };
+}
+
+/**
+ * Encerra a locação (fim do prazo ou distrato). É a única mudança de status
+ * feita à mão — o resto do ciclo é dirigido pela assinatura. O backend, na
+ * transição, libera o imóvel (volta a Disponível) e cancela as parcelas em
+ * aberto.
+ */
+export async function terminateContractAction(
+  id: string,
+  status: "ENCERRADO" | "DISTRATADO",
+): Promise<ActionResult> {
+  if (!id) return { ok: false, error: "ID inválido." };
+  const res = await patchJson(`/v1/contracts/${id}`, {
+    status,
+    terminatedAt: new Date().toISOString().slice(0, 10),
+  });
   if (!res.ok) return { ok: false, error: res.error };
   revalidateContracts();
   return { ok: true };
@@ -343,6 +367,18 @@ export async function issueBoletoAction(
     boletoUrl: charge.boletoUrl ?? undefined,
     invoiceUrl: charge.invoiceUrl ?? undefined,
   };
+}
+
+/**
+ * Consulta o Asaas e aplica o estado atual da cobrança. É o caminho manual,
+ * indispensável enquanto o backend roda em localhost — o webhook do provedor
+ * não alcança a máquina, então a baixa não chega sozinha.
+ */
+export async function syncChargeAction(receivableId: string): Promise<ActionResult> {
+  const res = await postJson(`/v1/receivables/${receivableId}/sync-charge`, {});
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidateContracts();
+  return { ok: true };
 }
 
 /** Baixa manual do pagamento de uma parcela (o gateway ainda não está ligado). */

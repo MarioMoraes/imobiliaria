@@ -357,6 +357,23 @@ export interface SignatureSettings {
   updatedAt: string | null;
 }
 
+/** Um acerto da busca global (já normalizado pelo backend). */
+export interface SearchHit {
+  kind: "imovel" | "pessoa" | "contrato";
+  id: string;
+  label: string;
+  sub: string | null;
+  /** Destino no app, já com `?q=` para a lista chegar filtrada. */
+  href: string;
+}
+
+export interface SearchResults {
+  imoveis: SearchHit[];
+  pessoas: SearchHit[];
+  contratos: SearchHit[];
+  total: number;
+}
+
 /** Configuração da cobrança bancária do tenant (MOD-FIN / Asaas). */
 export interface PaymentSettings {
   connected: boolean;
@@ -491,7 +508,10 @@ export function fetchTenants(): Promise<Tenant[] | null> {
  * tenant demo (o vínculo real vem do claim do JWT).
  */
 export function fetchCurrentTenant(): Promise<Tenant | null> {
-  return get<Tenant>(`/admin/tenants/${DEMO_TENANT_ID}`);
+  // /v1/tenant resolve a imobiliária pelo contexto da sessão — não mais pelo id
+  // do tenant demo cravado aqui, que mostrava a marca errada para qualquer
+  // outro tenant.
+  return get<Tenant>("/v1/tenant");
 }
 
 /**
@@ -599,6 +619,11 @@ export function fetchContractSignature(contractId: string): Promise<SignatureEnv
 /** Configuração da integração de assinatura do tenant. */
 export function fetchSignatureSettings(): Promise<SignatureSettings | null> {
   return get<SignatureSettings>("/v1/signature-settings");
+}
+
+/** Busca global (barra do topo): imóveis, pessoas e contratos do tenant. */
+export function fetchSearch(q: string): Promise<SearchResults | null> {
+  return get<SearchResults>(`/v1/search?q=${encodeURIComponent(q)}`);
 }
 
 /** Configuração da cobrança bancária (Asaas) do tenant. */

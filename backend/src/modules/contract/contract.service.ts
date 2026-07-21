@@ -37,6 +37,11 @@ export function list(tenantId: string): Promise<Contract[]> {
   return repo.listContracts(tenantId);
 }
 
+/** Busca livre (barra global): número do contrato ou nome de uma das partes. */
+export function search(tenantId: string, term: string, limit?: number): Promise<Contract[]> {
+  return repo.searchContracts(tenantId, term, limit);
+}
+
 export async function getById(tenantId: string, id: string): Promise<Contract> {
   const contract = await repo.findContract(tenantId, id);
   if (!contract) throw AppError.notFound("Contrato não encontrado");

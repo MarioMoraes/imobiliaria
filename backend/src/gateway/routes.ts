@@ -11,13 +11,14 @@ import {
   signatureWebhookRoutes,
 } from "../modules/signature/signature.routes.js";
 import { receivableRoutes } from "../modules/receivable/receivable.routes.js";
+import { searchRoutes } from "../modules/search/search.routes.js";
 import {
   paymentRoutes,
   paymentSettingsRoutes,
   paymentWebhookRoutes,
 } from "../modules/payment/payment.routes.js";
 import { inspectionItemRoutes } from "../modules/inspection-item/inspection-item.routes.js";
-import { tenantRoutes } from "../modules/tenant/tenant.routes.js";
+import { currentTenantRoutes, tenantRoutes } from "../modules/tenant/tenant.routes.js";
 import { userRoutes } from "../modules/user/user.routes.js";
 import { employeeRoutes } from "../modules/employee/employee.routes.js";
 import { personRoutes } from "../modules/person/person.routes.js";
@@ -70,6 +71,10 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       await v1.register(districtRoutes, { prefix: "/districts" });
       await v1.register(eventRoutes, { prefix: "/events" });
       await v1.register(userRoutes, { prefix: "/users" });
+      // Busca global da barra do topo (compõe imóveis + pessoas + contratos).
+      await v1.register(searchRoutes, { prefix: "/search" });
+      // Cadastro da própria imobiliária (nome, CNPJ, CRECI, logo).
+      await v1.register(currentTenantRoutes, { prefix: "/tenant" });
       await v1.register(employeeRoutes, { prefix: "/employees" });
       // Cadastro unificado de pessoas (locador/locatário/fiador).
       // Substitui os antigos /v1/customers e /v1/guarantors — a tela /fiadores

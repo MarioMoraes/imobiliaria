@@ -36,6 +36,14 @@ export const createTenantSchema = z.object({
 export const updateTenantSchema = z
   .object({
     name: z.string().min(2).max(200).optional(),
+    // Só dígitos (a máscara é da UI). `null` limpa o campo.
+    cnpj: z
+      .string()
+      .transform((v) => v.replace(/\D/g, ""))
+      .pipe(z.string().length(14, "CNPJ deve ter 14 dígitos"))
+      .nullable()
+      .optional(),
+    creci: z.string().max(40).nullable().optional(),
     domain: z.string().max(255).nullable().optional(),
     logoUrl: z.string().max(1_000_000).nullable().optional(),
     plan: z.string().max(40).optional(),

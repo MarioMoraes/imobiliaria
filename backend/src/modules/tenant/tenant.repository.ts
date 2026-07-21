@@ -89,6 +89,14 @@ export async function updateTenant(
     sets.push(`name = $${i++}`);
     values.push(patch.name);
   }
+  if (patch.cnpj !== undefined) {
+    sets.push(`cnpj = $${i++}`);
+    values.push(patch.cnpj);
+  }
+  if (patch.creci !== undefined) {
+    sets.push(`creci = $${i++}`);
+    values.push(patch.creci);
+  }
   if (patch.domain !== undefined) {
     sets.push(`domain = $${i++}`);
     values.push(patch.domain);

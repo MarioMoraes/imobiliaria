@@ -485,3 +485,30 @@ export async function findLatestVersionKey(
     return rows[0]?.pdf_storage_key ?? null;
   });
 }
+
+/**
+ * Busca livre para a barra global: número do contrato ou nome de qualquer parte
+ * (locador/locatário/fiador). O EXISTS sobre contract_parties evita duplicar o
+ * contrato quando mais de uma parte casa com o termo.
+ */
+export async function searchContracts(
+  tenantId: string,
+  term: string,
+  limit = 5,
+): Promise<Contract[]> {
+  return withTenant(tenantId, async (client) => {
+    const { rows } = await client.query<Row>(
+      `SELECT ${SELECT_COLS} FROM contracts c ${PARTIES_LATERAL} ${VERSION_LATERAL}
+        WHERE c.code::text = $2
+           OR EXISTS (
+             SELECT 1 FROM contract_parties cp
+               JOIN persons pe ON pe.id = cp.person_id
+              WHERE cp.contract_id = c.id AND lower(pe.full_name) LIKE lower($1)
+           )
+        ORDER BY c.code DESC NULLS LAST
+        LIMIT $3`,
+      [`%${term}%`, term.replace(/\D/g, "") || "-1", limit],
+    );
+    return rows.map(toContract);
+  });
+}

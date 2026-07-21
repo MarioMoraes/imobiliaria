@@ -1,5 +1,6 @@
-import { PageHeader, StatCard, Section, StatusBadge, EmptyState, initials } from "../../../components/ui";
+import { PageHeader, StatCard, Section, StatusBadge, EmptyState, initials, FilterNotice } from "../../../components/ui";
 import { fetchPersons } from "../../../lib/api";
+import { matches, readQuery } from "../../../lib/filter";
 import { PersonFormButton } from "../clientes/PersonFormButton";
 import { DeletePersonButton } from "../clientes/DeletePersonButton";
 
@@ -8,9 +9,17 @@ import { DeletePersonButton } from "../clientes/DeletePersonButton";
  * (role=LOCADOR). Mesma ficha completa; o vínculo com imóveis é feito na tela
  * de Imóveis (property_owners).
  */
-export default async function ProprietariosPage() {
+export default async function ProprietariosPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ q?: string }>;
+}) {
+  // `q` vem da busca global do topo — a lista chega já filtrada.
+  const q = await readQuery(searchParams);
   const live = await fetchPersons("LOCADOR");
-  const owners = live ?? [];
+  const owners = (live ?? []).filter((p) =>
+    matches(q, p.fullName, p.cpfCnpj, p.email, p.phone, p.mobile),
+  );
   const isLive = live !== null;
 
   return (
@@ -19,6 +28,8 @@ export default async function ProprietariosPage() {
         title="Locadores"
         actions={<PersonFormButton defaultRoles={["LOCADOR"]} label="Novo Locador" title="Novo Locador" />}
       />
+
+      <FilterNotice term={q} count={owners.length} clearHref="/proprietarios" />
 
       <div className="grid grid-4 mb-4">
         <StatCard icon="user" label="Locadores" value={String(owners.length)} tone="blue" />

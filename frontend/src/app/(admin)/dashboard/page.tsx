@@ -188,7 +188,10 @@ export default async function DashboardPage() {
             </div>
           </Section>
 
-          <Section title="Agenda de hoje" action={<a href="/agenda" className="btn btn-ghost btn-sm">Agenda</a>}>
+          {/* Sem o atalho para /agenda: a rota saiu do menu junto com o grupo
+              Operação (ver lib/nav.ts) — o botão levaria a uma página que não
+              existe mais para o usuário. */}
+          <Section title="Agenda de hoje">
             <div className="card-pad timeline">
               {sampleAppointments.slice(0, 4).map((a, i) => (
                 <div className="timeline-item" key={i}>

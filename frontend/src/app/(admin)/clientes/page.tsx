@@ -1,7 +1,8 @@
-import { PageHeader, StatCard, Section, initials } from "../../../components/ui";
+import { PageHeader, StatCard, Section, initials, FilterNotice } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
 import { fetchPersons, formatPrice, type Person } from "../../../lib/api";
 import { sampleCustomers } from "../../../lib/sample";
+import { matches, readQuery } from "../../../lib/filter";
 import { PersonFormButton } from "./PersonFormButton";
 import { DeletePersonButton } from "./DeletePersonButton";
 
@@ -62,13 +63,22 @@ function budgetOf(c: Person): string {
   return "—";
 }
 
-export default async function ClientesPage() {
+export default async function ClientesPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ q?: string }>;
+}) {
+  // `q` vem da busca global do topo — a lista chega já filtrada.
+  const q = await readQuery(searchParams);
   const all = await fetchPersons();
   const isLive = all !== null;
   // "Clientes" = pessoas com papel de locatário (a mesma tabela `persons`;
   // proprietários/fiadores aparecem nas suas próprias views). O interesse em
   // comprar é distinguido pelo perfil de busca (intent = COMPRA), não por papel.
-  const live = all?.filter((p) => p.roles.some((r) => r === "LOCATARIO")) ?? null;
+  const live =
+    all
+      ?.filter((p) => p.roles.some((r) => r === "LOCATARIO"))
+      .filter((p) => matches(q, p.fullName, p.cpfCnpj, p.email, p.phone, p.mobile)) ?? null;
 
   const rows: Row[] = isLive && live
     ? live.map((c) => ({
@@ -103,6 +113,8 @@ export default async function ClientesPage() {
         title="Locatários"
         actions={<PersonFormButton defaultRoles={["LOCATARIO"]} label="Novo Locatário" title="Novo Locatário" />}
       />
+
+      <FilterNotice term={q} count={rows.length} clearHref="/clientes" />
 
       <div className="grid grid-4 mb-4">
         <StatCard icon="users" label="Total na base" value={String(rows.length)} tone="blue" />

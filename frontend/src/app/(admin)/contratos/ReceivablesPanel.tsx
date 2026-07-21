@@ -13,6 +13,7 @@ import {
   issueBoletoAction,
   loadReceivablesAction,
   settleReceivableAction,
+  syncChargeAction,
 } from "./actions";
 
 /** Parcela em aberto com vencimento passado é exibida como vencida. */
@@ -95,6 +96,89 @@ function BoletoButton({
       }
     >
       <Icon name={busy ? "loader" : "printer"} className={busy ? "spin" : undefined} size={15} />
+    </button>
+  );
+}
+
+/**
+ * Copia o **link de pagamento** (fatura do Asaas, com boleto e PIX lado a lado)
+ * para mandar ao inquilino por WhatsApp/e-mail. É o formato que costuma
+ * converter melhor do que o PDF do boleto: o PIX compensa na hora.
+ */
+function CopyLinkButton({
+  receivable,
+  onError,
+}: {
+  receivable: Receivable;
+  onError: (message: string) => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const url = receivable.invoiceUrl;
+  if (!url) return null;
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(url!);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      onError("Não foi possível copiar o link.");
+    }
+  }
+
+  return (
+    <button
+      className="icon-btn"
+      style={{ width: 30, height: 30 }}
+      type="button"
+      onClick={() => void copy()}
+      aria-label={`Copiar link de pagamento da parcela ${receivable.installment ?? ""}`}
+      title="Copiar link de pagamento (boleto + PIX) para enviar ao inquilino"
+    >
+      <Icon name={copied ? "check" : "link"} size={15} />
+    </button>
+  );
+}
+
+/**
+ * Consulta o Asaas e aplica o estado atual da cobrança. Enquanto o backend roda
+ * em localhost o webhook do provedor não chega, então esta é a forma de a baixa
+ * aparecer aqui depois de o inquilino pagar.
+ */
+function SyncChargeButton({
+  receivable,
+  onError,
+  onSynced,
+}: {
+  receivable: Receivable;
+  onError: (message: string) => void;
+  onSynced: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  async function sync() {
+    onError("");
+    setBusy(true);
+    const res = await syncChargeAction(receivable.id);
+    setBusy(false);
+    if (!res.ok) {
+      onError(res.error ?? "Não foi possível sincronizar a cobrança.");
+      return;
+    }
+    onSynced();
+  }
+
+  return (
+    <button
+      className="icon-btn"
+      style={{ width: 30, height: 30 }}
+      type="button"
+      onClick={() => void sync()}
+      disabled={busy}
+      aria-label={`Sincronizar cobrança da parcela ${receivable.installment ?? ""}`}
+      title="Consultar o Asaas e atualizar a situação desta parcela"
+    >
+      <Icon name={busy ? "loader" : "refresh"} className={busy ? "spin" : undefined} size={15} />
     </button>
   );
 }
@@ -238,7 +322,7 @@ export function ReceivablesPanel({
                 <th style={{ width: 130 }}>Vencimento</th>
                 <th>Valor</th>
                 <th style={{ width: 130 }}>Situação</th>
-                <th style={{ width: 150 }} />
+                <th style={{ width: 210 }} />
               </tr>
             </thead>
             <tbody>
@@ -258,6 +342,10 @@ export function ReceivablesPanel({
                   <td>
                     <div className="row gap-8" style={{ justifyContent: "flex-end" }}>
                       <BoletoButton receivable={r} onError={setError} onIssued={load} />
+                      <CopyLinkButton receivable={r} onError={setError} />
+                      {r.asaasChargeId && r.status !== "PAGO" && (
+                        <SyncChargeButton receivable={r} onError={setError} onSynced={load} />
+                      )}
                       {r.status === "ABERTO" ? (
                         <button
                           className="btn btn-ghost btn-sm"

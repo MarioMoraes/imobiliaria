@@ -10,6 +10,7 @@ import {
   addPartyAction,
   createContractAction,
   removePartyAction,
+  terminateContractAction,
   updateContractAction,
   type ContractFormInput,
 } from "./actions";
@@ -27,6 +28,20 @@ export interface Opt {
 /** Minúsculas sem acento — para a busca tolerar "Joao"/"João". */
 const fold = (s: string) =>
   s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+/**
+ * Situação do contrato — campo de LEITURA. Nasce RASCUNHO, vai a EM_ASSINATURA
+ * no envio ao provedor e a VIGENTE quando todas as assinaturas são confirmadas;
+ * ENCERRADO/DISTRATADO saem dos botões da própria ficha.
+ */
+const STATUS_LABEL: Record<string, string> = {
+  RASCUNHO: "Rascunho",
+  EM_ASSINATURA: "Em assinatura",
+  VIGENTE: "Vigente",
+  RENOVADO: "Renovado",
+  ENCERRADO: "Encerrado",
+  DISTRATADO: "Distratado",
+};
 
 const EMPTY: ContractFormInput = {
   propertyId: "",
@@ -221,6 +236,40 @@ export function ContractFormButton({
 
   const set = (patch: Partial<ContractFormInput>) => setForm((f) => ({ ...f, ...patch }));
 
+  /**
+   * Situação vem SEMPRE do servidor, nunca do formulário: quem a move é o fluxo
+   * de assinatura. Ler de `form` deixava a tela mostrando o valor de quando o
+   * modal foi aberto — e era esse valor velho que o Salvar reenviava, jogando
+   * um contrato recém-assinado de volta para "Em assinatura".
+   */
+  const liveStatus = contract?.status ?? "RASCUNHO";
+  const [terminating, setTerminating] = useState(false);
+
+  function terminate(status: "ENCERRADO" | "DISTRATADO") {
+    if (!contract) return;
+    const rotulo = status === "ENCERRADO" ? "Encerrar" : "Registrar distrato d";
+    if (
+      !window.confirm(
+        `${rotulo}o contrato ${contract.code != null ? `Nº ${contract.code}` : ""}?\n\n` +
+          "O imóvel volta para Disponível e as parcelas de aluguel em aberto são canceladas.",
+      )
+    ) {
+      return;
+    }
+    setError(null);
+    setTerminating(true);
+    startTransition(async () => {
+      const res = await terminateContractAction(contract.id, status);
+      setTerminating(false);
+      if (!res.ok) {
+        setError(res.error ?? "Não foi possível encerrar o contrato.");
+        return;
+      }
+      setOpen(false);
+      router.refresh();
+    });
+  }
+
   const parties = contract?.parties ?? [];
   const locatarios = parties.filter((p) => p.role === "LOCATARIO");
   const fiadores = parties.filter((p) => p.role === "FIADOR");
@@ -380,14 +429,35 @@ export function ContractFormButton({
                   <option value="">—</option>
                   {properties.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
                 </Select>
-                <Select label="Situação" value={form.status} onChange={(v) => set({ status: v })}>
-                  <option value="RASCUNHO">Rascunho</option>
-                  <option value="EM_ASSINATURA">Em assinatura</option>
-                  <option value="VIGENTE">Vigente</option>
-                  <option value="RENOVADO">Renovado</option>
-                  <option value="ENCERRADO">Encerrado</option>
-                  <option value="DISTRATADO">Distratado</option>
-                </Select>
+                <div className="field">
+                  <label>Situação</label>
+                  <input className="input" value={STATUS_LABEL[liveStatus] ?? liveStatus} readOnly disabled />
+                  <span className="text-xs subtle">
+                    {liveStatus === "VIGENTE"
+                      ? "Contrato assinado por todas as partes."
+                      : "Definida pelo sistema: passa a Vigente quando todas as assinaturas são confirmadas."}
+                  </span>
+                  {(liveStatus === "VIGENTE" || liveStatus === "RENOVADO") && (
+                    <div className="row gap-8" style={{ marginTop: 8 }}>
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        type="button"
+                        onClick={() => terminate("ENCERRADO")}
+                        disabled={terminating}
+                      >
+                        Encerrar
+                      </button>
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        type="button"
+                        onClick={() => terminate("DISTRATADO")}
+                        disabled={terminating}
+                      >
+                        Registrar distrato
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </FieldBlock>
 
@@ -560,7 +630,7 @@ export function ContractFormButton({
 
         {/* ── Aba: Aluguéis gerados (contas a receber) ────────────── */}
         {tab === "alugueis" && (
-          <ReceivablesPanel contractId={contract?.id} isEdit={isEdit} status={form.status} />
+          <ReceivablesPanel contractId={contract?.id} isEdit={isEdit} status={liveStatus} />
         )}
 
         </div>

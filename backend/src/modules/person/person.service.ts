@@ -22,6 +22,11 @@ const ERR_NOT_FOUND = new AppError("ERR_PESSOA_001", 404, "Pessoa não encontrad
 /** Transições de stage permitidas manualmente (via PATCH). */
 const MANUAL_STAGES = new Set(["LEAD", "CLIENTE", "INATIVO"]);
 
+/** Busca livre (barra global): nome, CPF/CNPJ, e-mail ou telefone. */
+export function search(tenantId: string, term: string, limit?: number): Promise<Person[]> {
+  return repo.searchPersons(tenantId, term, limit);
+}
+
 export function list(
   tenantId: string,
   filters: { role?: string; stage?: string; brokerId?: string },

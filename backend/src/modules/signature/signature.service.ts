@@ -370,7 +370,6 @@ export async function applyProviderState(
         completedAt: new Date().toISOString(),
       });
     }
-    await contractService.update(tenantId, envelope.contractId, { status: "VIGENTE" });
     await publish({
       type: "contract.signed",
       tenantId,
@@ -378,6 +377,18 @@ export async function applyProviderState(
       occurredAt: new Date().toISOString(),
       payload: { contractId: envelope.contractId, docToken: envelope.providerDocToken },
     });
+  }
+
+  // A vigência é reafirmada a CADA sincronização com o envelope assinado, não
+  // só na transição: se algo devolveu o contrato para EM_ASSINATURA depois da
+  // conclusão, o botão "Sincronizar" conserta. Preso ao `justCompleted`, o
+  // estado divergente seria irrecuperável pela tela.
+  // Não ressuscita contrato encerrado/distratado — só sai de rascunho/assinatura.
+  if (status === "ASSINADO") {
+    const contract = await contractService.getById(tenantId, envelope.contractId);
+    if (contract.status === "RASCUNHO" || contract.status === "EM_ASSINATURA") {
+      await contractService.update(tenantId, envelope.contractId, { status: "VIGENTE" });
+    }
   }
 
   return updated;

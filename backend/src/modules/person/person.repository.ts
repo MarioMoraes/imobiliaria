@@ -539,3 +539,33 @@ export function insertInteraction(
     return loadOne(client, personId);
   });
 }
+
+/**
+ * Busca livre para a barra global: nome, CPF/CNPJ, e-mail e telefones. Os
+ * documentos/telefones são comparados só por dígitos, então "123.456" acha o
+ * CPF gravado sem pontuação (e vice-versa).
+ */
+export async function searchPersons(
+  tenantId: string,
+  term: string,
+  limit = 5,
+): Promise<Person[]> {
+  const digits = term.replace(/\D/g, "");
+  return withTenant(tenantId, async (client) => {
+    const { rows } = await client.query<Row>(
+      `SELECT * FROM persons p
+        WHERE p.status <> 'inactive'
+          AND (
+            lower(p.full_name) LIKE lower($1)
+            OR lower(coalesce(p.email, '')) LIKE lower($1)
+            OR ($2 <> '' AND regexp_replace(coalesce(p.cpf_cnpj, ''), '\\D', '', 'g') LIKE $3)
+            OR ($2 <> '' AND regexp_replace(coalesce(p.phone, ''),    '\\D', '', 'g') LIKE $3)
+            OR ($2 <> '' AND regexp_replace(coalesce(p.mobile, ''),   '\\D', '', 'g') LIKE $3)
+          )
+        ORDER BY p.full_name
+        LIMIT $4`,
+      [`%${term}%`, digits, `%${digits}%`, limit],
+    );
+    return rows.map((r) => toPerson(r, [], [], []));
+  });
+}

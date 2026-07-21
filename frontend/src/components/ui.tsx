@@ -227,3 +227,35 @@ export function initials(name: string): string {
   const last = parts.length > 1 ? parts[parts.length - 1]![0]! : "";
   return (first + last).toUpperCase();
 }
+
+/* ------------------------------------------------------------ FilterNotice */
+/**
+ * Aviso de que a lista está filtrada pela busca global (`?q=` na URL). Sem ele
+ * a tela mostraria uma lista curta sem dizer por quê — o usuário acharia que
+ * perdeu registros.
+ */
+export function FilterNotice({
+  term,
+  count,
+  clearHref,
+}: {
+  term: string;
+  /** Quantos itens sobraram no filtro. */
+  count: number;
+  /** Rota sem o `?q=` (a própria página). */
+  clearHref: string;
+}) {
+  if (!term) return null;
+  return (
+    <div className="filter-notice">
+      <Icon name="search" size={14} />
+      <span>
+        {count === 0 ? "Nenhum resultado para" : `${count} resultado${count > 1 ? "s" : ""} para`}{" "}
+        <strong>“{term}”</strong>
+      </span>
+      <a href={clearHref} className="btn btn-ghost btn-sm">
+        Limpar filtro
+      </a>
+    </div>
+  );
+}

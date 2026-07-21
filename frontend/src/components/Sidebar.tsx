@@ -57,7 +57,7 @@ export function Sidebar({
               <Link
                 key={item.href}
                 href={item.href}
-                className={`nav-item${isActive(item.href) ? " active" : ""}`}
+                className={`nav-item ${item.tone ?? "tone-azul"}${isActive(item.href) ? " active" : ""}`}
               >
                 <Icon name={item.icon} />
                 <span>{item.label}</span>
@@ -73,7 +73,7 @@ export function Sidebar({
             <Link
               key={item.href}
               href={item.href}
-              className={`nav-item${isActive(item.href) ? " active" : ""}`}
+              className={`nav-item ${item.tone ?? "tone-ardosia"}${isActive(item.href) ? " active" : ""}`}
             >
               <Icon name={item.icon} />
               <span>{item.label}</span>

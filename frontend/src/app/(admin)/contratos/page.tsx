@@ -6,13 +6,20 @@ import {
   type Contract,
 } from "../../../lib/api";
 import { ContractsView } from "./ContractsView";
+import { matches, readQuery } from "../../../lib/filter";
 
 /**
  * Contratos de locação — dado real de /v1/contracts + lookups (imóveis,
  * locatários, fiadores, templates). Se o backend não responder, cai numa lista
  * vazia (o gatilho de novo contrato fica desabilitado via `isLive`).
  */
-export default async function ContratosPage() {
+export default async function ContratosPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ q?: string }>;
+}) {
+  // `q` vem da busca global do topo — a lista chega já filtrada.
+  const q = await readQuery(searchParams);
   const [liveContracts, liveProps, liveLocatarios, liveFiadores, liveTemplates] =
     await Promise.all([
       fetchContracts(),
@@ -22,7 +29,9 @@ export default async function ContratosPage() {
       fetchContractTemplates(),
     ]);
 
-  const contracts: Contract[] = liveContracts ?? [];
+  const contracts: Contract[] = (liveContracts ?? []).filter((c) =>
+    matches(q, c.code, ...c.parties.map((party) => party.personName)),
+  );
 
   return (
     <ContractsView
@@ -32,6 +41,7 @@ export default async function ContratosPage() {
       fiadores={liveFiadores ?? []}
       templates={liveTemplates ?? []}
       isLive={liveContracts !== null}
+      filterTerm={q}
     />
   );
 }

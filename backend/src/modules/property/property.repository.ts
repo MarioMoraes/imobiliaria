@@ -513,3 +513,29 @@ export async function deletePhoto(
     return rows[0]?.storage_key ?? null;
   });
 }
+
+/**
+ * Busca livre para a barra global. Casa por título, código, endereço, bairro e
+ * cidade. `unaccent` não está instalado, então normalizamos os dois lados com
+ * `lower()` — acento continua importando, o que é aceitável para termos curtos.
+ */
+export async function searchProperties(
+  tenantId: string,
+  term: string,
+  limit = 5,
+): Promise<Property[]> {
+  return withTenant(tenantId, async (client) => {
+    const { rows } = await client.query<Row>(
+      `SELECT ${SELECT_COLS} FROM properties p ${OWNERS_LATERAL}
+        WHERE lower(p.title) LIKE lower($1)
+           OR lower(coalesce(p.address, '')) LIKE lower($1)
+           OR lower(coalesce(p.district, '')) LIKE lower($1)
+           OR lower(coalesce(p.city, '')) LIKE lower($1)
+           OR p.code::text = $2
+        ORDER BY p.created_at DESC
+        LIMIT $3`,
+      [`%${term}%`, term.replace(/\D/g, "") || "-1", limit],
+    );
+    return rows.map(toProperty);
+  });
+}

@@ -9,9 +9,15 @@ import {
 } from "../../../../lib/api";
 import { sampleProperties } from "../../../../lib/sample";
 import { InventoryView } from "../InventoryView";
+import { matches, readQuery } from "../../../../lib/filter";
 
 /** Lista de imóveis para venda (`purpose` = sale). */
-export default async function ImoveisVenderPage() {
+export default async function ImoveisVenderPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ q?: string }>;
+}) {
+  const q = await readQuery(searchParams);
   const [liveProps, liveTypes, liveCondos, liveDistricts, liveEmployees, liveLocadores] =
     await Promise.all([
       fetchProperties(),
@@ -22,7 +28,10 @@ export default async function ImoveisVenderPage() {
       fetchPersons("LOCADOR"),
     ]);
   const all: Property[] = liveProps ?? sampleProperties;
-  const properties = all.filter((p) => p.purpose === "sale");
+  // `q` vem da busca global do topo — a lista chega já filtrada.
+  const properties = all
+    .filter((p) => p.purpose === "sale")
+    .filter((p) => matches(q, p.title, p.address, p.district, p.city, p.code));
 
   return (
     <InventoryView
@@ -35,6 +44,8 @@ export default async function ImoveisVenderPage() {
       employees={liveEmployees ?? []}
       locadores={liveLocadores ?? []}
       isLive={liveProps !== null}
+      filterTerm={q}
+      clearHref="/imoveis/vender"
     />
   );
 }

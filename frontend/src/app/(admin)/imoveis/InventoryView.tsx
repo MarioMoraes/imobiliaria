@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PageHeader, StatCard, Section, StatusBadge } from "../../../components/ui";
+import { PageHeader, StatCard, Section, StatusBadge, FilterNotice } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
 import {
   formatPrice,
@@ -57,6 +57,10 @@ interface Props {
   /** Pessoas com papel LOCADOR (candidatas a proprietário). */
   locadores: Person[];
   isLive: boolean;
+  /** Termo da busca global que filtrou esta lista (`?q=`), se houver. */
+  filterTerm?: string;
+  /** Rota da própria lista, sem o `?q=` — usada pelo "Limpar filtro". */
+  clearHref?: string;
 }
 
 /**
@@ -74,6 +78,8 @@ export function InventoryView({
   employees,
   locadores,
   isLive,
+  filterTerm = "",
+  clearHref = "/imoveis",
 }: Props) {
   const isSale = mode === "sale";
   const typeName = new Map(types.map((t) => [t.id, t.name]));
@@ -108,6 +114,8 @@ export function InventoryView({
           </>
         }
       />
+
+      <FilterNotice term={filterTerm} count={properties.length} clearHref={clearHref} />
 
       <div className="grid grid-4 mb-4">
         <StatCard icon="building" label="Total no inventário" value={String(properties.length)} tone="blue" />

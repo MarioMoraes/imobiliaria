@@ -1,8 +1,9 @@
 import { PageHeader, Section } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
-import { fetchPaymentSettings, fetchSignatureSettings } from "../../../lib/api";
+import { fetchCurrentTenant, fetchPaymentSettings, fetchSignatureSettings } from "../../../lib/api";
 import { SignatureSettingsCard } from "./SignatureSettingsCard";
 import { PaymentSettingsCard } from "./PaymentSettingsCard";
+import { TenantProfileCard } from "./TenantProfileCard";
 
 const integrations = [
   { name: "Stripe", desc: "Cartão internacional / backup", icon: "receipt", on: false },
@@ -13,9 +14,10 @@ const integrations = [
 ];
 
 export default async function ConfiguracoesPage() {
-  const [signature, payment] = await Promise.all([
+  const [signature, payment, tenant] = await Promise.all([
     fetchSignatureSettings(),
     fetchPaymentSettings(),
+    fetchCurrentTenant(),
   ]);
 
   return (
@@ -24,13 +26,7 @@ export default async function ConfiguracoesPage() {
 
       <div className="grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
         <Section title="Dados da imobiliária" pad>
-          <div className="stack" style={{ gap: 14 }}>
-            <div className="field"><label>Nome fantasia</label><input className="input" defaultValue="Imobiliária Demo" /></div>
-            <div className="field"><label>CNPJ</label><input className="input" defaultValue="00.000.000/0001-00" /></div>
-            <div className="field"><label>CRECI da imobiliária</label><input className="input" defaultValue="J-12345" /></div>
-            <div className="field"><label>Subdomínio</label><input className="input" defaultValue="demo.moveai.com.br" readOnly /></div>
-            <button className="btn btn-primary btn-sm" style={{ alignSelf: "flex-start" }}>Salvar Alterações</button>
-          </div>
+          <TenantProfileCard tenant={tenant} />
         </Section>
 
         <Section title="Assinatura Digital (ZapSign)" pad>
