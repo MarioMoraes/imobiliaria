@@ -49,6 +49,18 @@ export interface Opt {
 const fold = (s: string) =>
   s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
+/**
+ * Situação do imóvel — campo de LEITURA, controlado pelo sistema: nasce
+ * Disponível e vira Alugado quando o contrato entra em vigência.
+ */
+const STATUS_LABEL: Record<string, string> = {
+  available: "Disponível",
+  reserved: "Reservado",
+  rented: "Alugado",
+  sold: "Vendido",
+  inactive: "Suspenso",
+};
+
 const EMPTY: PropertyFormInput = {
   title: "",
   purpose: "rent",
@@ -508,13 +520,11 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
                   <option value="season">Temporada</option>
                 </Select>
               )}
-              <Select label="Situação" value={form.status} onChange={(v) => set({ status: v })}>
-                <option value="available">Disponível</option>
-                <option value="reserved">Reservado</option>
-                <option value="rented">Alugado</option>
-                <option value="sold">Vendido</option>
-                <option value="inactive">Suspenso</option>
-              </Select>
+              <ReadOnly
+                label="Situação"
+                value={STATUS_LABEL[form.status] ?? form.status}
+                hint="Definida pelo sistema: o imóvel fica Alugado quando o contrato é assinado."
+              />
             </div>
             </FieldBlock>
             <FieldBlock tone="tone-azul" icon="folder" title="Vínculos">
@@ -1175,6 +1185,21 @@ function Text({
         type={type}
         autoFocus={autoFocus}
       />
+    </div>
+  );
+}
+
+/**
+ * Campo de leitura. A Situação do imóvel é do sistema, não do operador: passa a
+ * "Alugado" quando o contrato entra em vigência e volta a "Disponível" no
+ * encerramento (ver contract.service no backend).
+ */
+function ReadOnly({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div className="field">
+      <label>{label}</label>
+      <input className="input" value={value} readOnly disabled />
+      {hint && <span className="text-xs subtle">{hint}</span>}
     </div>
   );
 }

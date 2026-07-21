@@ -90,6 +90,13 @@ export async function contractRoutes(app: FastifyInstance): Promise<void> {
     return { data: await service.generateDocument(getTenantId(), id) };
   });
 
+  // Regera os aluguéis de um contrato já vigente (idempotente) — serve para o
+  // contrato assinado antes de o valor/prazo estarem preenchidos.
+  app.post("/:id/receivables", { preHandler: requirePermission("contract:write") }, async (req) => {
+    const { id } = req.params as { id: string };
+    return { data: await service.generateReceivables(getTenantId(), id) };
+  });
+
   app.get("/:id/pdf", { preHandler: requirePermission("contract:read") }, async (req) => {
     const { id } = req.params as { id: string };
     return { data: { url: await service.getPdfUrl(getTenantId(), id) } };

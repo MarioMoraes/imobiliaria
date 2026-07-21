@@ -1,10 +1,10 @@
 import { PageHeader, Section } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
-import { fetchSignatureSettings } from "../../../lib/api";
+import { fetchPaymentSettings, fetchSignatureSettings } from "../../../lib/api";
 import { SignatureSettingsCard } from "./SignatureSettingsCard";
+import { PaymentSettingsCard } from "./PaymentSettingsCard";
 
 const integrations = [
-  { name: "Asaas", desc: "Cobrança nacional e repasses", icon: "wallet", on: true },
   { name: "Stripe", desc: "Cartão internacional / backup", icon: "receipt", on: false },
   { name: "Clerk", desc: "Autenticação e identidade", icon: "shield", on: true },
   { name: "WhatsApp Business", desc: "Canal principal dos agentes", icon: "messageCircle", on: true },
@@ -13,7 +13,10 @@ const integrations = [
 ];
 
 export default async function ConfiguracoesPage() {
-  const signature = await fetchSignatureSettings();
+  const [signature, payment] = await Promise.all([
+    fetchSignatureSettings(),
+    fetchPaymentSettings(),
+  ]);
 
   return (
     <>
@@ -32,6 +35,10 @@ export default async function ConfiguracoesPage() {
 
         <Section title="Assinatura Digital (ZapSign)" pad>
           <SignatureSettingsCard settings={signature} />
+        </Section>
+
+        <Section title="Cobrança (Asaas)" pad>
+          <PaymentSettingsCard settings={payment} />
         </Section>
 
         <Section title="Integrações">

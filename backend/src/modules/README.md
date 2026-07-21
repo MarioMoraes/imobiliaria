@@ -38,7 +38,9 @@ Regras de fronteira:
 | `signature/`         | (parte do contract)    | 2    | ✅ ZapSign: envio, webhook, sync |
 | `document/`          | document-service       | 1    | ⬜            |
 | `crm/`               | crm-service            | 2    | ⬜            |
-| `financial/`         | financial-service      | 2    | ⬜            |
+| `receivable/`        | financial-service      | 2    | 🟡 contas a receber: aluguéis gerados na assinatura + baixa manual |
+| `payment/`           | financial-service      | 2    | ✅ Asaas: boleto/PIX sob demanda, webhook idempotente |
+| `financial/`         | financial-service      | 2    | ⬜ repasses, comissões, DRE |
 | `rental/`            | rental-service         | 2    | ⬜            |
 | `maintenance/`       | maintenance-service    | 2    | ⬜            |
 | `portal/`            | portal-service         | 2    | ⬜            |

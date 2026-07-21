@@ -357,6 +357,19 @@ export interface SignatureSettings {
   updatedAt: string | null;
 }
 
+/** Configuração da cobrança bancária do tenant (MOD-FIN / Asaas). */
+export interface PaymentSettings {
+  connected: boolean;
+  provider: string;
+  sandbox: boolean;
+  /** UNDEFINED = fatura com boleto e PIX; BOLETO ou PIX restringem. */
+  billingType: string;
+  apiKeyHint: string | null;
+  webhookUrl: string;
+  webhookRegisteredAt: string | null;
+  updatedAt: string | null;
+}
+
 /**
  * Variável dinâmica (merge field) disponível nos templates. O catálogo vem do
  * backend — é a mesma lista que a geração do PDF sabe preencher.
@@ -417,6 +430,30 @@ export interface Contract {
   latestVersion: number | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Conta a receber (MOD-FIN). Os aluguéis nascem da assinatura do contrato. */
+export interface Receivable {
+  id: string;
+  contractId: string | null;
+  propertyId: string | null;
+  payerPersonId: string | null;
+  payerName: string | null;
+  kind: string;
+  description: string | null;
+  competence: string | null;
+  installment: number | null;
+  installmentsTotal: number | null;
+  amountCents: number;
+  dueDate: string;
+  status: string;
+  paidAt: string | null;
+  paidAmountCents: number | null;
+  /** Cobrança no Asaas — nulos enquanto a conta do tenant não está conectada. */
+  asaasChargeId: string | null;
+  /** PDF do boleto registrado, hospedado no provedor. */
+  boletoUrl: string | null;
+  invoiceUrl: string | null;
 }
 
 /* ------------------------------------------------------------- Helpers */
@@ -522,6 +559,21 @@ export function fetchContracts(): Promise<Contract[] | null> {
   return get<Contract[]>("/v1/contracts");
 }
 
+/**
+ * Contas a receber do tenant da sessão. `contractId` filtra as parcelas de um
+ * contrato (usado na ficha do contrato).
+ */
+export function fetchReceivables(params?: {
+  contractId?: string;
+  status?: string;
+}): Promise<Receivable[] | null> {
+  const query = new URLSearchParams();
+  if (params?.contractId) query.set("contractId", params.contractId);
+  if (params?.status) query.set("status", params.status);
+  const qs = query.toString();
+  return get<Receivable[]>(`/v1/receivables${qs ? `?${qs}` : ""}`);
+}
+
 /** Um contrato pelo id. */
 export function fetchContract(id: string): Promise<Contract | null> {
   return get<Contract>(`/v1/contracts/${id}`);
@@ -547,6 +599,11 @@ export function fetchContractSignature(contractId: string): Promise<SignatureEnv
 /** Configuração da integração de assinatura do tenant. */
 export function fetchSignatureSettings(): Promise<SignatureSettings | null> {
   return get<SignatureSettings>("/v1/signature-settings");
+}
+
+/** Configuração da cobrança bancária (Asaas) do tenant. */
+export function fetchPaymentSettings(): Promise<PaymentSettings | null> {
+  return get<PaymentSettings>("/v1/payment-settings");
 }
 
 /** Catálogo de variáveis dinâmicas aceitas nos templates. */
@@ -613,22 +670,9 @@ export function deleteJson(path: string): Promise<JsonResult> {
 }
 
 /* ------------------------------------------------------------ Formatos */
-export function formatPrice(cents: number | null): string {
-  if (cents === null || cents === undefined) return "—";
-  return (cents / 100).toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-    maximumFractionDigits: 0,
-  });
-}
-
-export function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
+// Moram em lib/format.ts (sem `server-only`) para poderem ser usados também por
+// Client Components; reexportados aqui para não mexer nos callers existentes.
+export { formatDate, formatDay, formatPrice } from "./format";
 
 export const propertyKindLabel: Record<string, string> = {
   sale: "Venda",

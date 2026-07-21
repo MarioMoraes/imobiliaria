@@ -76,9 +76,15 @@ const schema = z.object({
   // (tenant_signature_settings). Aqui ficam só os endereços do provedor.
   ZAPSIGN_API_URL: z.string().default("https://api.zapsign.com.br/api/v1"),
   ZAPSIGN_SANDBOX_API_URL: z.string().default("https://sandbox.api.zapsign.com.br/api/v1"),
-  // URL pública deste backend — compõe o endereço do webhook registrado na
-  // ZapSign. Em localhost o registro automático é pulado (o provedor não
-  // alcançaria a máquina); use o botão "Sincronizar" no contrato.
+  // ── Cobrança bancária (MOD-FIN / Asaas) ────────────────────────
+  // Mesma regra: a chave da API é por tenant, cifrada em
+  // tenant_payment_settings. Aqui só os endereços.
+  ASAAS_API_URL: z.string().default("https://api.asaas.com/v3"),
+  ASAAS_SANDBOX_API_URL: z.string().default("https://api-sandbox.asaas.com/v3"),
+
+  // URL pública deste backend — compõe o endereço dos webhooks registrados na
+  // ZapSign e no Asaas. Em localhost o registro automático é pulado (o provedor
+  // não alcançaria a máquina); use o botão "Sincronizar".
   PUBLIC_BASE_URL: z.string().default("http://localhost:3001"),
 });
 

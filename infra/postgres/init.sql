@@ -960,3 +960,130 @@ WHERE p.tenant_id = '00000000-0000-0000-0000-000000000001'
 ORDER BY p.created_at
 LIMIT 1
 ON CONFLICT DO NOTHING;
+
+-- ═════════════════════════════════════════════════════════════════
+-- MOD-FIN — Contas a receber (financeiro_11 §4).
+--
+-- Origem hoje: as parcelas de aluguel geradas quando o contrato passa a
+-- VIGENTE (todas as assinaturas confirmadas). O par (contract_id, kind,
+-- competence) é ÚNICO — é ele que torna a geração idempotente: reenviar o
+-- webhook da ZapSign nunca duplica um aluguel.
+--
+-- Como o resto do arquivo já roda em bancos existentes, este bloco usa
+-- DROP POLICY IF EXISTS antes do CREATE POLICY.
+-- ═════════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS receivables (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id          UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  contract_id        UUID REFERENCES contracts(id) ON DELETE CASCADE,
+  property_id        UUID,                              -- FK lógica → properties
+  payer_person_id    UUID,                              -- FK lógica → persons (locatário)
+  kind               TEXT NOT NULL DEFAULT 'ALUGUEL',   -- ALUGUEL|IPTU|CONDOMINIO|MULTA|OUTRO
+  description        TEXT,
+  competence         TEXT,                              -- YYYY-MM (mês de referência)
+  installment        INT,                               -- nº da parcela (1-based)
+  installments_total INT,                               -- total de parcelas do contrato
+  amount_cents       BIGINT NOT NULL,
+  due_date           DATE NOT NULL,
+  status             TEXT NOT NULL DEFAULT 'ABERTO',    -- ABERTO|PAGO|VENCIDO|CANCELADO|ESTORNADO
+  paid_at            DATE,
+  paid_amount_cents  BIGINT,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_receivables_tenant_status ON receivables (tenant_id, status, due_date);
+CREATE INDEX IF NOT EXISTS idx_receivables_contract      ON receivables (contract_id, due_date);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_receivables_competence
+  ON receivables (contract_id, kind, competence)
+  WHERE contract_id IS NOT NULL AND competence IS NOT NULL;
+
+ALTER TABLE receivables ENABLE ROW LEVEL SECURITY;
+ALTER TABLE receivables FORCE  ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON receivables;
+CREATE POLICY tenant_isolation ON receivables
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON receivables TO app_user;
+
+-- Cobrança bancária (Asaas) — colunas preparadas para a integração do MOD-FIN.
+-- Enquanto a conta não é conectada elas ficam nulas e a UI mostra o boleto como
+-- indisponível; quando a cobrança for emitida, `boleto_url` é o PDF do próprio
+-- provedor (é ele quem tem o código de barras registrado, não nós).
+ALTER TABLE receivables ADD COLUMN IF NOT EXISTS asaas_charge_id TEXT;
+ALTER TABLE receivables ADD COLUMN IF NOT EXISTS boleto_url      TEXT;  -- bankSlipUrl
+ALTER TABLE receivables ADD COLUMN IF NOT EXISTS invoice_url     TEXT;  -- fatura/link de pagamento
+CREATE INDEX IF NOT EXISTS idx_receivables_asaas ON receivables (asaas_charge_id)
+  WHERE asaas_charge_id IS NOT NULL;
+
+-- ═════════════════════════════════════════════════════════════════
+-- MOD-FIN / Asaas — cobrança bancária (financeiro_11 §2 e §8).
+--
+-- Mesmo desenho da integração de assinatura: cada tenant conecta a PRÓPRIA
+-- conta Asaas e a chave fica cifrada (AES-256-GCM, shared/crypto.ts).
+--
+-- Bloco aplicável a bancos já existentes: DROP POLICY antes do CREATE.
+-- ═════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS tenant_payment_settings (
+  tenant_id             UUID PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,
+  provider              TEXT NOT NULL DEFAULT 'ASAAS',
+  api_key_enc           TEXT,                             -- chave cifrada (v1.<iv>.<tag>.<ct>)
+  api_key_hint          TEXT,                             -- últimos 4 caracteres, só p/ exibir
+  sandbox               BOOLEAN NOT NULL DEFAULT true,    -- api-sandbox.asaas.com
+  billing_type          TEXT NOT NULL DEFAULT 'UNDEFINED',-- UNDEFINED = boleto + PIX na fatura
+  webhook_token         TEXT,                             -- authToken devolvido no header do callback
+  webhook_registered_at TIMESTAMPTZ,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE tenant_payment_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tenant_payment_settings FORCE  ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON tenant_payment_settings;
+CREATE POLICY tenant_isolation ON tenant_payment_settings
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON tenant_payment_settings TO app_user;
+
+-- Espelho pessoa ↔ cliente no Asaas. `sandbox` faz parte da chave porque os
+-- ambientes são contas distintas: o customer de sandbox não existe em produção.
+CREATE TABLE IF NOT EXISTS asaas_customers (
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id         UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  person_id         UUID NOT NULL,                        -- FK lógica → persons
+  sandbox           BOOLEAN NOT NULL,
+  asaas_customer_id TEXT NOT NULL,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (tenant_id, person_id, sandbox)
+);
+CREATE INDEX IF NOT EXISTS idx_asaas_customers_tenant ON asaas_customers (tenant_id);
+
+ALTER TABLE asaas_customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE asaas_customers FORCE  ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON asaas_customers;
+CREATE POLICY tenant_isolation ON asaas_customers
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON asaas_customers TO app_user;
+
+-- Eventos já processados do webhook. É o que garante a idempotência exigida
+-- pelo AC-01 de MOD-FIN-03: o Asaas reentrega o evento até receber 200.
+CREATE TABLE IF NOT EXISTS asaas_webhook_events (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id    UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  event_id     TEXT NOT NULL,                             -- id do evento no Asaas
+  event_type   TEXT NOT NULL,
+  payment_id   TEXT,
+  payload      JSONB,
+  processed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (tenant_id, event_id)
+);
+CREATE INDEX IF NOT EXISTS idx_asaas_events_tenant ON asaas_webhook_events (tenant_id, processed_at DESC);
+
+ALTER TABLE asaas_webhook_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE asaas_webhook_events FORCE  ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON asaas_webhook_events;
+CREATE POLICY tenant_isolation ON asaas_webhook_events
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON asaas_webhook_events TO app_user;

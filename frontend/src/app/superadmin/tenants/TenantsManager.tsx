@@ -4,7 +4,9 @@ import { useRef, useState, useTransition, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "../../../components/Icon";
 import { StatusBadge } from "../../../components/ui";
-import { formatDate } from "../../../lib/api";
+// De lib/format (não de lib/api): este é um Client Component, e api.ts importa
+// o Clerk server (`server-only`).
+import { formatDate } from "../../../lib/format";
 import { saveTenantAction, type TenantInput } from "./actions";
 
 export interface TenantRow {

@@ -14,6 +14,7 @@ import {
   type ContractFormInput,
 } from "./actions";
 import { SignaturePanel } from "./SignaturePanel";
+import { ReceivablesPanel } from "./ReceivablesPanel";
 
 /** Item de dropdown/seletor (id + rótulo). */
 export interface Opt {
@@ -161,7 +162,8 @@ type TabId =
   | "locatarios"
   | "fiadores"
   | "clausulas"
-  | "assinatura";
+  | "assinatura"
+  | "alugueis";
 
 /**
  * Cada aba carrega a classe do seu tópico (`tone-*`, em globals.css). A mesma
@@ -176,6 +178,7 @@ const TABS: { id: TabId; label: string; tone: string }[] = [
   { id: "fiadores", label: "Fiadores", tone: "tone-teal" },
   { id: "clausulas", label: "Cláusulas", tone: "tone-ardosia" },
   { id: "assinatura", label: "Assinatura", tone: "tone-esmeralda" },
+  { id: "alugueis", label: "Aluguéis", tone: "tone-ciano" },
 ];
 
 interface Props {
@@ -553,6 +556,11 @@ export function ContractFormButton({
             onTemplateChange={(v) => set({ templateId: v })}
             parties={parties}
           />
+        )}
+
+        {/* ── Aba: Aluguéis gerados (contas a receber) ────────────── */}
+        {tab === "alugueis" && (
+          <ReceivablesPanel contractId={contract?.id} isEdit={isEdit} status={form.status} />
         )}
 
         </div>

@@ -4,8 +4,10 @@ import { revalidatePath } from "next/cache";
 import {
   deleteJson,
   fetchContractSignature,
+  fetchReceivables,
   patchJson,
   postJson,
+  type Receivable,
   type SignatureEnvelope,
 } from "../../../lib/api";
 
@@ -290,4 +292,63 @@ export async function syncSignatureAction(contractId: string): Promise<Signature
   if (!res.ok) return { ok: false, error: res.error };
   revalidateContracts();
   return { ok: true, envelope: res.data as SignatureEnvelope };
+}
+
+/* ─────────────────────────────────────── Aluguéis (contas a receber) */
+
+export interface ReceivablesResult {
+  ok: boolean;
+  receivables?: Receivable[];
+  error?: string;
+}
+
+/** Parcelas de aluguel geradas para este contrato. */
+export async function loadReceivablesAction(contractId: string): Promise<ReceivablesResult> {
+  if (!contractId) return { ok: false, error: "ID inválido." };
+  const receivables = await fetchReceivables({ contractId });
+  if (receivables === null) return { ok: false, error: "Backend indisponível." };
+  return { ok: true, receivables };
+}
+
+/**
+ * Regera os aluguéis do contrato. Idempotente no backend (unique por
+ * contrato+competência) — serve para o contrato assinado antes de o valor ou o
+ * prazo estarem preenchidos.
+ */
+export async function generateReceivablesAction(
+  contractId: string,
+): Promise<ActionResult & { created?: number }> {
+  if (!contractId) return { ok: false, error: "ID inválido." };
+  const res = await postJson(`/v1/contracts/${contractId}/receivables`, {});
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidateContracts();
+  return { ok: true, created: (res.data as { created?: number })?.created ?? 0 };
+}
+
+/**
+ * Boleto da parcela: devolve a URL do PDF no provedor (Asaas) para o navegador
+ * abrir/imprimir. Enquanto a conta não está conectada, o backend responde 422
+ * com a orientação — não existe boleto local, o registrado é do banco emissor.
+ */
+export async function issueBoletoAction(
+  receivableId: string,
+): Promise<ActionResult & { url?: string; boletoUrl?: string; invoiceUrl?: string }> {
+  const res = await postJson(`/v1/receivables/${receivableId}/boleto`, {});
+  if (!res.ok) return { ok: false, error: res.error };
+  const charge = res.data as { url?: string; boletoUrl?: string | null; invoiceUrl?: string | null };
+  if (!charge?.url) return { ok: false, error: "Boleto emitido, mas sem URL de acesso." };
+  return {
+    ok: true,
+    url: charge.url,
+    boletoUrl: charge.boletoUrl ?? undefined,
+    invoiceUrl: charge.invoiceUrl ?? undefined,
+  };
+}
+
+/** Baixa manual do pagamento de uma parcela (o gateway ainda não está ligado). */
+export async function settleReceivableAction(receivableId: string): Promise<ActionResult> {
+  const res = await postJson(`/v1/receivables/${receivableId}/settle`, {});
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidateContracts();
+  return { ok: true };
 }

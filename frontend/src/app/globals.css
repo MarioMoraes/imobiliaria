@@ -681,6 +681,20 @@ a {
   font-weight: 600;
   color: var(--dark);
 }
+/* Rodapé de totais: fecha a lista com um tom próprio, para não ser lido como
+   mais uma linha de dados. */
+.table-total td {
+  padding: 12px 20px;
+  border-top: 2px solid var(--border-strong, var(--border));
+  background: var(--surface);
+  color: var(--dark);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.table-total .text-xs {
+  font-weight: 500;
+  color: var(--muted);
+}
 .cell-main {
   display: flex;
   align-items: center;
@@ -1112,6 +1126,10 @@ select.input {
   overflow-x: auto;
   border-bottom: 1px solid var(--border);
   margin-bottom: 4px;
+  /* Dentro do modal (flex column com altura máxima) a barra é um item flexível:
+     sem isto ela é espremida quando a aba tem conteúdo alto, e os rótulos
+     transbordam por cima do conteúdo. */
+  flex: 0 0 auto;
 }
 .tabbar-item {
   appearance: none;

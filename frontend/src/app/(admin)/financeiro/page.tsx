@@ -1,13 +1,33 @@
 import { PageHeader, StatCard, Section, StatusBadge } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
-import { formatPrice } from "../../../lib/api";
-import { sampleReceivables, sampleTransfers } from "../../../lib/sample";
+import { fetchReceivables, formatDay, formatPrice, type Receivable } from "../../../lib/api";
+import { sampleTransfers } from "../../../lib/sample";
 
 const months = ["Fev", "Mar", "Abr", "Mai", "Jun", "Jul"];
 const inflow = [62, 70, 66, 78, 82, 90];
 const outflow = [40, 44, 43, 47, 49, 52];
 
-export default function FinanceiroPage() {
+/** Uma parcela em aberto cujo vencimento já passou aparece como vencida. */
+function displayStatus(r: Receivable, today: string): string {
+  return r.status === "ABERTO" && r.dueDate < today ? "VENCIDO" : r.status;
+}
+
+function describe(r: Receivable): string {
+  if (r.description) return r.description;
+  return r.kind === "ALUGUEL" ? "Aluguel" : r.kind;
+}
+
+export default async function FinanceiroPage() {
+  const receivables = (await fetchReceivables()) ?? [];
+  const today = new Date().toISOString().slice(0, 10);
+  const sum = (list: Receivable[]) => list.reduce((acc, r) => acc + r.amountCents, 0);
+
+  const abertos = receivables.filter((r) => r.status === "ABERTO");
+  const recebido = receivables.filter((r) => r.status === "PAGO");
+  const vencidos = abertos.filter((r) => r.dueDate < today);
+  const aVencer = sum(abertos);
+  const inadimplencia = aVencer > 0 ? (sum(vencidos) / aVencer) * 100 : 0;
+
   return (
     <>
       <PageHeader
@@ -21,9 +41,14 @@ export default function FinanceiroPage() {
       />
 
       <div className="grid grid-4 mb-4">
-        <StatCard icon="wallet" label="Recebido (jul)" value="R$ 86,4k" trend="+10%" feature />
-        <StatCard icon="banknote" label="A receber" value="R$ 52,3k" tone="accent" />
-        <StatCard icon="trendingDown" label="Inadimplência" value="3,4%" trendDir="down" trend="-0,6pp" tone="success" />
+        <StatCard icon="wallet" label="Recebido" value={formatPrice(sum(recebido))} feature />
+        <StatCard icon="banknote" label="A receber" value={formatPrice(aVencer)} tone="accent" />
+        <StatCard
+          icon="trendingDown"
+          label="Inadimplência"
+          value={`${inadimplencia.toFixed(1).replace(".", ",")}%`}
+          tone={inadimplencia > 0 ? "warning" : "success"}
+        />
         <StatCard icon="receipt" label="Repasses pendentes" value="R$ 7,6k" tone="warning" />
       </div>
 
@@ -50,17 +75,26 @@ export default function FinanceiroPage() {
           <Section title="Contas a receber">
             <div className="table-wrap">
               <table className="table">
-                <thead><tr><th>Descrição</th><th>Pagador</th><th>Venc.</th><th>Valor</th><th>Status</th></tr></thead>
+                <thead><tr><th>Descrição</th><th>Pagador</th><th>Competência</th><th>Venc.</th><th>Valor</th><th>Status</th></tr></thead>
                 <tbody>
-                  {sampleReceivables.map((r) => (
+                  {receivables.map((r) => (
                     <tr key={r.id}>
-                      <td className="strong">{r.desc}</td>
-                      <td className="text-sm">{r.party}</td>
-                      <td className="text-sm subtle">{r.due}</td>
-                      <td className="strong">{formatPrice(r.value)}</td>
-                      <td><StatusBadge status={r.status} /></td>
+                      <td className="strong">{describe(r)}</td>
+                      <td className="text-sm">{r.payerName ?? "—"}</td>
+                      <td className="text-sm subtle">{r.competence ?? "—"}</td>
+                      <td className="text-sm subtle">{formatDay(r.dueDate)}</td>
+                      <td className="strong">{formatPrice(r.amountCents)}</td>
+                      <td><StatusBadge status={displayStatus(r, today)} /></td>
                     </tr>
                   ))}
+                  {receivables.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="text-sm subtle">
+                        Nenhuma cobrança ainda. Os aluguéis são gerados quando o contrato é
+                        assinado por todas as partes.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

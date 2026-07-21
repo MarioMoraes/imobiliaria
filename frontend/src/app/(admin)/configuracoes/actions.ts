@@ -38,3 +38,32 @@ export async function disconnectSignatureAction(): Promise<SettingsResult> {
   revalidatePath(PATH);
   return { ok: true };
 }
+
+/**
+ * Conecta/atualiza a conta Asaas do tenant. A chave só trafega daqui para o
+ * backend, que a valida contra a API e a guarda cifrada — nunca volta na
+ * leitura (a tela mostra apenas os últimos 4 caracteres).
+ */
+export async function savePaymentSettingsAction(input: {
+  apiKey: string;
+  sandbox: boolean;
+  billingType: string;
+}): Promise<SettingsResult> {
+  const apiKey = input.apiKey.trim();
+  const res = await sendJson("PUT", "/v1/payment-settings", {
+    // Vazio = manter a chave atual (o usuário só mudou sandbox/forma).
+    ...(apiKey ? { apiKey } : {}),
+    sandbox: input.sandbox,
+    billingType: input.billingType,
+  });
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath(PATH);
+  return { ok: true };
+}
+
+export async function disconnectPaymentAction(): Promise<SettingsResult> {
+  const res = await deleteJson("/v1/payment-settings");
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath(PATH);
+  return { ok: true };
+}

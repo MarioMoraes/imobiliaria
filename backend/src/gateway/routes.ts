@@ -10,6 +10,12 @@ import {
   signatureSettingsRoutes,
   signatureWebhookRoutes,
 } from "../modules/signature/signature.routes.js";
+import { receivableRoutes } from "../modules/receivable/receivable.routes.js";
+import {
+  paymentRoutes,
+  paymentSettingsRoutes,
+  paymentWebhookRoutes,
+} from "../modules/payment/payment.routes.js";
 import { inspectionItemRoutes } from "../modules/inspection-item/inspection-item.routes.js";
 import { tenantRoutes } from "../modules/tenant/tenant.routes.js";
 import { userRoutes } from "../modules/user/user.routes.js";
@@ -36,6 +42,10 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   // não manda header de tenant nem token de sessão. O tenant vem da URL e a
   // autenticidade, de um header secreto por tenant (ver signature.routes.ts).
   await app.register(signatureWebhookRoutes, { prefix: "/webhooks/zapsign" });
+
+  // Callback do provedor de cobrança (Asaas), pelo mesmo motivo: sem header de
+  // tenant nem sessão. Tenant na URL, autenticidade pelo authToken no header.
+  await app.register(paymentWebhookRoutes, { prefix: "/webhooks/asaas" });
 
   // Administração da plataforma (Super Admin). Fora de /v1: não é escopado por
   // tenant. TODO: proteger com autorização de Super Admin.
@@ -70,6 +80,13 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       // Contratos (locação) + templates (MOD-CONTRATO).
       await v1.register(contractRoutes, { prefix: "/contracts" });
       await v1.register(contractTemplateRoutes, { prefix: "/contract-templates" });
+      // Contas a receber (MOD-FIN). Os aluguéis nascem aqui quando o contrato
+      // entra em vigência (todas as assinaturas confirmadas).
+      await v1.register(receivableRoutes, { prefix: "/receivables" });
+      // Cobrança bancária (Asaas). Compartilha o prefixo /receivables — os
+      // paths não colidem (boleto, sync-charge).
+      await v1.register(paymentRoutes, { prefix: "/receivables" });
+      await v1.register(paymentSettingsRoutes, { prefix: "/payment-settings" });
       // Assinatura eletrônica (MOD-ASSINATURA). Compartilha o prefixo /contracts
       // com contractRoutes — os paths não colidem (send-to-sign, signature…).
       await v1.register(signatureRoutes, { prefix: "/contracts" });

@@ -87,6 +87,12 @@ const statusMap: Record<string, { cls: string; label: string; dot?: boolean }> =
   rented: { cls: "badge-blue", label: "Alugado" },
   sold: { cls: "badge-dark", label: "Vendido" },
   inactive: { cls: "badge-slate", label: "Inativo" },
+  // contas a receber (MOD-FIN)
+  ABERTO: { cls: "badge-amber", label: "Em aberto" },
+  PAGO: { cls: "badge-green", label: "Pago" },
+  VENCIDO: { cls: "badge-red", label: "Vencido" },
+  CANCELADO: { cls: "badge-slate", label: "Cancelado" },
+  ESTORNADO: { cls: "badge-slate", label: "Estornado" },
   // genéricos
   active: { cls: "badge-green", label: "Ativo", dot: true },
   trial: { cls: "badge-cyan", label: "Trial" },

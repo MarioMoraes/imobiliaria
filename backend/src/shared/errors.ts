@@ -34,7 +34,10 @@ export type ErrorCode =
   | "ERR_ASSINATURA_001" // integração de assinatura não configurada no tenant
   | "ERR_ASSINATURA_002" // parte sem o contato exigido pelo modo de autenticação
   | "ERR_ASSINATURA_003" // contrato sem as partes mínimas para assinar
-  | "ERR_ASSINATURA_004"; // envelope de assinatura não encontrado
+  | "ERR_ASSINATURA_004" // envelope de assinatura não encontrado
+  // Códigos do MOD-FIN (financeiro_11 §5).
+  | "ERR_FIN_001" // conta a receber não encontrada
+  | "ERR_FIN_002"; // operação inválida (ex.: cobrança bancária não configurada)
 
 export class AppError extends Error {
   constructor(

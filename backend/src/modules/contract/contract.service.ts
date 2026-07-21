@@ -1,11 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { AppError } from "../../shared/errors.js";
 import { publish } from "../../shared/events.js";
+import { logger } from "../../shared/logger.js";
 import { htmlToPdf } from "../../shared/pdf.js";
 import { presignGetUrl, putObject } from "../../shared/storage.js";
 import * as repo from "./contract.repository.js";
 import * as propertyService from "../property/property.service.js";
 import * as personService from "../person/person.service.js";
+import * as receivableService from "../receivable/receivable.service.js";
 import {
   MERGE_FIELDS,
   buildMergeContext,
@@ -62,6 +64,7 @@ export async function update(
   id: string,
   input: UpdateContractInput,
 ): Promise<Contract> {
+  const before = await getById(tenantId, id);
   const updated = await repo.updateContract(tenantId, id, input);
   if (!updated) throw AppError.notFound("Contrato não encontrado");
   await publish({
@@ -71,8 +74,118 @@ export async function update(
     occurredAt: new Date().toISOString(),
     payload: { contractId: id },
   });
+
+  // Entrou em vigência (assinaturas concluídas): imóvel alugado + aluguéis.
+  if (updated.status === "VIGENTE" && before.status !== "VIGENTE") {
+    await activate(tenantId, updated);
+  }
+  // Fim da locação: libera o imóvel e cancela o que ainda não venceu. Só nos
+  // status terminais — voltar para EM_ASSINATURA (correção de um envio) ou
+  // RENOVADO mantém o imóvel ocupado e as parcelas de pé.
+  if (
+    before.status === "VIGENTE" &&
+    (updated.status === "ENCERRADO" || updated.status === "DISTRATADO")
+  ) {
+    await deactivate(tenantId, updated);
+  }
+
   // Trocar/definir o imóvel traz o proprietário como locador (se ainda não há um).
   return input.propertyId ? linkOwnersAsLocador(tenantId, id) : updated;
+}
+
+/**
+ * Efeitos da entrada em vigência do contrato (contratos_08 §7): o imóvel passa
+ * a ALUGADO e os aluguéis do período viram contas a receber.
+ *
+ * Chamado pela transição de status em `update` — vale tanto para o webhook de
+ * assinatura quanto para uma mudança manual. Idempotente: reprocessar não
+ * duplica parcela (unique por contrato+competência no MOD-FIN).
+ *
+ * Nenhum dos dois efeitos derruba a transição: um imóvel apagado ou um contrato
+ * sem valor não podem impedir o contrato de ficar VIGENTE — o erro é logado e o
+ * financeiro regenera depois de completar o cadastro.
+ */
+async function activate(tenantId: string, contract: Contract): Promise<void> {
+  if (contract.propertyId) {
+    try {
+      await propertyService.update(tenantId, contract.propertyId, { status: "rented" });
+    } catch (err) {
+      logger.error(
+        { err, tenantId, contractId: contract.id, propertyId: contract.propertyId },
+        "não foi possível marcar o imóvel como alugado",
+      );
+    }
+  }
+
+  try {
+    await receivableService.generateRentSchedule(tenantId, {
+      contractId: contract.id,
+      propertyId: contract.propertyId,
+      // Quem paga o aluguel é o locatário (o primeiro, quando há vários).
+      payerPersonId: contract.parties.find((p) => p.role === "LOCATARIO")?.personId ?? null,
+      startsAt: contract.startsAt,
+      endsAt: contract.endsAt,
+      termMonths: contract.termMonths,
+      tenantPayDay: contract.tenantPayDay,
+      rentalValueCents: contract.rentalValueCents,
+    });
+  } catch (err) {
+    logger.error(
+      { err, tenantId, contractId: contract.id },
+      "não foi possível gerar os aluguéis do contrato",
+    );
+  }
+}
+
+/** Fim da vigência: imóvel volta a Disponível e as parcelas abertas caem. */
+async function deactivate(tenantId: string, contract: Contract): Promise<void> {
+  if (contract.propertyId) {
+    try {
+      await propertyService.update(tenantId, contract.propertyId, { status: "available" });
+    } catch (err) {
+      logger.error(
+        { err, tenantId, propertyId: contract.propertyId },
+        "não foi possível liberar o imóvel",
+      );
+    }
+  }
+
+  try {
+    await receivableService.cancelOpenByContract(
+      tenantId,
+      contract.id,
+      contract.terminatedAt ?? undefined,
+    );
+  } catch (err) {
+    logger.error({ err, tenantId, contractId: contract.id }, "não foi possível cancelar as parcelas");
+  }
+}
+
+/**
+ * Regeração manual dos aluguéis — usada quando o contrato foi assinado com o
+ * valor/prazo ainda em branco e o financeiro completou depois.
+ */
+export async function generateReceivables(
+  tenantId: string,
+  id: string,
+): Promise<{ created: number }> {
+  const contract = await getById(tenantId, id);
+  if (contract.status !== "VIGENTE") {
+    throw AppError.badRequest(
+      "Os aluguéis só são gerados para contratos vigentes (com todas as assinaturas confirmadas).",
+    );
+  }
+  const created = await receivableService.generateRentSchedule(tenantId, {
+    contractId: contract.id,
+    propertyId: contract.propertyId,
+    payerPersonId: contract.parties.find((p) => p.role === "LOCATARIO")?.personId ?? null,
+    startsAt: contract.startsAt,
+    endsAt: contract.endsAt,
+    termMonths: contract.termMonths,
+    tenantPayDay: contract.tenantPayDay,
+    rentalValueCents: contract.rentalValueCents,
+  });
+  return { created };
 }
 
 export async function remove(tenantId: string, id: string): Promise<void> {
