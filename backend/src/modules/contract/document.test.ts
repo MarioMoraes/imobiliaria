@@ -60,3 +60,25 @@ test("CRLF do Windows não deixa parágrafos vazios", () => {
   assert.ok(out.includes("<p>Linha 2.</p>"));
   assert.ok(!out.includes("\r"));
 });
+
+test("**negrito** e _itálico_ viram ênfase no documento", () => {
+  const out = toDocumentHtml("A multa é de **10%** do valor _vigente_.");
+  assert.ok(out.includes("<strong>10%</strong>"));
+  assert.ok(out.includes("<em>vigente</em>"));
+});
+
+test("marcador solto ou atravessando linhas não vira ênfase", () => {
+  const out = toDocumentHtml("Item 2 ** destaque\nna linha seguinte ** fim");
+  assert.ok(!out.includes("<strong>"), "o par não pode atravessar a quebra de linha");
+  // Sublinhado no meio de uma palavra (nome de variável, e-mail) fica intacto.
+  assert.ok(toDocumentHtml("campo_de_teste").includes("campo_de_teste"));
+});
+
+test("dado do cadastro com ** NÃO formata o documento", () => {
+  // A ênfase é aplicada na conversão; a variável só é trocada depois, na
+  // geração. Um nome com asteriscos sai literal.
+  const html = toDocumentHtml("LOCADOR: {{locador.nome}}");
+  const out = render(html, { "locador.nome": "**Fulano**" } as never);
+  assert.ok(out.includes("**Fulano**"));
+  assert.ok(!out.includes("<strong>"));
+});

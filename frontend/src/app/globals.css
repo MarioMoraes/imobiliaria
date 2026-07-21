@@ -1535,3 +1535,64 @@ select.input {
 .filter-notice a {
   margin-left: auto;
 }
+
+/* ── Editor de modelo de contrato (Tabelas → Modelos) ─────────── */
+/* Barra de ferramentas encostada na área de escrita: forma um bloco só com o
+   textarea/pré-visualização, em vez de flutuar como mais um campo do formulário. */
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 7px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+}
+.editor-toolbar code {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 0.72rem;
+}
+/* Superfície de escrita/pré-visualização: canto de cima reto para encaixar na
+   barra acima. */
+.editor-surface {
+  border: 1px solid var(--border);
+  border-radius: 0 0 var(--r-sm) var(--r-sm);
+  display: block;
+}
+.input-sm {
+  padding: 6px 10px;
+  font-size: 0.82rem;
+  width: auto;
+}
+
+/* Campos de escrita com fundo levemente azulado (nome e corpo do modelo de
+   contrato): destaca a área de digitação sem competir com o branco dos cards.
+   O tom permanece no foco — trocar para branco ao focar faria a cor sumir
+   justamente enquanto se escreve. */
+.input-soft,
+textarea.editor-surface {
+  background: color-mix(in srgb, var(--primary) 4%, var(--white));
+}
+.input-soft:focus,
+textarea.editor-surface:focus {
+  background: color-mix(in srgb, var(--primary) 5%, var(--white));
+}
+
+/* Botões de ênfase (N / I) na barra do editor de modelo: quadrados e coladinhos,
+   para lerem como um grupo e não como duas ações soltas. */
+.editor-marks {
+  display: inline-flex;
+  gap: 2px;
+  padding-left: 4px;
+  border-left: 1px solid var(--border-strong);
+}
+.editor-marks .btn {
+  min-width: 30px;
+  padding: 4px 8px;
+  justify-content: center;
+}

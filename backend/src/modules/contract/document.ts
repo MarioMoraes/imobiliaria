@@ -29,8 +29,25 @@ const escapeHtml = (s: string): string =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 /**
+ * Ênfase leve no texto do modelo: `**negrito**` e `_itálico_`.
+ *
+ * Roda **depois** do escape (os marcadores não são afetados por ele) e **antes**
+ * da substituição das variáveis — que acontece só na geração. Logo, um nome de
+ * cadastro contendo `**` vira asterisco literal no documento, e não marcação:
+ * dado de cliente não formata o contrato.
+ *
+ * Os marcadores não atravessam quebra de linha, senão um asterisco solto no
+ * meio do texto emparelharia com outro páginas adiante.
+ */
+const applyEmphasis = (s: string): string =>
+  s
+    .replace(/\*\*([^\n*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[\s(])_([^\n_]+)_(?=[\s.,;:!?)]|$)/gm, "$1<em>$2</em>");
+
+/**
  * Texto puro → HTML. Linha em branco separa parágrafos; quebra simples vira
  * `<br>` (preserva endereços e listas de assinatura escritos linha a linha).
+ * `**negrito**` e `_itálico_` são a única marcação aceita.
  *
  * O texto é escapado ANTES da substituição das variáveis, e os valores já vêm
  * escapados do catálogo — nenhum dado de cadastro consegue injetar marcação no
@@ -39,7 +56,7 @@ const escapeHtml = (s: string): string =>
 export function toDocumentHtml(content: string): string {
   if (isHtmlDocument(content)) return content;
 
-  const paragraphs = escapeHtml(content.replace(/\r\n/g, "\n"))
+  const paragraphs = applyEmphasis(escapeHtml(content.replace(/\r\n/g, "\n")))
     .split(/\n{2,}/)
     .map((block) => `<p>${block.trim().replace(/\n/g, "<br>")}</p>`)
     .join("\n");
