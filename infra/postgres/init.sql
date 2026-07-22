@@ -421,6 +421,39 @@ CREATE POLICY tenant_isolation ON banks
 GRANT SELECT, INSERT, UPDATE, DELETE ON banks TO app_user;
 
 -- ─────────────────────────────────────────────────────────────
+-- Corretores (MOD-CORRETOR) — cadastro simples de corretores parceiros (tela
+-- legada "Cadastro de Corretores"): identificação (nome + documentos), contato
+-- (telefone/celular), endereço e o percentual de comissão. `code` é sequencial
+-- por tenant. Tabela de domínio, protegida por RLS.
+CREATE TABLE IF NOT EXISTS brokers (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id          UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  code               INTEGER NOT NULL DEFAULT 0,      -- Código (sequencial por tenant)
+  name               TEXT NOT NULL,                   -- Nome
+  address            TEXT,                            -- Endereço
+  district           TEXT,                            -- Bairro
+  city               TEXT,                            -- Cidade
+  state              TEXT,                            -- UF
+  zip                TEXT,                            -- CEP
+  phone              TEXT,                            -- Telefone
+  mobile             TEXT,                            -- Celular
+  cpf                TEXT,                            -- CPF
+  rg                 TEXT,                            -- RG
+  commission_percent NUMERIC(5,2) NOT NULL DEFAULT 0, -- Comissão %
+  active             BOOLEAN NOT NULL DEFAULT true,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_brokers_tenant ON brokers (tenant_id);
+
+ALTER TABLE brokers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE brokers FORCE  ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON brokers
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON brokers TO app_user;
+
+-- ─────────────────────────────────────────────────────────────
 -- Condomínios (MOD-CONDOMINIO) — condomínios administrados pela imobiliária:
 -- identificação (nome + endereço) e parâmetros financeiros de cobrança (taxa
 -- de administração em % e/ou valor fixo, juros e multa por atraso). O `saldo`

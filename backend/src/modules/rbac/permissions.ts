@@ -36,7 +36,10 @@ export type Operation =
   | "person:delete"
   | "condominium:read"
   | "condominium:write"
-  | "condominium:delete";
+  | "condominium:delete"
+  | "broker:read"
+  | "broker:write"
+  | "broker:delete";
 
 const MATRIX: Record<Operation, Role[]> = {
   "users:read": ["SUPER_ADMIN", "ADMIN", "GESTOR"],
@@ -63,6 +66,10 @@ const MATRIX: Record<Operation, Role[]> = {
   "condominium:read": ["SUPER_ADMIN", "ADMIN", "GESTOR", "FINANCEIRO"],
   "condominium:write": ["SUPER_ADMIN", "ADMIN", "GESTOR"],
   "condominium:delete": ["SUPER_ADMIN", "ADMIN"],
+  // Corretores (MOD-CORRETOR) — cadastro de parceiros. Gestão escreve; ADMIN remove.
+  "broker:read": ["SUPER_ADMIN", "ADMIN", "GESTOR", "FINANCEIRO", "CORRETOR"],
+  "broker:write": ["SUPER_ADMIN", "ADMIN", "GESTOR"],
+  "broker:delete": ["SUPER_ADMIN", "ADMIN"],
 };
 
 /** Papéis que podem executar `op`. */

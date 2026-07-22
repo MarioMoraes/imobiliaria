@@ -23,6 +23,7 @@ import { userRoutes } from "../modules/user/user.routes.js";
 import { employeeRoutes } from "../modules/employee/employee.routes.js";
 import { personRoutes } from "../modules/person/person.routes.js";
 import { condominiumRoutes } from "../modules/condominium/condominium.routes.js";
+import { brokerRoutes } from "../modules/broker/broker.routes.js";
 import { districtRoutes } from "../modules/district/district.routes.js";
 import { eventRoutes } from "../modules/event/event.routes.js";
 import { bankRoutes } from "../modules/bank/bank.routes.js";
@@ -85,6 +86,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       await v1.register(personRoutes, { prefix: "/persons" });
       // Cadastro de condomínios (identificação + parâmetros de cobrança).
       await v1.register(condominiumRoutes, { prefix: "/condominiums" });
+      await v1.register(brokerRoutes, { prefix: "/brokers" });
       // Contratos (locação) + templates (MOD-CONTRATO).
       await v1.register(contractRoutes, { prefix: "/contracts" });
       await v1.register(contractTemplateRoutes, { prefix: "/contract-templates" });

@@ -15,6 +15,7 @@ export function Modal({
   subtitle,
   icon,
   children,
+  maxWidth,
 }: {
   open: boolean;
   onClose: () => void;
@@ -22,6 +23,8 @@ export function Modal({
   subtitle?: string;
   icon?: string;
   children: ReactNode;
+  /** Largura máxima (px). Sobrepõe o padrão de 640px para modais com tabela larga. */
+  maxWidth?: number;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -51,6 +54,7 @@ export function Modal({
         aria-modal="true"
         aria-label={title}
         onClick={(e) => e.stopPropagation()}
+        style={maxWidth ? { width: `min(${maxWidth}px, 100%)` } : undefined}
       >
         <div className="modal-head">
           <div className="row gap-8" style={{ minWidth: 0 }}>

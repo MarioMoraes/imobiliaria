@@ -216,6 +216,24 @@ export interface Bank {
   active: boolean;
 }
 
+/** Corretor parceiro (tela "Cadastro de Corretores"). */
+export interface Broker {
+  id: string;
+  code: number;
+  name: string;
+  address: string | null;
+  district: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  phone: string | null;
+  mobile: string | null;
+  cpf: string | null;
+  rg: string | null;
+  commissionPercent: number;
+  active: boolean;
+}
+
 /** Endereço de uma pessoa (residencial/comercial). */
 export interface PersonAddress {
   id?: string;
@@ -585,6 +603,11 @@ export function fetchEvents(): Promise<Event[] | null> {
 /** Bancos (contas bancárias) do tenant da sessão. */
 export function fetchBanks(): Promise<Bank[] | null> {
   return get<Bank[]>("/v1/banks");
+}
+
+/** Corretores parceiros do tenant da sessão. */
+export function fetchBrokers(): Promise<Broker[] | null> {
+  return get<Broker[]>("/v1/brokers");
 }
 
 /** Funcionários (colaboradores internos) do tenant da sessão. */
