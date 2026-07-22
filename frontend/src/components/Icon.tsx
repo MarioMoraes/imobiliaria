@@ -43,6 +43,7 @@ const paths: Record<string, string> = {
   close: "M18 6 6 18M6 6l12 12",
   arrowUpRight: "M7 17L17 7M7 7h10v10",
   arrowRight: "M5 12h14M12 5l7 7-7 7",
+  arrowLeft: "M19 12H5M12 19l-7-7 7-7",
   trendingUp: "M22 7l-8.5 8.5-5-5L2 17M16 7h6v6",
   trendingDown: "M22 17l-8.5-8.5-5 5L2 7M16 17h6v-6",
   activity: "M22 12h-4l-3 9L9 3l-3 9H2",

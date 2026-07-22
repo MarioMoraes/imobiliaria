@@ -196,6 +196,26 @@ export interface Event {
   active: boolean;
 }
 
+/**
+ * Banco (conta bancária da imobiliária) — tela "Financeiro". Código, nome,
+ * agência, conta e favorito são editáveis; Saldo/Cofre/Em Trânsito são derivados
+ * da movimentação financeira (rotinas futuras) e somente-leitura. `probableBalanceCents`
+ * (Provável Saldo) é calculado pelo backend: Saldo + Em Trânsito.
+ */
+export interface Bank {
+  id: string;
+  code: number;
+  name: string;
+  agency: string | null;
+  accountNumber: string | null;
+  favorite: boolean;
+  balanceCents: number;
+  vaultCents: number;
+  inTransitCents: number;
+  probableBalanceCents: number;
+  active: boolean;
+}
+
 /** Endereço de uma pessoa (residencial/comercial). */
 export interface PersonAddress {
   id?: string;
@@ -545,6 +565,11 @@ export function fetchDistricts(): Promise<District[] | null> {
 /** Eventos financeiros (lookup) do tenant da sessão. */
 export function fetchEvents(): Promise<Event[] | null> {
   return get<Event[]>("/v1/events");
+}
+
+/** Bancos (contas bancárias) do tenant da sessão. */
+export function fetchBanks(): Promise<Bank[] | null> {
+  return get<Bank[]>("/v1/banks");
 }
 
 /** Funcionários (colaboradores internos) do tenant da sessão. */

@@ -389,6 +389,38 @@ VALUES
 ON CONFLICT DO NOTHING;
 
 -- ─────────────────────────────────────────────────────────────
+-- Bancos (MOD-FIN) — contas bancárias da imobiliária (tela legada "Bancos").
+-- Identificação (código, nome, agência, conta) + favorito. Os saldos (Saldo,
+-- Cofre, Em Trânsito) são DERIVADOS da movimentação financeira (lançamentos/
+-- boletos — rotinas futuras); nascem em 0 e são somente-leitura na tela. O
+-- "Provável Saldo" NÃO é coluna: é calculado (Saldo + Em Trânsito). Tabela de
+-- domínio, protegida por RLS.
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS banks (
+  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id              UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  code                   INTEGER NOT NULL DEFAULT 0,      -- Código
+  name                   TEXT NOT NULL,                   -- Nome
+  agency                 TEXT,                            -- Agência
+  account_number         TEXT,                            -- Conta nº
+  favorite               BOOLEAN NOT NULL DEFAULT false,  -- Favorito
+  balance_cents          BIGINT NOT NULL DEFAULT 0,       -- Saldo (derivado)
+  vault_cents            BIGINT NOT NULL DEFAULT 0,       -- Cofre (derivado)
+  in_transit_cents       BIGINT NOT NULL DEFAULT 0,       -- Em Trânsito (derivado)
+  active                 BOOLEAN NOT NULL DEFAULT true,
+  created_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at             TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_banks_tenant ON banks (tenant_id);
+
+ALTER TABLE banks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE banks FORCE  ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON banks
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON banks TO app_user;
+
+-- ─────────────────────────────────────────────────────────────
 -- Condomínios (MOD-CONDOMINIO) — condomínios administrados pela imobiliária:
 -- identificação (nome + endereço) e parâmetros financeiros de cobrança (taxa
 -- de administração em % e/ou valor fixo, juros e multa por atraso). O `saldo`

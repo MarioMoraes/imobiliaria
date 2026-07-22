@@ -1,6 +1,4 @@
-import Link from "next/link";
 import { PageHeader, StatCard, Section, StatusBadge, FilterNotice } from "../../../components/ui";
-import { Icon } from "../../../components/Icon";
 import {
   formatPrice,
   type Contract,
@@ -121,11 +119,9 @@ export function ContractsView({ contracts, properties, locatarios, fiadores, tem
     <>
       <PageHeader
         title="Contratos"
+        backHref="/imoveis"
         actions={
           <>
-            <Link href="/imoveis" className="btn btn-outline btn-sm">
-              <Icon name="arrowRight" size={15} style={{ transform: "rotate(180deg)" }} /> Voltar
-            </Link>
             <ContractFormButton {...formOpts} disabled={!isLive} />
           </>
         }

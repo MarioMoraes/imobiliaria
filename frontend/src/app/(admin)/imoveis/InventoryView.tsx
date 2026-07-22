@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { PageHeader, StatCard, Section, StatusBadge, FilterNotice } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
 import {
@@ -104,11 +103,9 @@ export function InventoryView({
     <>
       <PageHeader
         title={title}
+        backHref="/imoveis"
         actions={
           <>
-            <Link href="/imoveis" className="btn btn-outline btn-sm">
-              <Icon name="arrowRight" size={15} style={{ transform: "rotate(180deg)" }} /> Voltar
-            </Link>
             <button className="btn btn-outline btn-sm"><Icon name="filter" /> Filtros</button>
             <PropertyFormButton {...formOpts} disabled={!isLive} />
           </>

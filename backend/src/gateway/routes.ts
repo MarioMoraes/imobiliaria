@@ -25,6 +25,7 @@ import { personRoutes } from "../modules/person/person.routes.js";
 import { condominiumRoutes } from "../modules/condominium/condominium.routes.js";
 import { districtRoutes } from "../modules/district/district.routes.js";
 import { eventRoutes } from "../modules/event/event.routes.js";
+import { bankRoutes } from "../modules/bank/bank.routes.js";
 import { authContextHook } from "./auth-context.hook.js";
 
 /**
@@ -70,6 +71,8 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       await v1.register(inspectionItemRoutes, { prefix: "/inspection-items" });
       await v1.register(districtRoutes, { prefix: "/districts" });
       await v1.register(eventRoutes, { prefix: "/events" });
+      // Bancos (contas bancárias da imobiliária) — MOD-FIN.
+      await v1.register(bankRoutes, { prefix: "/banks" });
       await v1.register(userRoutes, { prefix: "/users" });
       // Busca global da barra do topo (compõe imóveis + pessoas + contratos).
       await v1.register(searchRoutes, { prefix: "/search" });

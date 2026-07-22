@@ -1,17 +1,33 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { Icon } from "./Icon";
 
 /* -------------------------------------------------------------- PageHeader */
+/**
+ * Cabeçalho padrão de página. Quando `backHref` é informado, mostra um botão de
+ * voltar antes do título que leva à rota indicada (ex.: da subpágina de um card
+ * de volta à lista de cards). Use em qualquer tela alcançada por um card que
+ * navega — cards que abrem popup/modal não precisam.
+ */
 export function PageHeader({
   title,
   actions,
+  backHref,
+  backLabel = "Voltar",
 }: {
   title: string;
   actions?: ReactNode;
+  backHref?: string;
+  backLabel?: string;
 }) {
   return (
     <div className="page-header reveal">
-      <div>
+      <div className="row gap-8">
+        {backHref && (
+          <Link href={backHref} className="icon-btn" aria-label={backLabel} title={backLabel}>
+            <Icon name="arrowLeft" size={18} />
+          </Link>
+        )}
         <h1 className="page-title">{title}</h1>
       </div>
       {actions && <div className="row gap-8 wrap">{actions}</div>}
