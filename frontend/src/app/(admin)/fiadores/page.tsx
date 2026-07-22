@@ -1,16 +1,9 @@
 import { PageHeader, StatCard, Section, StatusBadge, EmptyState, initials, FilterNotice } from "../../../components/ui";
 import { fetchPersons } from "../../../lib/api";
+import { formatPhone } from "../../../lib/br-doc";
 import { matches, readQuery } from "../../../lib/filter";
 import { PersonFormButton } from "../clientes/PersonFormButton";
 import { DeletePersonButton } from "../clientes/DeletePersonButton";
-
-const maritalLabel: Record<string, string> = {
-  SOLTEIRO: "Solteiro(a)",
-  CASADO: "Casado(a)",
-  DIVORCIADO: "Divorciado(a)",
-  VIUVO: "Viúvo(a)",
-  UNIAO_ESTAVEL: "União estável",
-};
 
 /**
  * Fiadores — view por papel do cadastro unificado `persons` (role=FIADOR). Mesma
@@ -56,7 +49,7 @@ export default async function FiadoresPage({
           <div className="table-wrap">
             <table className="table">
               <thead>
-                <tr><th>Nome</th><th>Tipo</th><th>CPF/CNPJ</th><th>Estado civil</th><th>Cidade</th><th>Status</th><th></th></tr>
+                <tr><th>Nome</th><th>Tipo</th><th>Celular</th><th>Email</th><th>Status</th><th></th></tr>
               </thead>
               <tbody>
                 {guarantors.map((g) => (
@@ -70,12 +63,8 @@ export default async function FiadoresPage({
                       </div>
                     </td>
                     <td><span className="badge badge-slate">{g.personType}</span></td>
-                    <td className="text-sm subtle tabular">{g.cpfCnpj ?? "—"}</td>
-                    <td className="text-sm">{g.maritalStatus ? maritalLabel[g.maritalStatus] ?? g.maritalStatus : "—"}</td>
-                    <td className="text-sm">
-                      {g.addresses[0]?.city ?? "—"}
-                      {g.addresses[0]?.state ? ` · ${g.addresses[0].state}` : ""}
-                    </td>
+                    <td className="text-sm tabular">{g.mobile ? formatPhone(g.mobile) : "—"}</td>
+                    <td className="text-sm">{g.email || "—"}</td>
                     <td><StatusBadge status={g.status} /></td>
                     <td>
                       <div className="row gap-8" style={{ justifyContent: "flex-end" }}>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Icon } from "../../../components/Icon";
-import { formatCep } from "../../../lib/br-doc";
+import { formatCep, formatPhone } from "../../../lib/br-doc";
 import type { AddressInput } from "./actions";
 
 type Locked = Partial<Record<"street" | "district" | "city" | "state", boolean>>;
@@ -142,11 +142,11 @@ export function AddressBlock({
       <div className="grid grid-2" style={{ gap: 12 }}>
         <div className="field">
           <label>Telefone</label>
-          <input className="input" value={value.phone ?? ""} onChange={(e) => onChange({ phone: e.target.value })} />
+          <input className="input" value={value.phone ?? ""} inputMode="tel" placeholder="(11) 3333-4444" onChange={(e) => onChange({ phone: formatPhone(e.target.value) })} />
         </div>
         <div className="field">
           <label>Celular</label>
-          <input className="input" value={value.mobile ?? ""} onChange={(e) => onChange({ mobile: e.target.value })} />
+          <input className="input" value={value.mobile ?? ""} inputMode="tel" placeholder="(11) 99999-8888" onChange={(e) => onChange({ mobile: formatPhone(e.target.value) })} />
         </div>
       </div>
       <div className="grid grid-2" style={{ gap: 12 }}>

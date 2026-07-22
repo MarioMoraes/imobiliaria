@@ -11,6 +11,7 @@ import {
   type Property,
   type PropertyType,
 } from "../../../lib/api";
+import { formatPhone } from "../../../lib/br-doc";
 import { PropertyFormButton, type Opt } from "./PropertyFormButton";
 import { DeletePropertyButton } from "./DeletePropertyButton";
 
@@ -92,7 +93,7 @@ export function InventoryView({
     ownerCandidates: locadores.map<Opt>((p) => ({
       id: p.id,
       label: p.fullName,
-      sub: p.cpfCnpj ?? p.mobile ?? p.phone ?? undefined,
+      sub: p.cpfCnpj ?? (p.mobile ? formatPhone(p.mobile) : p.phone ? formatPhone(p.phone) : undefined),
     })),
   };
 

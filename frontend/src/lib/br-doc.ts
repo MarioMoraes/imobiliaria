@@ -59,6 +59,23 @@ export function formatCep(value: string): string {
   return `${d.slice(0, 5)}-${d.slice(5)}`;
 }
 
+/**
+ * Máscara de telefone BR. 10 dígitos → `(11) 9999-9999` (fixo); 11 dígitos →
+ * `(11) 99999-9999` (celular). Formata progressivamente (traço 4/5 dígitos
+ * antes do fim), então serve tanto para exibição quanto para máscara "conforme
+ * digita". Normaliza os dígitos antes, então aceita valor já mascarado ou cru.
+ */
+export function formatPhone(value: string): string {
+  const d = onlyDigits(value).slice(0, 11);
+  if (d.length === 0) return "";
+  if (d.length <= 2) return `(${d}`;
+  const ddd = d.slice(0, 2);
+  const rest = d.slice(2);
+  if (rest.length <= 4) return `(${ddd}) ${rest}`;
+  const split = rest.length > 8 ? 5 : 4;
+  return `(${ddd}) ${rest.slice(0, split)}-${rest.slice(split)}`;
+}
+
 // ── Validação de dígitos verificadores ─────────────────────────────────────
 
 /** Valida um CPF (11 dígitos, não todos iguais, DV correto). */

@@ -1,6 +1,7 @@
 import { PageHeader, StatCard, Section, initials, FilterNotice } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
-import { fetchPersons, formatPrice, type Person } from "../../../lib/api";
+import { fetchPersons } from "../../../lib/api";
+import { formatPhone } from "../../../lib/br-doc";
 import { sampleCustomers } from "../../../lib/sample";
 import { matches, readQuery } from "../../../lib/filter";
 import { PersonFormButton } from "./PersonFormButton";
@@ -24,43 +25,15 @@ const stageTone: Record<string, string> = {
 };
 
 const intentLabel: Record<string, string> = { COMPRA: "Compra", LOCACAO: "Locação" };
-const sourceLabel: Record<string, string> = {
-  WHATSAPP: "WhatsApp",
-  INSTAGRAM: "Instagram",
-  SITE: "Site",
-  PORTAL: "Portal",
-  INDICACAO: "Indicação",
-  MANUAL: "Manual",
-};
 
 /** Linha de exibição unificada (dado real do backend ou amostra de fallback). */
 interface Row {
   id: string;
   name: string;
-  roles: string[];
   stage: string;
   intent: string;
-  budget: string;
-  source: string;
-  broker: string;
-}
-
-const roleLabel: Record<string, string> = {
-  LOCADOR: "Locador",
-  LOCATARIO: "Locatário",
-  FIADOR: "Fiador",
-};
-
-/** Deriva "orçamento" do perfil de busca primário (faixa min/max). */
-function budgetOf(c: Person): string {
-  const p = c.searchProfiles[0];
-  if (!p) return "—";
-  if (p.maxPriceCents && p.minPriceCents) {
-    return `${formatPrice(p.minPriceCents)} – ${formatPrice(p.maxPriceCents)}`;
-  }
-  if (p.maxPriceCents) return `até ${formatPrice(p.maxPriceCents)}`;
-  if (p.minPriceCents) return `a partir de ${formatPrice(p.minPriceCents)}`;
-  return "—";
+  mobile: string;
+  email: string;
 }
 
 export default async function ClientesPage({
@@ -84,22 +57,18 @@ export default async function ClientesPage({
     ? live.map((c) => ({
         id: c.id,
         name: c.fullName,
-        roles: c.roles,
         stage: c.stage,
         intent: c.searchProfiles[0] ? intentLabel[c.searchProfiles[0].intent] ?? "—" : "—",
-        budget: budgetOf(c),
-        source: sourceLabel[c.source] ?? c.source,
-        broker: "—", // vínculo de corretor vem com o módulo broker (futuro)
+        mobile: c.mobile ?? "",
+        email: c.email ?? "",
       }))
     : sampleCustomers.map((c) => ({
         id: c.id,
         name: c.name,
-        roles: [],
         stage: c.stage,
         intent: c.intent,
-        budget: c.budget,
-        source: c.source,
-        broker: c.broker,
+        mobile: "",
+        email: "",
       }));
 
   const count = (...stages: string[]) => rows.filter((r) => stages.includes(r.stage)).length;
@@ -129,7 +98,7 @@ export default async function ClientesPage({
         <div className="table-wrap">
           <table className="table">
             <thead>
-              <tr><th>Locatário</th><th>Papéis</th><th>Estágio</th><th>Intenção</th><th>Orçamento</th><th>Origem</th><th>Corretor</th><th></th></tr>
+              <tr><th>Locatário</th><th>Estágio</th><th>Intenção</th><th>Celular</th><th>Email</th><th></th></tr>
             </thead>
             <tbody>
               {rows.map((c) => (
@@ -142,20 +111,10 @@ export default async function ClientesPage({
                       <span className="strong">{c.name}</span>
                     </div>
                   </td>
-                  <td>
-                    <div className="row" style={{ flexWrap: "wrap", gap: 4 }}>
-                      {c.roles.length === 0
-                        ? <span className="text-sm subtle">—</span>
-                        : c.roles.map((r) => (
-                            <span key={r} className="badge badge-slate">{roleLabel[r] ?? r}</span>
-                          ))}
-                    </div>
-                  </td>
                   <td><span className={`badge ${stageBadge[c.stage]}`}>{c.stage}</span></td>
                   <td>{c.intent}</td>
-                  <td className="text-sm tabular">{c.budget}</td>
-                  <td className="text-sm subtle">{c.source}</td>
-                  <td className="text-sm">{c.broker}</td>
+                  <td className="text-sm tabular">{c.mobile ? formatPhone(c.mobile) : "—"}</td>
+                  <td className="text-sm">{c.email || "—"}</td>
                   <td>
                     {/* Editar/remover só com dado real (as linhas de amostra não
                         têm id no backend). */}

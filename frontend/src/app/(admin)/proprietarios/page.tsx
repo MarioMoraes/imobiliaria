@@ -1,5 +1,6 @@
 import { PageHeader, StatCard, Section, StatusBadge, EmptyState, initials, FilterNotice } from "../../../components/ui";
 import { fetchPersons } from "../../../lib/api";
+import { formatPhone } from "../../../lib/br-doc";
 import { matches, readQuery } from "../../../lib/filter";
 import { PersonFormButton } from "../clientes/PersonFormButton";
 import { DeletePersonButton } from "../clientes/DeletePersonButton";
@@ -52,7 +53,7 @@ export default async function ProprietariosPage({
             <table className="table">
               <thead>
                 <tr>
-                  <th>Nome / Razão social</th><th>Tipo</th><th>CPF/CNPJ</th>
+                  <th>Nome / Razão social</th><th>Tipo</th><th>Celular</th>
                   <th>Contato</th><th>Status</th><th></th>
                 </tr>
               </thead>
@@ -68,8 +69,8 @@ export default async function ProprietariosPage({
                       </div>
                     </td>
                     <td><span className="badge badge-slate">{o.personType}</span></td>
-                    <td className="text-sm subtle tabular">{o.cpfCnpj ?? "—"}</td>
-                    <td className="text-sm">{o.email ?? o.phone ?? o.mobile ?? "—"}</td>
+                    <td className="text-sm tabular">{o.mobile ? formatPhone(o.mobile) : "—"}</td>
+                    <td className="text-sm">{o.email ?? (o.phone ? formatPhone(o.phone) : "—")}</td>
                     <td><StatusBadge status={o.status} /></td>
                     <td>
                       <div className="row gap-8" style={{ justifyContent: "flex-end" }}>

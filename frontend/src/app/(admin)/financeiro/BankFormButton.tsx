@@ -116,27 +116,17 @@ export function BankFormButton({ bank, disabled }: { bank?: Bank; disabled?: boo
           </button>
         </div>
 
-        <div className="grid grid-3" style={{ gap: 12 }}>
-          <div className="field">
-            <label>Código</label>
-            <input
-              className="input"
-              value={isEdit ? String(bank.code) : "(automático)"}
-              readOnly
-              disabled
-              title="Código gerado automaticamente na inclusão"
-            />
-          </div>
-          <div className="field" style={{ gridColumn: "span 2" }}>
-            <label>Nome *</label>
-            <input
-              className="input"
-              value={form.name}
-              onChange={(e) => set({ name: e.target.value })}
-              placeholder="Ex.: Itaú"
-              autoFocus
-            />
-          </div>
+        {/* O Código é sequencial atribuído pelo backend na inclusão — não
+            exibimos o campo no formulário. */}
+        <div className="field">
+          <label>Nome *</label>
+          <input
+            className="input"
+            value={form.name}
+            onChange={(e) => set({ name: e.target.value })}
+            placeholder="Ex.: Itaú"
+            autoFocus
+          />
         </div>
 
         <div className="grid grid-2" style={{ gap: 12 }}>

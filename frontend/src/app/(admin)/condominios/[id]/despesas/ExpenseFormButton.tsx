@@ -112,20 +112,11 @@ export function ExpenseFormButton({
           </button>
         </div>
 
-        {/* Lancto nº + Condomínio: só leitura (atribuídos pelo contexto). */}
-        <div className="grid grid-2" style={{ gap: 12 }}>
-          <div className="field">
-            <label>Lançamento nº</label>
-            <input
-              className="input"
-              value={expense?.seq != null ? String(expense.seq) : "automático"}
-              disabled
-            />
-          </div>
-          <div className="field">
-            <label>Condomínio</label>
-            <input className="input" value={condominiumName} disabled />
-          </div>
+        {/* Condomínio (contexto, só leitura). O "Lancto nº" é sequencial
+            atribuído pelo backend — não exibimos o campo no formulário. */}
+        <div className="field">
+          <label>Condomínio</label>
+          <input className="input" value={condominiumName} disabled />
         </div>
 
         <div className="grid grid-2" style={{ gap: 12 }}>

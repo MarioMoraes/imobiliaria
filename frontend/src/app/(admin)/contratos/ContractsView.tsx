@@ -6,6 +6,7 @@ import {
   type Person,
   type Property,
 } from "../../../lib/api";
+import { formatPhone } from "../../../lib/br-doc";
 import { ContractFormButton, type Opt } from "./ContractFormButton";
 import { DeleteContractButton } from "./DeleteContractButton";
 
@@ -99,7 +100,7 @@ export function ContractsView({ contracts, properties, locatarios, fiadores, tem
   const personOpt = (p: Person): Opt => ({
     id: p.id,
     label: p.fullName,
-    sub: p.cpfCnpj ?? p.mobile ?? p.phone ?? undefined,
+    sub: p.cpfCnpj ?? (p.mobile ? formatPhone(p.mobile) : p.phone ? formatPhone(p.phone) : undefined),
   });
 
   const formOpts = {
