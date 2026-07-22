@@ -318,6 +318,25 @@ export async function listProperties(tenantId: string): Promise<Property[]> {
   });
 }
 
+/**
+ * Imóveis de um condomínio (tela "Consulta Condôminos"). Ordena pelo código
+ * sequencial — os apartamentos aparecem na ordem em que foram cadastrados.
+ */
+export async function listByCondominium(
+  tenantId: string,
+  condominiumId: string,
+): Promise<Property[]> {
+  return withTenant(tenantId, async (client) => {
+    const { rows } = await client.query<Row>(
+      `SELECT ${SELECT_COLS} FROM properties p ${OWNERS_LATERAL}
+        WHERE p.condominium_id = $1
+        ORDER BY p.code ASC NULLS LAST, p.created_at ASC`,
+      [condominiumId],
+    );
+    return rows.map(toProperty);
+  });
+}
+
 export async function findProperty(
   tenantId: string,
   id: string,

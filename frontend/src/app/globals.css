@@ -618,15 +618,6 @@ a {
   width: 16px;
   height: 16px;
 }
-.btn-primary {
-  background: var(--primary);
-  color: #fff;
-  box-shadow: var(--shadow-soft);
-}
-.btn-primary:hover {
-  background: var(--primary-dark);
-  transform: translateY(-1px);
-}
 .btn-outline {
   background: var(--white);
   color: var(--dark-text);
@@ -647,6 +638,61 @@ a {
 .btn-sm {
   padding: 7px 13px;
   font-size: 0.8rem;
+}
+
+/* Botão primário premium — a ação principal em todo o sistema usa o gradiente
+   de marca. Um brilho diagonal cruza a superfície no hover e o botão ganha
+   elevação. O sheen fica ATRÁS do texto (z-index:-1 + isolation), então não
+   precisa envolver o rótulo — funciona com texto puro em qualquer botão.
+   `.btn-premium` é sinônimo (compatibilidade). */
+.btn-primary,
+.btn-premium {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: var(--grad-brand);
+  color: #fff;
+  border: 1px solid transparent;
+  box-shadow: var(--shadow-soft);
+}
+.btn-primary::before,
+.btn-premium::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    120deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.38) 50%,
+    transparent 70%
+  );
+  transform: translateX(-130%);
+  transition: transform 0.6s ease;
+  pointer-events: none;
+}
+.btn-primary:hover,
+.btn-premium:hover {
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lift);
+}
+.btn-primary:hover::before,
+.btn-premium:hover::before {
+  transform: translateX(130%);
+}
+
+/* Estado desabilitado — neutraliza hover/brilho em qualquer variante. */
+.btn:disabled,
+.btn[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: var(--shadow-sm);
+}
+.btn:disabled::before,
+.btn[disabled]::before {
+  display: none;
 }
 
 /* ----------------------------------------------------------------- Cards */

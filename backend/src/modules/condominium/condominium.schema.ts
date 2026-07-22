@@ -67,3 +67,44 @@ export interface Condominium {
   createdAt: string;
   updatedAt: string;
 }
+
+/* ───────────────────────── Despesas do condomínio ──────────────────────────
+ * Lançamento de despesa (tela legada "Cadastro de Despesas"). O "Lancto nº"
+ * (`seq`) é atribuído pelo backend (sequencial por tenant) — não vem do input.
+ * O Evento classifica a despesa (lookup de eventos). */
+
+/** Data ISO (YYYY-MM-DD). */
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida (YYYY-MM-DD)");
+
+export const createExpenseSchema = z.object({
+  entryDate: isoDate.optional(),
+  eventId: z.string().uuid().optional(),
+  amountCents: cents.default(0),
+  notes: z.string().max(500).optional(),
+});
+export type CreateExpenseInput = z.infer<typeof createExpenseSchema>;
+
+/** Atualização parcial da despesa. `null` limpa Evento/Histórico. */
+export const updateExpenseSchema = z
+  .object({
+    entryDate: isoDate.nullable().optional(),
+    eventId: z.string().uuid().nullable().optional(),
+    amountCents: cents.optional(),
+    notes: z.string().max(500).nullable().optional(),
+  })
+  .refine((d) => Object.keys(d).length > 0, { message: "Nada para atualizar" });
+export type UpdateExpenseInput = z.infer<typeof updateExpenseSchema>;
+
+export interface CondominiumExpense {
+  id: string;
+  tenantId: string;
+  condominiumId: string;
+  seq: number | null;
+  entryDate: string | null;
+  eventId: string | null;
+  eventName: string | null;
+  amountCents: number;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}

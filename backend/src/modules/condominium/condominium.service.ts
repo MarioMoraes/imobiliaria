@@ -2,8 +2,11 @@ import { AppError } from "../../shared/errors.js";
 import * as repo from "./condominium.repository.js";
 import type {
   Condominium,
+  CondominiumExpense,
   CreateCondominiumInput,
+  CreateExpenseInput,
   UpdateCondominiumInput,
+  UpdateExpenseInput,
 } from "./condominium.schema.js";
 
 export function list(tenantId: string): Promise<Condominium[]> {
@@ -51,4 +54,44 @@ export async function update(
 export async function remove(tenantId: string, id: string): Promise<void> {
   const removed = await repo.deleteCondominium(tenantId, id);
   if (!removed) throw AppError.notFound("Condomínio não encontrado");
+}
+
+/* ───────────────────────── Despesas do condomínio ────────────────────────── */
+
+export async function listExpenses(
+  tenantId: string,
+  condominiumId: string,
+): Promise<CondominiumExpense[]> {
+  // Garante que o condomínio existe no tenant (404 claro em id inválido).
+  await getById(tenantId, condominiumId);
+  return repo.listExpenses(tenantId, condominiumId);
+}
+
+export async function createExpense(
+  tenantId: string,
+  condominiumId: string,
+  input: CreateExpenseInput,
+): Promise<CondominiumExpense> {
+  await getById(tenantId, condominiumId);
+  return repo.insertExpense(tenantId, condominiumId, input);
+}
+
+export async function updateExpense(
+  tenantId: string,
+  condominiumId: string,
+  expenseId: string,
+  input: UpdateExpenseInput,
+): Promise<CondominiumExpense> {
+  const updated = await repo.updateExpense(tenantId, condominiumId, expenseId, input);
+  if (!updated) throw AppError.notFound("Despesa não encontrada");
+  return updated;
+}
+
+export async function removeExpense(
+  tenantId: string,
+  condominiumId: string,
+  expenseId: string,
+): Promise<void> {
+  const removed = await repo.deleteExpense(tenantId, condominiumId, expenseId);
+  if (!removed) throw AppError.notFound("Despesa não encontrada");
 }

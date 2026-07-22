@@ -28,6 +28,14 @@ export function list(tenantId: string): Promise<Property[]> {
   return repo.listProperties(tenantId);
 }
 
+/** Imóveis vinculados a um condomínio (tela "Consulta Condôminos"). */
+export function listByCondominium(
+  tenantId: string,
+  condominiumId: string,
+): Promise<Property[]> {
+  return repo.listByCondominium(tenantId, condominiumId);
+}
+
 export async function getById(tenantId: string, id: string): Promise<Property> {
   const property = await repo.findProperty(tenantId, id);
   if (!property) throw AppError.notFound("Imóvel não encontrado");

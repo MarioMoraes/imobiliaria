@@ -16,9 +16,18 @@ import * as service from "./property.service.js";
  * via `requirePermission` (MOD-AUTH-03).
  */
 export async function propertyRoutes(app: FastifyInstance): Promise<void> {
-  app.get("/", { preHandler: requirePermission("property:read") }, async () => {
-    return { data: await service.list(getTenantId()) };
-  });
+  app.get<{ Querystring: { condominiumId?: string } }>(
+    "/",
+    { preHandler: requirePermission("property:read") },
+    async (req) => {
+      const { condominiumId } = req.query;
+      const tenantId = getTenantId();
+      const data = condominiumId
+        ? await service.listByCondominium(tenantId, condominiumId)
+        : await service.list(tenantId);
+      return { data };
+    },
+  );
 
   app.get("/:id", { preHandler: requirePermission("property:read") }, async (req) => {
     const { id } = req.params as { id: string };

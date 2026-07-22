@@ -461,6 +461,31 @@ VALUES
   ('00000000-0000-0000-0000-000000000001', 'Residencial Bosque', 'Av. Brasil, 2500',       'Jardins',  '01430-000', 'São Paulo',  8.00, 1.00, 2.00)
 ON CONFLICT DO NOTHING;
 
+-- Despesas do condomínio (tela legada "Cadastro de Despesas"). Lançamentos de
+-- débito/crédito por condomínio. `seq` é o "Lancto nº" — sequencial por tenant.
+-- `event_id` é FK lógica → events (o Evento classifica a despesa).
+CREATE TABLE IF NOT EXISTS condominium_expenses (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  condominium_id  UUID NOT NULL REFERENCES condominiums(id) ON DELETE CASCADE,
+  seq             INT,                              -- Lancto nº (sequencial por tenant)
+  entry_date      DATE,                             -- Data
+  event_id        UUID,                             -- Evento (FK lógica → events)
+  amount_cents    BIGINT NOT NULL DEFAULT 0,        -- Valor
+  notes           TEXT,                             -- Histórico
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_condo_expenses_tenant ON condominium_expenses (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_condo_expenses_condo  ON condominium_expenses (condominium_id);
+
+ALTER TABLE condominium_expenses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE condominium_expenses FORCE  ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON condominium_expenses
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON condominium_expenses TO app_user;
+
 -- ─────────────────────────────────────────────────────────────
 -- (Fiadores) — os antigos `guarantors`/`guarantor_addresses` foram
 -- absorvidos pelo cadastro unificado `persons` (papel FIADOR), definido

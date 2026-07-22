@@ -4,7 +4,9 @@ import { AppError } from "../../shared/errors.js";
 import { requirePermission } from "../rbac/authorize.js";
 import {
   createCondominiumSchema,
+  createExpenseSchema,
   updateCondominiumSchema,
+  updateExpenseSchema,
 } from "./condominium.schema.js";
 import * as service from "./condominium.service.js";
 
@@ -52,6 +54,56 @@ export async function condominiumRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: requirePermission("condominium:delete") },
     async (req) => {
       await service.remove(getTenantId(), req.params.id);
+      return { data: { deleted: true } };
+    },
+  );
+
+  // ── Despesas do condomínio ("Cadastro de Despesas") ──────────────
+  app.get<{ Params: { id: string } }>(
+    "/:id/expenses",
+    { preHandler: requirePermission("condominium:read") },
+    async (req) => {
+      return { data: await service.listExpenses(getTenantId(), req.params.id) };
+    },
+  );
+
+  app.post<{ Params: { id: string } }>(
+    "/:id/expenses",
+    { preHandler: requirePermission("condominium:write") },
+    async (req, reply) => {
+      const parsed = createExpenseSchema.safeParse(req.body);
+      if (!parsed.success) {
+        throw AppError.badRequest("Dados da despesa inválidos", parsed.error.flatten());
+      }
+      const created = await service.createExpense(getTenantId(), req.params.id, parsed.data);
+      reply.code(201);
+      return { data: created };
+    },
+  );
+
+  app.patch<{ Params: { id: string; expenseId: string } }>(
+    "/:id/expenses/:expenseId",
+    { preHandler: requirePermission("condominium:write") },
+    async (req) => {
+      const parsed = updateExpenseSchema.safeParse(req.body);
+      if (!parsed.success) {
+        throw AppError.badRequest("Atualização da despesa inválida", parsed.error.flatten());
+      }
+      const updated = await service.updateExpense(
+        getTenantId(),
+        req.params.id,
+        req.params.expenseId,
+        parsed.data,
+      );
+      return { data: updated };
+    },
+  );
+
+  app.delete<{ Params: { id: string; expenseId: string } }>(
+    "/:id/expenses/:expenseId",
+    { preHandler: requirePermission("condominium:delete") },
+    async (req) => {
+      await service.removeExpense(getTenantId(), req.params.id, req.params.expenseId);
       return { data: { deleted: true } };
     },
   );

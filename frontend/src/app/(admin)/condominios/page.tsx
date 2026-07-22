@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { PageHeader, StatCard, Section, EmptyState } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
 import { fetchCondominiums, formatPrice, type Condominium } from "../../../lib/api";
@@ -90,6 +91,15 @@ export default async function CondominiosPage() {
                       <td style={{ textAlign: "right" }} className="strong">{formatPrice(c.balanceCents)}</td>
                       <td>
                         <div className="row gap-8" style={{ justifyContent: "flex-end" }}>
+                          <Link
+                            href={`/condominios/${c.id}`}
+                            className="icon-btn"
+                            style={{ width: 30, height: 30 }}
+                            title="Condôminos (imóveis do condomínio)"
+                            aria-label={`Condôminos de ${c.name}`}
+                          >
+                            <Icon name="building" size={15} />
+                          </Link>
                           <CondominiumFormButton condominium={c} />
                           <DeleteCondominiumButton id={c.id} name={c.name} disabled={!isLive} />
                         </div>

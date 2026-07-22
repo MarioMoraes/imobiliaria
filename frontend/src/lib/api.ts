@@ -318,6 +318,21 @@ export interface Condominium {
   penaltyPercent: number;
 }
 
+/** Despesa lançada em um condomínio (tela "Cadastro de Despesas"). */
+export interface CondominiumExpense {
+  id: string;
+  condominiumId: string;
+  /** "Lancto nº" — sequencial por tenant, atribuído no backend. */
+  seq: number | null;
+  entryDate: string | null;
+  eventId: string | null;
+  eventName: string | null;
+  amountCents: number;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /** Parte de um contrato (locador/locatário/fiador). */
 export interface ContractParty {
   id: string;
@@ -597,6 +612,28 @@ export function fetchPerson(id: string): Promise<Person | null> {
 /** Condomínios do tenant da sessão. */
 export function fetchCondominiums(): Promise<Condominium[] | null> {
   return get<Condominium[]>("/v1/condominiums");
+}
+
+/** Um condomínio pelo id. */
+export function fetchCondominium(id: string): Promise<Condominium | null> {
+  return get<Condominium>(`/v1/condominiums/${id}`);
+}
+
+/**
+ * Imóveis vinculados a um condomínio (tela "Consulta Condôminos"). Retorna null
+ * se o backend não responder.
+ */
+export function fetchPropertiesByCondominium(
+  condominiumId: string,
+): Promise<Property[] | null> {
+  return get<Property[]>(`/v1/properties?condominiumId=${encodeURIComponent(condominiumId)}`);
+}
+
+/** Despesas lançadas em um condomínio (tela "Cadastro de Despesas"). */
+export function fetchCondominiumExpenses(
+  condominiumId: string,
+): Promise<CondominiumExpense[] | null> {
+  return get<CondominiumExpense[]>(`/v1/condominiums/${condominiumId}/expenses`);
 }
 
 /** Contratos do tenant da sessão. */

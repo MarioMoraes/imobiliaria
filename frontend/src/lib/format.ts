@@ -9,13 +9,14 @@
  * Components existentes continuam importando de onde já importavam.
  */
 
-/** Centavos → "R$ 1.234". `null` vira travessão. */
+/** Centavos → "R$ 1.234,56". `null` vira travessão. Sempre 2 casas (padrão BRL). */
 export function formatPrice(cents: number | null): string {
   if (cents === null || cents === undefined) return "—";
   return (cents / 100).toLocaleString("pt-BR", {
     style: "currency",
     currency: "BRL",
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   });
 }
 
