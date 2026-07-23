@@ -13,7 +13,7 @@
 
 ## 1. Visão Geral
 
-**Contexto de negócio.** Este é o módulo que **fatura a Move AI** (não confundir com MOD-FIN, que é o financeiro *do tenant*). Cada imobiliária assina um plano (por faixa de imóveis geridos e/ou nº de agentes de IA ativos), pago via Stripe (cartão/assinatura recorrente) e/ou Asaas. Add-ons: canais extras de IA, volume de mensagens, armazenamento. O enforcement de limites por plano é o que sustenta o modelo de receita recorrente.
+**Contexto de negócio.** Este é o módulo que **fatura a Offices AI** (não confundir com MOD-FIN, que é o financeiro *do tenant*). Cada imobiliária assina um plano (por faixa de imóveis geridos e/ou nº de agentes de IA ativos), pago via Stripe (cartão/assinatura recorrente) e/ou Asaas. Add-ons: canais extras de IA, volume de mensagens, armazenamento. O enforcement de limites por plano é o que sustenta o modelo de receita recorrente.
 
 **Integração sistêmica.** Consome `tenant.created`/`tenant.activated` (MOD-AUTH). Recebe medições de uso do MOD-AI (mensagens/tokens) e MOD-IMOVEL (contagem de imóveis) para enforcement. Controla feature flags/limites lidos pelo `tenant-service` e usados por todos os módulos. Publica `subscription.activated`, `subscription.past_due`, `subscription.canceled`, `usage.limit_reached`.
 

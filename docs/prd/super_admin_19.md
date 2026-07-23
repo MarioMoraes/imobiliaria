@@ -13,7 +13,7 @@
 
 ## 1. Visão Geral
 
-**Contexto de negócio.** O Super Admin é o painel da equipe Move AI para operar a plataforma inteira: gerir tenants, monitorar saúde e uso, controlar feature flags por plano/tenant, auditar globalmente e executar rotinas LGPD (exportação/anonimização/exclusão). Também concentra o **dashboard de jobs/crons** (execuções agendadas de todo o sistema) e os **health checks**. É a torre de controle — precisa de visão global cruzando tenants (única exceção controlada ao isolamento, sempre auditada).
+**Contexto de negócio.** O Super Admin é o painel da equipe Offices AI para operar a plataforma inteira: gerir tenants, monitorar saúde e uso, controlar feature flags por plano/tenant, auditar globalmente e executar rotinas LGPD (exportação/anonimização/exclusão). Também concentra o **dashboard de jobs/crons** (execuções agendadas de todo o sistema) e os **health checks**. É a torre de controle — precisa de visão global cruzando tenants (única exceção controlada ao isolamento, sempre auditada).
 
 **Integração sistêmica.** Consome eventos de todos os módulos (uso, falhas, suspensões). Lê feature flags/limites junto com MOD-BILLING. Health check agrega o `/health` de cada dependência (Postgres, Redis, RabbitMQ). As rotinas LGPD tocam todos os módulos que guardam dado pessoal. Publica `tenant.suspended` (ação admin), `lgpd.export_requested`, `lgpd.anonymized`.
 

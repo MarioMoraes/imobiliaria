@@ -259,7 +259,7 @@ export function TenantsManager({ tenants }: { tenants: TenantRow[] }) {
                     </span>
                     <span>
                       <span className="strong" style={{ display: "block" }}>{t.name}</span>
-                      <span className="text-xs subtle">{t.slug}.moveai.com.br</span>
+                      <span className="text-xs subtle">{t.slug}.officesai.com.br</span>
                     </span>
                   </div>
                 </td>

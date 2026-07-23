@@ -1,5 +1,5 @@
 /* =========================================================================
-   Move AI Imobiliária — Design System
+   Offices AI Imobiliária — Design System
    Tokens portados fielmente de frontend/design/design-modelo.html (matriz).
    Paleta análoga fria (azul→ciano), Poppins (títulos) + Inter (dados/UI),
    sombras tingidas de azul, cards rounded-2xl. Sem CDN — CSS próprio.
@@ -1641,4 +1641,42 @@ textarea.editor-surface:focus {
   min-width: 30px;
   padding: 4px 8px;
   justify-content: center;
+}
+
+/* =========================================================================
+   Telas de autenticação (Clerk) — mesma paleta clara da landing, para que
+   sair de "/" e cair no login não pareça outro produto.
+   ========================================================================= */
+.auth-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 28px;
+  padding: 26px 24px 56px;
+  background: var(--grad-hero);
+}
+.auth-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-head);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--dark);
+}
+.auth-back .stat-icon {
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  border-radius: 9px;
+  background: var(--grad-brand);
+  color: var(--white);
+}
+.auth-back .stat-icon svg {
+  width: 17px;
+  height: 17px;
+}
+.auth-body {
+  display: grid;
+  place-items: center;
 }

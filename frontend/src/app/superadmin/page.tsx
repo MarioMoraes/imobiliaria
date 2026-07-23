@@ -38,7 +38,7 @@ export default async function SuperadminHome() {
                         <span className="avatar" style={{ width: 32, height: 32, fontSize: "0.7rem" }}>{t.name.slice(0, 2).toUpperCase()}</span>
                         <span>
                           <span className="strong" style={{ display: "block" }}>{t.name}</span>
-                          <span className="text-xs subtle">{t.slug}.moveai.com.br</span>
+                          <span className="text-xs subtle">{t.slug}.officesai.com.br</span>
                         </span>
                       </div>
                     </td>

@@ -1,18 +1,20 @@
+import Link from "next/link";
 import { SignIn } from "@clerk/nextjs";
+import { Icon } from "@/components/Icon";
 
 /** Tela de login (Clerk). Rota pública — ver middleware.ts. */
 export default function SignInPage() {
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        display: "grid",
-        placeItems: "center",
-        padding: "2rem",
-        background: "var(--bg, #0b0b12)",
-      }}
-    >
-      <SignIn signUpUrl="/sign-up" />
+    <main className="auth-shell">
+      <Link href="/" className="auth-back">
+        <span className="stat-icon">
+          <Icon name="building" />
+        </span>
+        Offices AI Imobiliária
+      </Link>
+      <div className="auth-body">
+        <SignIn signUpUrl="/sign-up" />
+      </div>
     </main>
   );
 }

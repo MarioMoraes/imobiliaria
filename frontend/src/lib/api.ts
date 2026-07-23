@@ -6,7 +6,7 @@
  * fallback de desenvolvimento: `x-tenant-id` + `x-dev-roles` (o backend só
  * aceita esse fallback com AUTH_DEV_MODE ligado, nunca em produção).
  *
- * Endpoints REAIS hoje: /v1/properties (+ /:id/owners), /v1/property-types,
+ * Endpoints REAIS hoje: /v1/dashboard/summary, /v1/properties (+ /:id/owners), /v1/property-types,
  * /v1/persons (cadastro unificado; /fiadores usa ?role=FIADOR), /v1/employees,
  * /v1/users, /admin/tenants. Os demais módulos usam lib/sample.ts.
  */
@@ -39,6 +39,46 @@ async function authHeaders(): Promise<Record<string, string>> {
 }
 
 /* --------------------------------------------------------------- Tipos */
+
+/* Painel inicial (MOD-DASHBOARD) — espelha backend/modules/dashboard/schema. */
+export interface DashboardReceivableBrief {
+  id: string;
+  dueDate: string;
+  amountCents: number;
+  status: string;
+  kind: string;
+  description: string | null;
+  payerName: string | null;
+}
+
+export interface DashboardSummary {
+  properties: {
+    total: number;
+    available: number;
+    reserved: number;
+    rented: number;
+    sold: number;
+    createdLast30Days: number;
+  };
+  contracts: {
+    active: number;
+    inSignature: number;
+    draft: number;
+    endingSoon: number;
+  };
+  persons: { landlords: number; tenants: number; guarantors: number };
+  /** `null` quando o usuário não tem permissão financeira. */
+  finance: {
+    receivedThisMonthCents: number;
+    openThisMonthCents: number;
+    overdueCents: number;
+    overdueCount: number;
+    monthlyRevenue: { month: string; receivedCents: number }[];
+    upcoming: DashboardReceivableBrief[];
+    overdue: DashboardReceivableBrief[];
+  } | null;
+}
+
 export interface PropertyOwner {
   id: string;
   personId: string;
@@ -543,6 +583,11 @@ async function get<T>(
     // Backend indisponível (ex.: infra não subiu) — a página cai no fallback.
     return null;
   }
+}
+
+/** Resumo do painel inicial (/v1/dashboard/summary). */
+export function fetchDashboardSummary(): Promise<DashboardSummary | null> {
+  return get<DashboardSummary>("/v1/dashboard/summary");
 }
 
 /** Imóveis do tenant da sessão. Retorna null se o backend não responder. */

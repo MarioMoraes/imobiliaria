@@ -164,7 +164,7 @@ export function TenantProfileCard({ tenant }: { tenant: Tenant | null }) {
 
       <div className="field">
         <label>Subdomínio</label>
-        <input className="input" readOnly disabled value={tenant?.slug ? `${tenant.slug}.moveai.com.br` : "—"} />
+        <input className="input" readOnly disabled value={tenant?.slug ? `${tenant.slug}.officesai.com.br` : "—"} />
         <span className="text-xs subtle">Definido no cadastro da conta; fale com o suporte para alterar.</span>
       </div>
 

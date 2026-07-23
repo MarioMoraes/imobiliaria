@@ -71,7 +71,7 @@
 | owner_bank_accounts | is_default | Boolean | ✓ | Conta de repasse padrão |
 | owner_consents | owner_id, purpose, granted, granted_at, ip | — | ✓ | Consentimento LGPD |
 
-> **Ficha cadastral de pessoa (compat. legado):** os campos pessoais + cônjuge + endereços (residencial/comercial) acima formam a **"ficha de pessoa" PF/PJ** reutilizada de forma idêntica por [[clientes_04]] (locatário) e [[fiadores_21]] (fiador). Recomenda-se um **tipo compartilhado** (`PersonRecord` em `@move-ai/shared`) para os três cadastros.
+> **Ficha cadastral de pessoa (compat. legado):** os campos pessoais + cônjuge + endereços (residencial/comercial) acima formam a **"ficha de pessoa" PF/PJ** reutilizada de forma idêntica por [[clientes_04]] (locatário) e [[fiadores_21]] (fiador). Recomenda-se um **tipo compartilhado** (`PersonRecord` em `@offices-ai/shared`) para os três cadastros.
 
 ### Campos com Criptografia AES-256-GCM
 

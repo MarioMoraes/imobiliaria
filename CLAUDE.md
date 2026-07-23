@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## O que é este projeto
 
-**Move AI Imobiliária** — SaaS multi-tenant para imobiliárias, com uma camada de
+**Offices AI Imobiliária** — SaaS multi-tenant para imobiliárias, com uma camada de
 agentes de IA (AaaS) sobre um núcleo de gestão. Os documentos mestres governam o
 design e devem ser consultados antes de decisões estruturais:
 

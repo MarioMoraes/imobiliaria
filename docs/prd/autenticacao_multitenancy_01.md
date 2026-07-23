@@ -15,7 +15,7 @@
 
 ## 1. Visão Geral
 
-**Contexto de negócio.** Toda a plataforma Move AI Imobiliária é multi-tenant: cada imobiliária é um `tenant` isolado. Este módulo é a fundação de segurança de todo o produto — sem uma identidade confiável e sem isolamento de tenant garantido, qualquer outro módulo pode vazar dados entre imobiliárias concorrentes, o que é uma falha crítica de negócio (quebra de confiança irreversível) e legal (LGPD). O módulo entrega: onboarding self-service de novas imobiliárias, autenticação (via Clerk na Fase 0+), autorização RBAC granular e a resolução/injeção do `tenant_id` em toda requisição.
+**Contexto de negócio.** Toda a plataforma Offices AI Imobiliária é multi-tenant: cada imobiliária é um `tenant` isolado. Este módulo é a fundação de segurança de todo o produto — sem uma identidade confiável e sem isolamento de tenant garantido, qualquer outro módulo pode vazar dados entre imobiliárias concorrentes, o que é uma falha crítica de negócio (quebra de confiança irreversível) e legal (LGPD). O módulo entrega: onboarding self-service de novas imobiliárias, autenticação (via Clerk na Fase 0+), autorização RBAC granular e a resolução/injeção do `tenant_id` em toda requisição.
 
 **Integração sistêmica.** É **upstream de todos os outros módulos**: cada rota `/v1/*` de domínio depende do `tenantContextHook` (que resolve o tenant) e do middleware de RBAC deste módulo. A matriz de permissões definida aqui (seção 9) é a **referência canônica** herdada por todos os PRDs seguintes. Publica os eventos `tenant.created`, `user.invited`, `user.activated` consumidos por `notification-service`, `billing-service` (MOD-BILLING) e `admin-service` (MOD-SADMIN).
 
@@ -98,7 +98,7 @@
 | tenants | id | String (CUID/UUID) | ✓ | PK do tenant |
 | tenants | name | String | ✓ | Nome fantasia da imobiliária |
 | tenants | cnpj | String (criptografado) | ✓ | CNPJ único global |
-| tenants | slug | String | ✓ | Subdomínio (`slug.moveai.com.br`), único global |
+| tenants | slug | String | ✓ | Subdomínio (`slug.officesai.com.br`), único global |
 | tenants | status | Enum | ✓ | TRIAL, ACTIVE, SUSPENDED, CANCELED |
 | tenants | plan_id | String | ✓ | Plano contratado (FK billing) |
 | tenants | creci | String | — | Registro CRECI da imobiliária |
@@ -166,7 +166,7 @@ Todos os endpoints `/v1/*` exigem `Authorization: Bearer <jwt>` (ou `x-tenant-id
 | GET | /v1/tenant/config | ADMIN, GESTOR | Config e branding do tenant |
 | PATCH | /v1/tenant/config | ADMIN | Atualiza branding/integrações |
 
-### Schema Zod — pacote `@move-ai/shared`
+### Schema Zod — pacote `@offices-ai/shared`
 
 ```typescript
 import { z } from 'zod'

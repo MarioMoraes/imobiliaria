@@ -20,6 +20,10 @@ Regras de fronteira:
   microserviço sem reescrever a lógica.
 - Todo acesso a dado de domínio passa por `withTenant(tenantId, ...)`.
 - Registre as rotas do módulo em `gateway/routes.ts`.
+- Exceção única e explícita: `dashboard/` é um **read model** — consulta as
+  tabelas de outros módulos, mas só com `SELECT` agregado, sem escrita e sem
+  regra de negócio. Somar seis indicadores pelos services daria seis chamadas
+  e as somas em JS. Qualquer coisa além de agregação vai para o módulo dono.
 
 ## Roadmap de módulos (SPEC seção 16)
 
@@ -49,3 +53,4 @@ Regras de fronteira:
 | `billing/`           | billing-service        | 0/2  | ⬜            |
 | `ai-orchestrator/`   | ai-orchestrator-service| 4    | ⬜ LangGraph  |
 | `admin/`             | admin-service          | 0/2  | ⬜            |
+| `dashboard/`         | (leitura agregada)     | 1    | ✅ resumo do painel (só SELECT) |

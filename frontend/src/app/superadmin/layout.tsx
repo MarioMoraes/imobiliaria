@@ -11,14 +11,14 @@ export default function SuperadminLayout({
     <div className="app-shell">
       <Sidebar
         variant="platform"
-        brandName="Move AI"
+        brandName="Offices AI"
         brandSub="Super Admin"
         groups={superadminNav}
       />
       <div className="main">
         <Topbar
           searchPlaceholder="Buscar tenants, planos, logs…"
-          userName="Equipe Move AI"
+          userName="Equipe Offices AI"
           userRole="Super Admin"
         />
         <div className="content">{children}</div>

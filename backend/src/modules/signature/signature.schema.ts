@@ -118,4 +118,4 @@ export const webhookPayloadSchema = z
 export type WebhookPayload = z.infer<typeof webhookPayloadSchema>;
 
 /** Header que autentica o callback (a ZapSign não assina os webhooks). */
-export const WEBHOOK_SECRET_HEADER = "x-moveai-signature-secret";
+export const WEBHOOK_SECRET_HEADER = "x-officesai-signature-secret";

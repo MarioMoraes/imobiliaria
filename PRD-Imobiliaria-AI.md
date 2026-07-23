@@ -3,7 +3,7 @@
 
 | Campo | Valor |
 |---|---|
-| Produto | Move AI Imobiliária |
+| Produto | Offices AI Imobiliária |
 | Tipo | SaaS Multi-tenant (AaaS — Agent as a Service) |
 | Versão do documento | 1.0 |
 | Status | Em elaboração — base para PRDs de módulo |
@@ -13,7 +13,7 @@
 
 ## 1. Visão Geral do Produto
 
-**Move AI Imobiliária** é uma plataforma SaaS multi-tenant que unifica toda a operação de uma imobiliária ou administradora de imóveis — cadastro, locação, venda, financeiro, contratos, manutenção, documentos e relacionamento — e entrega, sobre essa base operacional, uma camada de **agentes de inteligência artificial** capazes de atender clientes, qualificar leads, recomendar imóveis, gerar conteúdo e automatizar tarefas internas.
+**Offices AI Imobiliária** é uma plataforma SaaS multi-tenant que unifica toda a operação de uma imobiliária ou administradora de imóveis — cadastro, locação, venda, financeiro, contratos, manutenção, documentos e relacionamento — e entrega, sobre essa base operacional, uma camada de **agentes de inteligência artificial** capazes de atender clientes, qualificar leads, recomendar imóveis, gerar conteúdo e automatizar tarefas internas.
 
 A tese central do produto é: **um agente de IA só é tão bom quanto os dados e processos que o alimentam**. Por isso, o sistema é desenhado em duas camadas complementares:
 
@@ -70,7 +70,7 @@ Construir uma plataforma nativamente estruturada para IA, onde o atendimento aut
 ### 4.2 Papéis de Alto Nível
 | Papel | Escopo |
 |---|---|
-| Super Admin (Anthropic da plataforma / equipe Move AI) | Gestão de todos os tenants, billing da plataforma, feature flags, monitoramento global |
+| Super Admin (Anthropic da plataforma / equipe Offices AI) | Gestão de todos os tenants, billing da plataforma, feature flags, monitoramento global |
 | Admin do Tenant | Gestão completa da imobiliária: usuários, configurações, planos, integrações |
 | Gestor/Gerente | Gestão operacional (imóveis, contratos, financeiro) dentro do tenant |
 | Corretor | Acesso a leads, imóveis, agenda, comissões via Portal do Corretor |
@@ -93,7 +93,7 @@ Construir uma plataforma nativamente estruturada para IA, onde o atendimento aut
 3. **Renata — Analista financeiro/administrativa.** Responsável por conciliação de aluguéis, boletos, repasses a proprietários e inadimplência.
 4. **João — Proprietário de imóveis locados pela imobiliária.** Quer transparência sobre repasses, vistorias e status do imóvel sem precisar ligar.
 5. **Ana — Cliente/Inquilina.** Busca imóvel, quer respostas rápidas a qualquer hora, prefere WhatsApp.
-6. **Equipe Move AI (Super Admin).** Opera a plataforma, monitora saúde dos tenants, gerencia planos e suporte.
+6. **Equipe Offices AI (Super Admin).** Opera a plataforma, monitora saúde dos tenants, gerencia planos e suporte.
 
 ---
 
@@ -202,7 +202,7 @@ Construir uma plataforma nativamente estruturada para IA, onde o atendimento aut
 - Sincronização de status (pausar/remover automaticamente ao alugar/vender).
 
 ### 7.17 Landing Page Personalizada por Tenant
-- Site público (subdomínio `tenant.moveai.com.br` ou domínio próprio) com identidade visual do tenant, catálogo de imóveis, formulário de contato/lead, chat com agente de IA embutido.
+- Site público (subdomínio `tenant.officesai.com.br` ou domínio próprio) com identidade visual do tenant, catálogo de imóveis, formulário de contato/lead, chat com agente de IA embutido.
 - Editor de conteúdo básico (branding, seções, textos institucionais).
 
 ### 7.18 Sistema Super Admin

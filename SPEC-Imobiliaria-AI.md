@@ -3,8 +3,8 @@
 
 | Campo | Valor |
 |---|---|
-| Produto | Move AI Imobiliária |
-| Documento irmão | PRD-Move-AI-Imobiliaria.md |
+| Produto | Offices AI Imobiliária |
+| Documento irmão | PRD-Offices-AI-Imobiliaria.md |
 | Versão do documento | 1.0 |
 | Status | Base para SPECs de módulo/microserviço |
 
@@ -12,7 +12,7 @@
 
 ## 1. Visão Arquitetural
 
-Move AI Imobiliária é construído como um **monorepo** contendo múltiplos pacotes/serviços, organizado para suportar:
+Offices AI Imobiliária é construído como um **monorepo** contendo múltiplos pacotes/serviços, organizado para suportar:
 
 - Multi-tenancy nativo em todas as camadas.
 - Backend em **microserviços** independentes, comunicando-se via API síncrona (REST/HTTP interno) e eventos assíncronos (RabbitMQ).
@@ -47,7 +47,7 @@ Move AI Imobiliária é construído como um **monorepo** contendo múltiplos pac
 ## 2. Estrutura do Monorepo
 
 ```
-move-ai-imobiliaria/
+offices-ai-imobiliaria/
 ├── landingpage/          # Landing pages públicas por tenant (Next.js, SSG/ISR)
 ├── frontend/             # Aplicação web principal (painel interno + portais)
 ├── backend/
@@ -101,7 +101,7 @@ Modelo adotado: **banco compartilhado, schema compartilhado, com `tenant_id` obr
 - Tenants com necessidade de isolamento físico (grandes contas/compliance) podem ser promovidos a **schema dedicado** ou **banco dedicado** — arquitetura de dados preparada para essa promoção sem reescrever a aplicação (repository pattern abstrai a resolução de conexão por tenant).
 
 ### 3.2 Resolução de Tenant
-- Landing page e portais: resolução por domínio/subdomínio (`tenant.moveai.com.br` ou domínio próprio configurado via Cloudflare API).
+- Landing page e portais: resolução por domínio/subdomínio (`tenant.officesai.com.br` ou domínio próprio configurado via Cloudflare API).
 - Painel interno e API: resolução via claim `tenant_id` no token JWT emitido pelo Clerk (custom claims por organização).
 - Agentes de IA: contexto de tenant propagado explicitamente em cada execução de grafo (LangGraph state).
 

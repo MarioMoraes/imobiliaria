@@ -20,7 +20,7 @@ export type TenantStatus = z.infer<typeof tenantStatus>;
 
 export const createTenantSchema = z.object({
   name: z.string().min(2).max(200),
-  // slug vira subdomínio (<slug>.moveai.com.br): apenas minúsculas, números e hífen.
+  // slug vira subdomínio (<slug>.officesai.com.br): apenas minúsculas, números e hífen.
   slug: z
     .string()
     .min(2)

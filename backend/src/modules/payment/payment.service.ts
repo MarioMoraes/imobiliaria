@@ -85,7 +85,7 @@ export async function saveSettings(
         url,
         saved.webhookToken,
         // O Asaas exige um e-mail para avisar quando a fila do webhook para.
-        `financeiro+${tenantId}@moveai.com.br`,
+        `financeiro+${tenantId}@officesai.com.br`,
       );
       await repo.markWebhookRegistered(tenantId);
     } catch (err) {

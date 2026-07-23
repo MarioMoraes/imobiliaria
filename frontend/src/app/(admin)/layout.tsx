@@ -27,7 +27,7 @@ export default async function AdminLayout({
     currentUser().catch(() => null),
     fetchCurrentUser(),
   ]);
-  const brandName = tenant?.name ?? "Move AI";
+  const brandName = tenant?.name ?? "Offices AI";
 
   const userName =
     clerkUser?.fullName ||

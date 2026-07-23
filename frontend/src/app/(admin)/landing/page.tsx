@@ -52,7 +52,7 @@ export default function LandingPage() {
         <Section title="Domínio & branding" pad>
           <div className="field mb-4">
             <label>Subdomínio</label>
-            <input className="input" defaultValue="demo.moveai.com.br" readOnly />
+            <input className="input" defaultValue="demo.officesai.com.br" readOnly />
           </div>
           <div className="field mb-4">
             <label>Domínio próprio</label>

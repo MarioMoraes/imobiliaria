@@ -18,7 +18,7 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "Move AI Imobiliária",
+  title: "Offices AI Imobiliária",
   description:
     "Plataforma SaaS multi-tenant para imobiliárias com agentes de IA",
 };
@@ -28,8 +28,9 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // afterSignOutUrl: sair leva de volta à landing pública ("/").
   return (
-    <ClerkProvider afterSignOutUrl="/sign-in">
+    <ClerkProvider afterSignOutUrl="/">
       <html lang="pt-BR" className={`${inter.variable} ${poppins.variable}`}>
         {/*
           suppressHydrationWarning: extensões de navegador (Grammarly, Bitdefender,

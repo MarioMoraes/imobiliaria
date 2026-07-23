@@ -186,7 +186,7 @@ export function registerWebhook(
     {
       method: "POST",
       body: {
-        name: "Move AI Imobiliária",
+        name: "Offices AI Imobiliária",
         url,
         email,
         enabled: true,

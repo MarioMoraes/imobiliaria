@@ -13,7 +13,7 @@
 
 ## 1. Visão Geral
 
-**Contexto de negócio.** Cada imobiliária ganha um site público próprio (`slug.moveai.com.br` ou domínio próprio) com sua marca, catálogo de imóveis, formulário de contato e **chat de IA embutido**. É a vitrine digital e a principal porta de captação de leads — precisa ser rápida (SEO/ISR), personalizável sem código e protegida contra spam.
+**Contexto de negócio.** Cada imobiliária ganha um site público próprio (`slug.officesai.com.br` ou domínio próprio) com sua marca, catálogo de imóveis, formulário de contato e **chat de IA embutido**. É a vitrine digital e a principal porta de captação de leads — precisa ser rápida (SEO/ISR), personalizável sem código e protegida contra spam.
 
 **Integração sistêmica.** Resolve tenant por domínio/subdomínio (MOD-DNS/Cloudflare — tratado como parte deste módulo aqui). Catálogo vem de MOD-IMOVEL; leads entram no MOD-CRM (`lead.created`); chat conecta ao MOD-AI. Branding vem do `tenant_config` (MOD-AUTH). Publica `lead.created` (origem SITE).
 

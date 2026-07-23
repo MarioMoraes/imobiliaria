@@ -1,4 +1,4 @@
-# Move AI Imobiliária
+# Offices AI Imobiliária
 
 Plataforma SaaS **multi-tenant** para imobiliárias e administradoras de imóveis,
 com uma camada de **agentes de IA (AaaS)** sobre o núcleo de gestão.

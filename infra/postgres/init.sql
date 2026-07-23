@@ -29,7 +29,7 @@ GRANT USAGE ON SCHEMA public TO app_user;
 CREATE TABLE IF NOT EXISTS tenants (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name         TEXT NOT NULL,
-  slug         TEXT NOT NULL UNIQUE,        -- subdomínio: <slug>.moveai.com.br
+  slug         TEXT NOT NULL UNIQUE,        -- subdomínio: <slug>.officesai.com.br
   cnpj         TEXT UNIQUE,                 -- CNPJ da imobiliária (único global). TODO: cifrar em repouso (AES-256-GCM, PRD §4/9)
   creci        TEXT,                        -- registro CRECI da imobiliária
   clerk_org_id TEXT UNIQUE,                 -- Organização Clerk correspondente (org = tenant); nulo no dev-mode
@@ -214,7 +214,7 @@ ON CONFLICT DO NOTHING;
 -- Usuário admin demo do tenant demo (id fixo p/ testes/idempotência).
 INSERT INTO users (id, tenant_id, email, full_name, status)
 VALUES ('00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-000000000001',
-        'admin@demo.moveai.com.br', 'Admin Demo', 'active')
+        'admin@demo.officesai.com.br', 'Admin Demo', 'active')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO user_roles (tenant_id, user_id, role)

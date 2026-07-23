@@ -2,7 +2,7 @@
   "name": "imobiliaria-ai",
   "version": "0.1.0",
   "private": true,
-  "description": "Move AI Imobiliária — plataforma SaaS multi-tenant para imobiliárias com camada de agentes de IA (AaaS)",
+  "description": "Offices AI Imobiliária — plataforma SaaS multi-tenant para imobiliárias com camada de agentes de IA (AaaS)",
   "workspaces": [
     "frontend",
     "backend"

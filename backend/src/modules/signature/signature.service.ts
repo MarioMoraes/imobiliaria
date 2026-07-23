@@ -84,7 +84,7 @@ export async function saveSettings(
   if (isPubliclyReachable(url) && saved?.webhookSecret) {
     try {
       await zapsign.registerWebhook({ token, sandbox: input.sandbox }, url, {
-        name: "x-moveai-signature-secret",
+        name: "x-officesai-signature-secret",
         value: saved.webhookSecret,
       });
       await repo.markWebhookRegistered(tenantId);
@@ -242,7 +242,7 @@ export async function sendToSign(
   const generated = await contractService.generateAndStore(tenantId, contractId);
 
   const doc = await zapsign.createDoc(creds, {
-    name: `Contrato ${contract.code ?? ""} — ${contract.propertyId ? "Locação" : "Move AI"}`.trim(),
+    name: `Contrato ${contract.code ?? ""} — ${contract.propertyId ? "Locação" : "Offices AI"}`.trim(),
     base64Pdf: generated.pdf.toString("base64"),
     externalId: contractId,
     signers,

@@ -117,7 +117,7 @@ CREATE INDEX idx_properties_geo ON properties USING gist (ll_to_earth(lat, lng))
 | POST | /v1/properties/:id/generate-description | GESTOR, CORRETOR | Dispara MOD-AI |
 | DELETE | /v1/properties/:id | ADMIN, GESTOR | Inativar (soft) |
 
-### Schema Zod — `@move-ai/shared`
+### Schema Zod — `@offices-ai/shared`
 
 ```typescript
 export const CreatePropertySchema = z.object({

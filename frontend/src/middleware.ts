@@ -2,13 +2,14 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 /**
  * Middleware do Clerk (MOD-AUTH-05). Protege o painel interno, o super admin e
- * o onboarding (exige usuário já autenticado — o sign-up acontece antes). Só
- * login/cadastro são públicos.
+ * o onboarding (exige usuário já autenticado — o sign-up acontece antes).
+ * Públicas: a landing de apresentação ("/"), o login e o cadastro. A landing
+ * redireciona para /dashboard quando já existe sessão (ver app/page.tsx).
  *
  * Em desenvolvimento sem chaves configuradas, o Clerk roda em "keyless mode":
  * o app sobe e provisiona uma instância temporária para você reivindicar.
  */
-const isPublicRoute = createRouteMatcher(["/sign-in(.*)", "/sign-up(.*)"]);
+const isPublicRoute = createRouteMatcher(["/", "/sign-in(.*)", "/sign-up(.*)"]);
 
 export default clerkMiddleware(async (auth, req) => {
   if (!isPublicRoute(req)) {
