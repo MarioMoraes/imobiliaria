@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useOrganizationList } from "@clerk/nextjs";
+import { useOrganization, useOrganizationList } from "@clerk/nextjs";
 import { submitOnboarding } from "./actions";
 
 /**
@@ -16,8 +16,16 @@ const fieldStyle: React.CSSProperties = { display: "flex", flexDirection: "colum
 export default function OnboardingPage() {
   const router = useRouter();
   const { isLoaded, setActive } = useOrganizationList();
+  const { organization, isLoaded: orgLoaded } = useOrganization();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Quem já pertence a uma imobiliária não passa por aqui: é o caso do membro
+  // convidado, e submeter este formulário criaria um SEGUNDO tenant no lugar de
+  // entrar no da equipe que o convidou.
+  useEffect(() => {
+    if (orgLoaded && organization) router.replace("/dashboard");
+  }, [orgLoaded, organization, router]);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();

@@ -1,25 +1,32 @@
 import { PageHeader, StatCard, Section, StatusBadge } from "../../../components/ui";
-import { Icon } from "../../../components/Icon";
 import { fetchEmployees } from "../../../lib/api";
 import { sampleEmployees } from "../../../lib/sample";
 import { EmployeeInviteButton } from "./EmployeeInviteButton";
+import { EmployeeInviteActions } from "./EmployeeInviteActions";
+import { EmployeeRowActions } from "./EmployeeRowActions";
+import type { EmployeeAccessStatus, EmployeeRole } from "./actions";
 
 /** Linha de exibição unificada (dado real do backend ou amostra de fallback). */
 interface Row {
   id: string;
   name: string;
   position: string;
+  hiredAt: string;
   roles: string[];
-  access: "active" | "suspended" | "revoked";
+  access: EmployeeAccessStatus;
   /** Convite ainda não aceito (users.status === "invited"). */
   invited: boolean;
 }
 
-const accessLabel: Record<Row["access"], { status: string; label: string }> = {
-  active: { status: "active", label: "Ativo" },
-  suspended: { status: "suspended", label: "Suspenso" },
-  revoked: { status: "canceled", label: "Revogado" },
+const accessLabel: Record<EmployeeAccessStatus, { status: string; label: string }> = {
+  ATIVO: { status: "active", label: "Ativo" },
+  SUSPENSO: { status: "suspended", label: "Suspenso" },
+  REVOGADO: { status: "canceled", label: "Revogado" },
 };
+
+/** Papéis do backend restritos aos atribuíveis na UI (os demais só se exibem). */
+const editableRoles = (roles: string[]): EmployeeRole[] =>
+  roles.filter((r): r is EmployeeRole => r === "ADMIN" || r === "GESTOR" || r === "FINANCEIRO");
 
 export default async function FuncionariosPage() {
   const live = await fetchEmployees();
@@ -30,29 +37,26 @@ export default async function FuncionariosPage() {
         id: e.id,
         name: e.fullName,
         position: e.position,
+        hiredAt: e.hiredAt ?? "",
         roles: e.roles,
-        access:
-          e.accessStatus === "ATIVO"
-            ? "active"
-            : e.accessStatus === "SUSPENSO"
-              ? "suspended"
-              : "revoked",
+        access: e.accessStatus,
         invited: e.userStatus === "invited",
       }))
     : sampleEmployees.map((e) => ({
         id: e.id,
         name: e.name,
         position: e.role,
+        hiredAt: "",
         roles: e.roles,
-        access: e.access === "active" ? "active" : "suspended",
+        access: e.access === "active" ? ("ATIVO" as const) : ("SUSPENSO" as const),
         invited: false,
       }));
 
   const has = (r: Row, role: string) => r.roles.includes(role);
-  const active = rows.filter((r) => r.access === "active").length;
+  const active = rows.filter((r) => r.access === "ATIVO").length;
   const admins = rows.filter((r) => has(r, "ADMIN")).length;
   const financeiro = rows.filter((r) => has(r, "FINANCEIRO")).length;
-  const suspended = rows.filter((r) => r.access !== "active").length;
+  const suspended = rows.filter((r) => r.access !== "ATIVO").length;
 
   return (
     <>
@@ -99,7 +103,22 @@ export default async function FuncionariosPage() {
                       {e.invited && <span className="badge badge-amber">Convite pendente</span>}
                     </div>
                   </td>
-                  <td><button className="icon-btn" style={{ width: 30, height: 30 }}><Icon name="ellipsis" size={15} /></button></td>
+                  <td style={{ width: 130 }}>
+                    <div className="row gap-8" style={{ justifyContent: "flex-end" }}>
+                      {e.invited && <EmployeeInviteActions id={e.id} name={e.name} />}
+                      <EmployeeRowActions
+                        disabled={!isLive}
+                        employee={{
+                          id: e.id,
+                          name: e.name,
+                          position: e.position,
+                          hiredAt: e.hiredAt,
+                          roles: editableRoles(e.roles),
+                          access: e.access,
+                        }}
+                      />
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>

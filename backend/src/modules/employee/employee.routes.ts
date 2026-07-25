@@ -43,6 +43,26 @@ export async function employeeRoutes(app: FastifyInstance): Promise<void> {
     return { data: await service.update(getTenantId(), id, parsed.data) };
   });
 
+  app.delete<{ Params: { id: string } }>(
+    "/:id",
+    { preHandler: requirePermission("users:manage") },
+    async (req) => {
+      await service.remove(getTenantId(), req.params.id);
+      return { data: { deleted: true } };
+    },
+  );
+
+  // Reenvio do convite de acesso. Devolve o link do ticket junto com
+  // `emailSent`: quando a entrega falha, a UI oferece copiar o link.
+  app.post(
+    "/:id/invite/resend",
+    { preHandler: requirePermission("users:manage") },
+    async (req) => {
+      const { id } = req.params as { id: string };
+      return { data: await service.resendInvite(getTenantId(), id) };
+    },
+  );
+
   app.patch(
     "/:id/access",
     { preHandler: requirePermission("users:manage") },

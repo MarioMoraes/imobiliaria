@@ -24,23 +24,86 @@ function orgRoleFor(rbacRole: string): "org:admin" | "org:member" {
   return rbacRole === "ADMIN" ? "org:admin" : "org:member";
 }
 
+/** Convite de organização, reduzido ao que o app precisa. */
+export interface OrgInvitation {
+  id: string;
+  /** Link do ticket de aceite. É ele que vai no e-mail que NÓS enviamos. */
+  url: string;
+}
+
 /**
  * Convida um e-mail para a organização (= tenant) no Clerk (MOD-AUTH-06). O
  * `publicMetadata` carrega o vínculo (tenant_id/user_id) para auditoria e para
  * um futuro webhook; o vínculo efetivo hoje acontece no 1º login (por e-mail).
  * Lança em falha (ex.: convite pendente duplicado) — o caller decide o rollback.
+ *
+ * Devolve o `url` do ticket porque a ENTREGA do e-mail é nossa (shared/mailer):
+ * a instância de desenvolvimento do Clerk não entrega e-mail.
  */
 export async function inviteToOrganization(params: {
   orgId: string;
   email: string;
   role: string;
+  /** Para onde o convidado volta depois de aceitar (URL do frontend). */
+  redirectUrl?: string;
   publicMetadata?: Record<string, unknown>;
-}): Promise<void> {
-  await clerkClient.organizations.createOrganizationInvitation({
+}): Promise<OrgInvitation> {
+  const inv = await clerkClient.organizations.createOrganizationInvitation({
     organizationId: params.orgId,
     emailAddress: params.email,
     role: orgRoleFor(params.role),
+    redirectUrl: params.redirectUrl,
     publicMetadata: params.publicMetadata,
+  });
+  return { id: inv.id, url: inv.url ?? "" };
+}
+
+/**
+ * Convite pendente de um e-mail nesta organização, se houver. Usado no reenvio:
+ * um convite ainda válido é reaproveitado (recriar daria erro de duplicado);
+ * `null` significa que não há pendente — revogado, expirado ou já aceito — e o
+ * caller deve criar um novo.
+ */
+export async function findPendingInvitation(
+  orgId: string,
+  email: string,
+): Promise<OrgInvitation | null> {
+  const list = await clerkClient.organizations.getOrganizationInvitationList({
+    organizationId: orgId,
+    status: ["pending"],
+  });
+  const target = email.trim().toLowerCase();
+  const found = list.data.find((i) => i.emailAddress.toLowerCase() === target);
+  return found ? { id: found.id, url: found.url ?? "" } : null;
+}
+
+/**
+ * Revoga o convite pendente de um e-mail nesta organização, se houver. Usado ao
+ * excluir um funcionário que ainda não aceitou: sem isso o link do ticket
+ * continuaria válido e o convidado entraria na org sem `users` row no banco.
+ * Devolve `false` quando não havia convite pendente.
+ */
+export async function revokePendingInvitation(orgId: string, email: string): Promise<boolean> {
+  const pending = await findPendingInvitation(orgId, email);
+  if (!pending) return false;
+  await clerkClient.organizations.revokeOrganizationInvitation({
+    organizationId: orgId,
+    invitationId: pending.id,
+  });
+  return true;
+}
+
+/**
+ * Remove o usuário da organização (= tenant) no Clerk. Complementa a exclusão do
+ * funcionário no nosso banco: o membro perde a sessão do tenant no Clerk.
+ */
+export async function removeOrganizationMember(
+  orgId: string,
+  clerkUserId: string,
+): Promise<void> {
+  await clerkClient.organizations.deleteOrganizationMembership({
+    organizationId: orgId,
+    userId: clerkUserId,
   });
 }
 

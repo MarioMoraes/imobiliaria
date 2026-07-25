@@ -4,6 +4,7 @@ import { test } from "node:test";
 import { AppError } from "../../shared/errors.js";
 import { create as createTenant } from "../tenant/tenant.service.js";
 import * as service from "./employee.service.js";
+import { inviteHtml, inviteText } from "./invite-email.js";
 
 /**
  * MOD-FUNC — funcionários. Inclui o teste de ISOLAMENTO multi-tenant
@@ -103,4 +104,90 @@ test("rebaixar o único ADMIN também é bloqueado (ERR_FUNC_005)", async () => 
     () => service.update(t.id, admin.id, { roles: ["GESTOR"] }),
     (err) => err instanceof AppError && err.code === "ERR_FUNC_005",
   );
+});
+
+test("atualiza cargo e papéis do funcionário", async () => {
+  const t = await freshTenant("Func-Update");
+  const created = await service.create(t.id, newEmployee({ roles: ["FINANCEIRO"] }));
+
+  const updated = await service.update(t.id, created.id, {
+    position: "Gerente de locação",
+    roles: ["GESTOR", "FINANCEIRO"],
+    hiredAt: "2026-01-15",
+  });
+
+  assert.equal(updated.position, "Gerente de locação");
+  assert.deepEqual([...updated.roles].sort(), ["FINANCEIRO", "GESTOR"]);
+  assert.equal(updated.hiredAt, "2026-01-15");
+});
+
+test("exclui o funcionário e a identidade vinculada", async () => {
+  const t = await freshTenant("Func-Delete");
+  const created = await service.create(t.id, newEmployee());
+
+  await service.remove(t.id, created.id);
+
+  assert.ok(!(await service.list(t.id)).some((e) => e.id === created.id));
+  await assert.rejects(
+    () => service.getById(t.id, created.id),
+    (err) => err instanceof AppError && err.code === "ERR_FUNC_001",
+  );
+});
+
+test("excluir o último ADMIN ativo é bloqueado (ERR_FUNC_005)", async () => {
+  const t = await freshTenant("Func-Delete-Admin");
+  const admin = await service.create(t.id, newEmployee({ roles: ["ADMIN"] }));
+
+  await assert.rejects(
+    () => service.remove(t.id, admin.id),
+    (err) => err instanceof AppError && err.code === "ERR_FUNC_005",
+  );
+
+  // Com um segundo ADMIN, a exclusão do primeiro passa a ser permitida.
+  await service.create(t.id, newEmployee({ roles: ["ADMIN"] }));
+  await service.remove(t.id, admin.id);
+  assert.ok(!(await service.list(t.id)).some((e) => e.id === admin.id));
+});
+
+test("excluir funcionário inexistente é 404 (ERR_FUNC_001)", async () => {
+  const t = await freshTenant("Func-Delete-404");
+
+  await assert.rejects(
+    () => service.remove(t.id, randomUUID()),
+    (err) => err instanceof AppError && err.code === "ERR_FUNC_001",
+  );
+});
+
+test("reenviar convite de membro já ativo é rejeitado (ERR_FUNC_007)", async () => {
+  // Tenant de teste não tem clerk_org_id, então o membro nasce 'active'.
+  const t = await freshTenant("Func-Resend");
+  const member = await service.create(t.id, newEmployee());
+
+  await assert.rejects(
+    () => service.resendInvite(t.id, member.id),
+    (err) => err instanceof AppError && err.code === "ERR_FUNC_007",
+  );
+});
+
+test("reenviar convite de funcionário inexistente é 404 (ERR_FUNC_001)", async () => {
+  const t = await freshTenant("Func-Resend-404");
+
+  await assert.rejects(
+    () => service.resendInvite(t.id, randomUUID()),
+    (err) => err instanceof AppError && err.code === "ERR_FUNC_001",
+  );
+});
+
+test("o e-mail de convite escapa HTML do nome e leva o link de aceite", () => {
+  const url = "https://acme.accounts.dev/v1/tickets/accept?ticket=abc";
+  const html = inviteHtml({
+    tenantName: 'Imobiliária "A" & Cia',
+    memberName: "<script>alert(1)</script>",
+    acceptUrl: url,
+  });
+
+  assert.ok(!html.includes("<script>"), "nome do membro deve ser escapado");
+  assert.ok(html.includes("&amp;"), "e-comercial do tenant deve ser escapado");
+  assert.ok(html.includes(url), "o link de aceite precisa estar no corpo");
+  assert.ok(inviteText({ tenantName: "X", memberName: "Y", acceptUrl: url }).includes(url));
 });

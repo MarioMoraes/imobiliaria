@@ -2,7 +2,17 @@ import { randomUUID } from "node:crypto";
 import { AppError } from "../../shared/errors.js";
 import { publish } from "../../shared/events.js";
 import { logger } from "../../shared/logger.js";
-import { inviteToOrganization, isClerkConfigured } from "../../shared/clerk.js";
+import {
+  findPendingInvitation,
+  inviteToOrganization,
+  isClerkConfigured,
+  removeOrganizationMember,
+  revokePendingInvitation,
+  type OrgInvitation,
+} from "../../shared/clerk.js";
+import { isMailerConfigured, sendEmail } from "../../shared/mailer.js";
+import { env } from "../../config/env.js";
+import { inviteHtml, inviteSubject, inviteText } from "./invite-email.js";
 import { findTenantById } from "../tenant/tenant.repository.js";
 import * as rbac from "../rbac/rbac.service.js";
 import { findUserRef } from "../user/user.repository.js";
@@ -73,11 +83,13 @@ export async function create(
   const employee = await repo.insertEmployee(tenantId, input, willInvite ? "invited" : "active");
 
   if (willInvite) {
+    let invitation: OrgInvitation;
     try {
-      await inviteToOrganization({
+      invitation = await inviteToOrganization({
         orgId: tenant!.clerkOrgId!,
         email: employee.email,
         role: primaryRole(employee.roles),
+        redirectUrl: inviteRedirectUrl(),
         publicMetadata: { tenant_id: tenantId, user_id: employee.userId },
       });
     } catch (err) {
@@ -86,11 +98,16 @@ export async function create(
       await repo
         .removeEmployee(tenantId, employee.id, employee.userId)
         .catch((e) => logger.error({ e, employeeId: employee.id }, "falha ao desfazer funcionário órfão"));
-      logger.warn({ err, email: employee.email }, "falha ao enviar convite do Clerk");
+      logger.warn({ err, email: employee.email }, "falha ao criar convite no Clerk");
       throw new AppError("ERR_FUNC_006", 502, "Não foi possível enviar o convite ao membro", {
         hint: "verifique se já existe um convite pendente para este e-mail",
       });
     }
+
+    // Falha de ENTREGA não desfaz o cadastro (ao contrário da falha acima): o
+    // convite existe e é válido, e a UI oferece "reenviar"/"copiar link".
+    // Fazer rollback aqui destruiria um convite bom por um problema de e-mail.
+    await deliverInvite(tenant!.name, employee.fullName, employee.email, invitation.url);
   }
 
   await publish({
@@ -102,6 +119,59 @@ export async function create(
   });
 
   return employee;
+}
+
+export interface ResendInviteResult {
+  /** Link do ticket de aceite — a UI oferece copiar quando o e-mail não sai. */
+  url: string;
+  emailSent: boolean;
+}
+
+/**
+ * Reenvia o convite de um membro que ainda não aceitou (MOD-FUNC). Reaproveita
+ * o convite pendente quando existe; se o anterior foi revogado ou expirou, cria
+ * um novo. Devolve o link SEMPRE — mesmo com `emailSent: false`, o admin
+ * consegue repassar o acesso por outro canal.
+ */
+export async function resendInvite(tenantId: string, id: string): Promise<ResendInviteResult> {
+  const employee = await repo.findEmployee(tenantId, id);
+  if (!employee) throw ERR_NOT_FOUND;
+
+  if (employee.userStatus !== "invited") {
+    throw new AppError("ERR_FUNC_007", 409, "Este membro já aceitou o convite", {
+      hint: "só é possível reenviar convites pendentes",
+    });
+  }
+
+  const tenant = await findTenantById(tenantId);
+  if (!isClerkConfigured() || !tenant?.clerkOrgId) {
+    throw new AppError("ERR_FUNC_008", 409, "Convites indisponíveis: tenant sem organização no Clerk");
+  }
+
+  let invitation: OrgInvitation | null;
+  try {
+    invitation = await findPendingInvitation(tenant.clerkOrgId, employee.email);
+    if (!invitation) {
+      invitation = await inviteToOrganization({
+        orgId: tenant.clerkOrgId,
+        email: employee.email,
+        role: primaryRole(employee.roles),
+        redirectUrl: inviteRedirectUrl(),
+        publicMetadata: { tenant_id: tenantId, user_id: employee.userId },
+      });
+    }
+  } catch (err) {
+    logger.warn({ err, email: employee.email }, "falha ao recriar convite no Clerk");
+    throw new AppError("ERR_FUNC_006", 502, "Não foi possível gerar o convite ao membro");
+  }
+
+  const emailSent = await deliverInvite(
+    tenant.name,
+    employee.fullName,
+    employee.email,
+    invitation.url,
+  );
+  return { url: invitation.url, emailSent };
 }
 
 export async function update(
@@ -148,6 +218,102 @@ export async function changeAccess(
   await invalidateAndAnnounce(tenantId, updated, eventType, { accessStatus: status });
 
   return updated;
+}
+
+/**
+ * Exclui o funcionário: apaga `employees` + `users` + `user_roles` (a identidade
+ * inteira) e, com Clerk ativo, tira o membro da organização — convite pendente é
+ * revogado, membro já aceito perde o vínculo com o tenant. A regra do último
+ * ADMIN (RN-01) vale aqui como na revogação: excluir também deixaria o tenant
+ * sem administrador.
+ *
+ * A limpeza no Clerk é best-effort e acontece DEPOIS do banco: se ela falhar, o
+ * funcionário já não existe para o app (o login não acha `users` row) e o admin
+ * pode remover o membro pelo painel do Clerk — o inverso (Clerk limpo, linha
+ * órfã no banco) daria um colaborador fantasma na lista.
+ */
+export async function remove(tenantId: string, id: string): Promise<void> {
+  const employee = await repo.findEmployee(tenantId, id);
+  if (!employee) throw ERR_NOT_FOUND;
+
+  await assertNotOrphaningAdmins(tenantId, employee);
+
+  const ref = await findUserRef(tenantId, employee.userId);
+  await repo.removeEmployee(tenantId, employee.id, employee.userId);
+
+  if (ref?.clerkExternalId) await rbac.invalidate(tenantId, ref.clerkExternalId);
+
+  const tenant = await findTenantById(tenantId);
+  if (isClerkConfigured() && tenant?.clerkOrgId) {
+    try {
+      if (employee.userStatus === "invited") {
+        await revokePendingInvitation(tenant.clerkOrgId, employee.email);
+      }
+      if (ref?.clerkExternalId) {
+        await removeOrganizationMember(tenant.clerkOrgId, ref.clerkExternalId);
+      }
+    } catch (err) {
+      logger.warn(
+        { err, employeeId: id, email: employee.email },
+        "funcionário excluído, mas a limpeza no Clerk falhou",
+      );
+    }
+  }
+
+  await publish({
+    type: "employee.deleted",
+    tenantId,
+    eventId: randomUUID(),
+    occurredAt: new Date().toISOString(),
+    payload: { employeeId: employee.id, userId: employee.userId },
+  });
+}
+
+/**
+ * Entrega o e-mail do convite. Nunca lança: a entrega é o elo mais frágil do
+ * fluxo (provedor fora do ar, domínio não verificado) e o convite continua
+ * válido sem ela. Devolve se saiu, para a UI poder oferecer o link.
+ */
+async function deliverInvite(
+  tenantName: string,
+  memberName: string,
+  email: string,
+  acceptUrl: string,
+): Promise<boolean> {
+  if (!isMailerConfigured()) {
+    logger.warn({ email }, "RESEND_API_KEY ausente — convite criado sem envio de e-mail");
+    return false;
+  }
+  // Sem link não há o que enviar (o Clerk devolveria url vazio só em caso
+  // anômalo); mandar um e-mail com botão morto é pior que não mandar.
+  if (!acceptUrl) {
+    logger.warn({ email }, "convite do Clerk sem url de aceite — e-mail não enviado");
+    return false;
+  }
+
+  const input = { tenantName, memberName, acceptUrl };
+  try {
+    await sendEmail({
+      to: email,
+      subject: inviteSubject(tenantName),
+      html: inviteHtml(input),
+      text: inviteText(input),
+    });
+    return true;
+  } catch (err) {
+    logger.warn({ err, email }, "falha ao entregar o e-mail de convite");
+    return false;
+  }
+}
+
+/**
+ * Para onde o convidado volta depois de clicar em "aceitar" no e-mail. TEM de
+ * ser a página que consome o `__clerk_ticket` (o Clerk anexa o ticket a esta
+ * URL): cair na landing "/" faz o link parecer funcionar e não acontecer nada —
+ * o ticket nunca é trocado e o convite fica pendente para sempre.
+ */
+function inviteRedirectUrl(): string {
+  return `${env.APP_BASE_URL.replace(/\/+$/, "")}/aceitar-convite`;
 }
 
 /**

@@ -15,8 +15,23 @@ export const metadata: Metadata = {
  * Rota "/" — landing pública: a primeira tela de quem ainda não está logado.
  * Quem já tem sessão do Clerk cai direto no painel. Login e cadastro moram no
  * Clerk (/sign-in e /sign-up); aqui só apontamos para lá.
+ *
+ * Convites emitidos antes de /aceitar-convite existir apontam para cá: se vier
+ * um `__clerk_ticket`, encaminha para a página que sabe trocá-lo (antes do
+ * redirect de sessão — um admin logado pode abrir o convite de outra pessoa).
  */
-export default async function LandingPage() {
+export default async function LandingPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = new URLSearchParams(
+    Object.entries(await searchParams).flatMap(([k, v]) =>
+      v === undefined ? [] : [[k, Array.isArray(v) ? (v[0] ?? "") : v] as [string, string]],
+    ),
+  );
+  if (params.has("__clerk_ticket")) redirect(`/aceitar-convite?${params.toString()}`);
+
   const { userId } = await auth();
   if (userId) redirect("/dashboard");
 

@@ -23,6 +23,8 @@ export type ErrorCode =
   | "ERR_FUNC_004" // identidade duplicada (CPF/e-mail)
   | "ERR_FUNC_005" // último ADMIN não pode ser removido
   | "ERR_FUNC_006" // falha ao enviar o convite ao membro (Clerk)
+  | "ERR_FUNC_007" // reenvio pedido para membro que já aceitou o convite
+  | "ERR_FUNC_008" // tenant sem organização no Clerk — convites indisponíveis
   // Códigos do MOD-PESSOA (cadastro unificado: locador/locatário/fiador/comprador).
   | "ERR_PESSOA_001" // pessoa não encontrada
   | "ERR_PESSOA_002" // sem contato (email/telefone)
@@ -37,7 +39,12 @@ export type ErrorCode =
   | "ERR_ASSINATURA_004" // envelope de assinatura não encontrado
   // Códigos do MOD-FIN (financeiro_11 §5).
   | "ERR_FIN_001" // conta a receber não encontrada
-  | "ERR_FIN_002"; // operação inválida (ex.: cobrança bancária não configurada)
+  | "ERR_FIN_002" // operação inválida (ex.: cobrança bancária não configurada)
+  // Códigos do envio de e-mail transacional (shared/mailer.ts / Resend).
+  | "ERR_MAIL_001" // envio não configurado (RESEND_API_KEY ausente)
+  | "ERR_MAIL_002" // provedor inalcançável
+  | "ERR_MAIL_003" // credencial/remetente recusados (domínio não verificado)
+  | "ERR_MAIL_004"; // provedor recusou o envio
 
 export class AppError extends Error {
   constructor(

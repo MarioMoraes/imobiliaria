@@ -86,6 +86,21 @@ const schema = z.object({
   // ZapSign e no Asaas. Em localhost o registro automático é pulado (o provedor
   // não alcançaria a máquina); use o botão "Sincronizar".
   PUBLIC_BASE_URL: z.string().default("http://localhost:3001"),
+
+  // ── E-mail transacional (Resend) ───────────────────────────────
+  // Diferente da ZapSign/Asaas, a conta é da PLATAFORMA (não por tenant): quem
+  // envia é o produto, do seu próprio domínio verificado. Sem a chave o envio
+  // fica desligado — o convite ainda é criado no Clerk e o link continua
+  // recuperável pela UI ("copiar link do convite").
+  RESEND_API_KEY: z.string().optional(),
+  // Precisa ser um endereço de domínio VERIFICADO no Resend; senão a API só
+  // aceita entregar para o e-mail dono da conta.
+  MAIL_FROM: z.string().default("Offices AI <convites@mail.offices-ia.cloud>"),
+  RESEND_API_URL: z.string().default("https://api.resend.com"),
+
+  // URL pública do FRONTEND (≠ PUBLIC_BASE_URL, que é este backend). Compõe o
+  // redirectUrl do convite: para onde o convidado volta após aceitar no Clerk.
+  APP_BASE_URL: z.string().default("http://localhost:3000"),
 });
 
 const parsed = schema.parse(process.env);
