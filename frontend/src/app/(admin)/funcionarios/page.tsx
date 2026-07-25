@@ -55,6 +55,7 @@ export default async function FuncionariosPage() {
   const has = (r: Row, role: string) => r.roles.includes(role);
   const active = rows.filter((r) => r.access === "ATIVO").length;
   const admins = rows.filter((r) => has(r, "ADMIN")).length;
+  const gestores = rows.filter((r) => has(r, "GESTOR")).length;
   const financeiro = rows.filter((r) => has(r, "FINANCEIRO")).length;
   const suspended = rows.filter((r) => r.access !== "ATIVO").length;
 
@@ -65,9 +66,10 @@ export default async function FuncionariosPage() {
         actions={<EmployeeInviteButton />}
       />
 
-      <div className="grid grid-4 mb-4">
+      <div className="grid grid-5 mb-4">
         <StatCard icon="users" label="Colaboradores ativos" value={String(active)} tone="blue" />
         <StatCard icon="shield" label="Administradores" value={String(admins)} tone="accent" />
+        <StatCard icon="gauge" label="Gestores" value={String(gestores)} tone="accent" />
         <StatCard icon="wallet" label="Financeiro" value={String(financeiro)} tone="success" />
         <StatCard icon="x" label="Acessos suspensos" value={String(suspended)} tone="warning" />
       </div>

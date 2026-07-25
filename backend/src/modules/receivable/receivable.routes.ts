@@ -3,6 +3,7 @@ import { getTenantId } from "../../shared/tenant-context.js";
 import { AppError } from "../../shared/errors.js";
 import { requirePermission } from "../rbac/authorize.js";
 import {
+  cashFlowQuerySchema,
   createReceivableSchema,
   listReceivablesQuerySchema,
   settleReceivableSchema,
@@ -21,6 +22,16 @@ export async function receivableRoutes(app: FastifyInstance): Promise<void> {
       throw AppError.badRequest("Filtros inválidos", parsed.error.flatten());
     }
     return { data: await service.list(getTenantId(), parsed.data) };
+  });
+
+  // Série do gráfico. Rota estática antes da paramétrica por clareza — o
+  // find-my-way já daria precedência a ela sobre /:id.
+  app.get("/cash-flow", { preHandler: requirePermission("finance:read") }, async (req) => {
+    const parsed = cashFlowQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      throw AppError.badRequest("Janela inválida", parsed.error.flatten());
+    }
+    return { data: await service.cashFlow(getTenantId(), parsed.data) };
   });
 
   app.get<{ Params: { id: string } }>(

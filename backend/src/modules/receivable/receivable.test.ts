@@ -7,8 +7,13 @@ import {
   generateReceivables,
   update as updateContract,
 } from "../contract/contract.service.js";
-import { listReceivables } from "./receivable.repository.js";
-import { generateRentSchedule } from "./receivable.service.js";
+import {
+  cashFlowSeries,
+  deleteReceivable,
+  insertReceivable,
+  listReceivables,
+} from "./receivable.repository.js";
+import { generateRentSchedule, settle } from "./receivable.service.js";
 
 /**
  * Teste de ISOLAMENTO MULTI-TENANT (SPEC seções 3.1 e 14) + a regra de negócio
@@ -95,6 +100,48 @@ test("reprocessar a assinatura não duplica as parcelas", async () => {
     assert.equal(parcelas.length, 12, "uma parcela por mês, sem duplicar");
   } finally {
     await dropContract(contractId);
+  }
+});
+
+test("o fluxo de caixa soma o previsto pelo vencimento e o recebido pela baixa", async () => {
+  const hoje = new Date().toISOString().slice(0, 10);
+  const valor = 123_456;
+
+  // O seed já tem parcelas, então o teste mede a DIFERENÇA que este lançamento
+  // provoca — nunca o valor absoluto do mês.
+  const mesCorrente = async (): Promise<{ received: number; expected: number }> => {
+    const serie = await cashFlowSeries(DEMO_TENANT, 6);
+    assert.equal(serie.length, 6, "a janela devolve um ponto por mês, sem buracos");
+    const ultimo = serie.at(-1)!;
+    return { received: ultimo.receivedCents, expected: ultimo.expectedCents };
+  };
+
+  const antes = await mesCorrente();
+  const parcela = await insertReceivable(DEMO_TENANT, {
+    kind: "OUTRO",
+    description: "Teste de fluxo de caixa",
+    amountCents: valor,
+    dueDate: hoje,
+  });
+
+  try {
+    const emAberto = await mesCorrente();
+    assert.equal(emAberto.expected - antes.expected, valor, "em aberto entra no previsto");
+    assert.equal(emAberto.received - antes.received, 0, "sem baixa, não é caixa");
+
+    await settle(DEMO_TENANT, parcela.id, { paidAt: hoje });
+
+    const paga = await mesCorrente();
+    assert.equal(paga.received - antes.received, valor, "a baixa entra no recebido");
+    assert.equal(paga.expected - antes.expected, valor, "e continua contando como previsto");
+
+    const doOutro = await cashFlowSeries(OTHER_TENANT, 6);
+    assert.ok(
+      doOutro.every((p) => p.receivedCents === 0 && p.expectedCents === 0),
+      "TENANT LEAKAGE: o agregado não pode somar parcelas de outro tenant",
+    );
+  } finally {
+    await deleteReceivable(DEMO_TENANT, parcela.id);
   }
 });
 

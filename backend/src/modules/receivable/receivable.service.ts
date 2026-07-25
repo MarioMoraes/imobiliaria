@@ -5,6 +5,8 @@ import { logger } from "../../shared/logger.js";
 import * as repo from "./receivable.repository.js";
 import { buildRentSchedule } from "./rent-schedule.js";
 import type {
+  CashFlowPoint,
+  CashFlowQuery,
   CreateReceivableInput,
   ListReceivablesQuery,
   Receivable,
@@ -23,6 +25,18 @@ export function list(
   query: ListReceivablesQuery,
 ): Promise<Receivable[]> {
   return repo.listReceivables(tenantId, query);
+}
+
+/**
+ * Fluxo de caixa dos últimos meses. Agregado no banco (e não somando a listagem
+ * no cliente) porque a listagem tem limite: com 200 parcelas o gráfico passaria
+ * a mentir silenciosamente conforme a carteira crescesse.
+ */
+export function cashFlow(
+  tenantId: string,
+  query: CashFlowQuery,
+): Promise<CashFlowPoint[]> {
+  return repo.cashFlowSeries(tenantId, query.months);
 }
 
 export async function getById(tenantId: string, id: string): Promise<Receivable> {

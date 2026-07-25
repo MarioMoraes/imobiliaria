@@ -70,6 +70,24 @@ export const listReceivablesQuerySchema = z.object({
 });
 export type ListReceivablesQuery = z.infer<typeof listReceivablesQuerySchema>;
 
+/** Janela do fluxo de caixa (meses para trás, incluindo o corrente). */
+export const cashFlowQuerySchema = z.object({
+  months: z.coerce.number().int().min(1).max(24).default(6),
+});
+export type CashFlowQuery = z.infer<typeof cashFlowQuerySchema>;
+
+/**
+ * Um mês do fluxo de caixa. `received` é caixa de verdade (baixa dada, contada
+ * pela data do pagamento); `expected` é o que vencia no mês, independente de ter
+ * sido pago — a diferença entre os dois é a inadimplência daquela competência.
+ */
+export interface CashFlowPoint {
+  /** YYYY-MM. */
+  month: string;
+  receivedCents: number;
+  expectedCents: number;
+}
+
 export interface Receivable {
   id: string;
   tenantId: string;

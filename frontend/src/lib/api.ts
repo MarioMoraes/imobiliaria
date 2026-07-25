@@ -713,6 +713,21 @@ export function fetchContracts(): Promise<Contract[] | null> {
  * Contas a receber do tenant da sessão. `contractId` filtra as parcelas de um
  * contrato (usado na ficha do contrato).
  */
+/** Um mês do gráfico de fluxo de caixa (agregado no backend). */
+export interface CashFlowPoint {
+  /** YYYY-MM. */
+  month: string;
+  /** Caixa realizado no mês (parcelas com baixa, pela data do pagamento). */
+  receivedCents: number;
+  /** Previsto no mês (tudo que vencia nele, pago ou não). */
+  expectedCents: number;
+}
+
+/** Série do fluxo de caixa: `months` meses para trás, incluindo o corrente. */
+export function fetchCashFlow(months = 6): Promise<CashFlowPoint[] | null> {
+  return get<CashFlowPoint[]>(`/v1/receivables/cash-flow?months=${months}`);
+}
+
 export function fetchReceivables(params?: {
   contractId?: string;
   status?: string;

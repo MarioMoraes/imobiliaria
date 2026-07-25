@@ -1,5 +1,6 @@
 import { withTenant } from "../../shared/db.js";
 import type {
+  CashFlowPoint,
   CreateReceivableInput,
   ListReceivablesQuery,
   Receivable,
@@ -95,6 +96,63 @@ export async function listReceivables(
       params,
     );
     return rows.map(toReceivable);
+  });
+}
+
+/**
+ * Série mensal do fluxo de caixa, do mês mais antigo ao corrente.
+ *
+ * `generate_series` monta os meses primeiro e as somas entram por subconsulta:
+ * mês sem movimento vira barra zerada em vez de sumir do gráfico — um buraco
+ * esconderia justamente o mês ruim. As duas somas usam datas diferentes de
+ * propósito: recebimento é pela data da baixa (`paid_at`, o caixa) e previsto é
+ * pelo vencimento (`due_date`, a competência). CANCELADO/ESTORNADO não são
+ * expectativa de caixa e ficam fora.
+ */
+export async function cashFlowSeries(
+  tenantId: string,
+  months: number,
+): Promise<CashFlowPoint[]> {
+  return withTenant(tenantId, async (client) => {
+    const { rows } = await client.query<{
+      month: string;
+      received: string;
+      expected: string;
+    }>(
+      `
+      WITH meses AS (
+        SELECT generate_series(
+                 date_trunc('month', CURRENT_DATE) - ($1::int - 1) * interval '1 month',
+                 date_trunc('month', CURRENT_DATE),
+                 interval '1 month'
+               ) AS mes
+      )
+      SELECT to_char(m.mes, 'YYYY-MM') AS month,
+             COALESCE((
+               SELECT sum(COALESCE(r.paid_amount_cents, r.amount_cents))
+                 FROM receivables r
+                WHERE r.status = 'PAGO'
+                  AND r.paid_at >= m.mes
+                  AND r.paid_at <  m.mes + interval '1 month'
+             ), 0) AS received,
+             COALESCE((
+               SELECT sum(r.amount_cents)
+                 FROM receivables r
+                WHERE r.status NOT IN ('CANCELADO', 'ESTORNADO')
+                  AND r.due_date >= m.mes
+                  AND r.due_date <  m.mes + interval '1 month'
+             ), 0) AS expected
+        FROM meses m
+       ORDER BY m.mes
+      `,
+      [months],
+    );
+
+    return rows.map((row) => ({
+      month: row.month,
+      receivedCents: Number(row.received),
+      expectedCents: Number(row.expected),
+    }));
   });
 }
 
