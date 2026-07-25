@@ -1,4 +1,4 @@
-import { withTenant } from "../../shared/db.js";
+import { lockSequence, withTenant } from "../../shared/db.js";
 import type { PoolClient } from "pg";
 import type {
   CreatePropertyInput,
@@ -389,6 +389,9 @@ export async function insertProperty(
 ): Promise<Property> {
   return withTenant(tenantId, async (client) => {
     // Código sequencial por tenant (RLS já escopa o MAX ao tenant corrente).
+    // O lock serializa inserções concorrentes: `properties` tem índice único em
+    // (tenant_id, code), então sem ele a corrida virava 500 (ver `lockSequence`).
+    await lockSequence(client, tenantId, "properties.code");
     const codeRes = await client.query<{ next: number }>(
       "SELECT COALESCE(MAX(code), 0) + 1 AS next FROM properties",
     );

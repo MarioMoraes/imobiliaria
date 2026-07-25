@@ -28,7 +28,7 @@ interface Row {
   rg: string | null;
   rg_issuer: string | null;
   gender: string | null;
-  birth_date: Date | null;
+  birth_date: string | null;   // DATE -> string (ver setTypeParser em shared/db.ts)
   marital_status: string | null;
   nationality: string | null;
   occupation: string | null;
@@ -44,7 +44,7 @@ interface Row {
   spouse_cpf: string | null;
   spouse_rg: string | null;
   spouse_occupation: string | null;
-  spouse_birth_date: Date | null;
+  spouse_birth_date: string | null;
   notes: string | null;
   references_txt: string | null;
   stage: string;
@@ -150,7 +150,7 @@ function toPerson(
     rg: row.rg,
     rgIssuer: row.rg_issuer,
     gender: row.gender,
-    birthDate: row.birth_date ? row.birth_date.toISOString().slice(0, 10) : null,
+    birthDate: row.birth_date,
     maritalStatus: row.marital_status,
     nationality: row.nationality,
     occupation: row.occupation,
@@ -166,7 +166,7 @@ function toPerson(
     spouseCpf: row.spouse_cpf,
     spouseRg: row.spouse_rg,
     spouseOccupation: row.spouse_occupation,
-    spouseBirthDate: row.spouse_birth_date ? row.spouse_birth_date.toISOString().slice(0, 10) : null,
+    spouseBirthDate: row.spouse_birth_date,
     notes: row.notes,
     references: row.references_txt,
     stage: row.stage as Person["stage"],

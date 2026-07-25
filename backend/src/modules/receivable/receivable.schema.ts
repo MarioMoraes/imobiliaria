@@ -18,7 +18,16 @@ export const receivableKind = z.enum([
   "OUTRO",
 ]);
 
-const cents = z.number().int().nonnegative();
+/**
+ * Valor monetário em centavos (não-negativo).
+ *
+ * O teto não é burocracia: a coluna é BIGINT, então um valor como 9e18 era
+ * aceito e gravado, e a leitura faz `Number(...)` — acima de 2^53 a precisão se
+ * perde em silêncio e os totais do dashboard e do fluxo de caixa passam a
+ * mentir. R$ 1 bilhão em centavos é folgado para imóvel, aluguel e despesa, e
+ * mantém tudo dentro do inteiro seguro do JavaScript.
+ */
+const cents = z.number().int().nonnegative().max(100_000_000_000);
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida (YYYY-MM-DD)");
 const competence = z.string().regex(/^\d{4}-\d{2}$/, "Competência inválida (YYYY-MM)");
 
@@ -36,20 +45,39 @@ export const createReceivableSchema = z.object({
 export type CreateReceivableInput = z.infer<typeof createReceivableSchema>;
 
 /**
- * Atualização parcial. O valor e o vencimento das parcelas geradas continuam
- * editáveis (acordo, carência) — o que não se edita é a origem (contrato).
+ * Atualização parcial vinda do cliente. O valor e o vencimento das parcelas
+ * geradas continuam editáveis (acordo, carência) — o que não se edita é a origem
+ * (contrato).
+ *
+ * `status`, `paidAt` e `paidAmountCents` ficam FORA de propósito: são estado do
+ * ciclo de vida, e só as operações que conhecem a regra podem mudá-los
+ * (`settle`, o webhook do provedor). Quando estavam aqui, um PATCH marcava a
+ * parcela como `PAGO` sem valor nenhum, contornando as guardas do `settle` (não
+ * baixar conta cancelada, idempotência) e sem qualquer validação de transição.
+ * Mesmo padrão já adotado em contrato/imóvel: campo de ciclo de vida não viaja
+ * no payload de edição.
  */
 export const updateReceivableSchema = z
   .object({
     description: z.string().max(200).nullable().optional(),
     amountCents: cents.optional(),
     dueDate: isoDate.optional(),
-    status: receivableStatus.optional(),
-    paidAt: isoDate.nullable().optional(),
-    paidAmountCents: cents.nullable().optional(),
   })
   .refine((d) => Object.keys(d).length > 0, { message: "Nada para atualizar" });
 export type UpdateReceivableInput = z.infer<typeof updateReceivableSchema>;
+
+/**
+ * Campos de ciclo de vida — INTERNO. Não há schema zod porque isto nunca vem de
+ * um corpo de request: só o service monta, a partir de `settle`/`cancel`/webhook.
+ */
+export interface ReceivableStateChange {
+  status?: z.infer<typeof receivableStatus>;
+  paidAt?: string | null;
+  paidAmountCents?: number | null;
+}
+
+/** O que o repositório aceita: edição do cliente + transição de estado interna. */
+export type PatchReceivableInput = UpdateReceivableInput & ReceivableStateChange;
 
 /** Baixa de pagamento. Sem valor informado, quita o total da parcela. */
 export const settleReceivableSchema = z.object({

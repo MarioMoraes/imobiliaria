@@ -47,9 +47,21 @@ services:
 
   # Gotenberg: conversão HTML → PDF (MOD-CONTRATO). Stateless. Escuta na 3000
   # dentro do container; mapeada para 3050 no host (evita colidir com o frontend).
+  # Segunda camada contra SSRF: o backend já sanea o HTML do modelo
+  # (document.ts), mas o Chromium daqui alcança a rede do compose e a rede do
+  # host. A deny-list recusa localhost, link-local (metadata de nuvem em
+  # 169.254.169.254) e as faixas privadas — assim um recurso que escape do
+  # saneamento não vira leitura de serviço interno.
+  #
+  # O primeiro termo é o default do próprio Gotenberg e precisa ser mantido:
+  # nega file://, EXCETO /tmp, que é de onde o Gotenberg lê o index.html que
+  # enviamos. Negar file:// por inteiro faz toda conversão responder 403.
   gotenberg:
     image: gotenberg/gotenberg:8
     container_name: imobiliaria-gotenberg
+    command:
+      - "gotenberg"
+      - "--chromium-deny-list=^file:(?!///tmp/).*|^https?://(localhost|127\\.|0\\.0\\.0\\.0|\\[?::1|169\\.254\\.|10\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.)"
     ports:
       - "3050:3000"
     healthcheck:

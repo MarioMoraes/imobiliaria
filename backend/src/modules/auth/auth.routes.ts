@@ -9,18 +9,27 @@ import * as service from "./auth.service.js";
  * hooks de resolução de tenant. Cria o tenant e o primeiro ADMIN.
  */
 export async function authRoutes(app: FastifyInstance): Promise<void> {
-  app.post("/onboarding", async (req, reply) => {
-    const parsed = onboardingSchema.safeParse(req.body);
-    if (!parsed.success) {
-      throw AppError.badRequest("Dados de onboarding inválidos", parsed.error.flatten());
-    }
-    // Sessão Clerk (usuário já autenticado, ainda sem org) → cria a org no onboarding.
-    const auth = req.headers["authorization"];
-    const bearer =
-      typeof auth === "string" && auth.startsWith("Bearer ") ? auth.slice(7).trim() : undefined;
+  app.post(
+    "/onboarding",
+    {
+      // Cria tenant + usuário: é a operação mais custosa alcançável de fora
+      // (mesmo exigindo sessão, cada chamada grava linhas e fala com o Clerk).
+      // Teto baixo — ninguém cadastra 5 imobiliárias por minuto de boa-fé.
+      config: { rateLimit: { max: 5, timeWindow: "1 minute" } },
+    },
+    async (req, reply) => {
+      const parsed = onboardingSchema.safeParse(req.body);
+      if (!parsed.success) {
+        throw AppError.badRequest("Dados de onboarding inválidos", parsed.error.flatten());
+      }
+      // Sessão Clerk (usuário já autenticado, ainda sem org) → cria a org aqui.
+      const auth = req.headers["authorization"];
+      const bearer =
+        typeof auth === "string" && auth.startsWith("Bearer ") ? auth.slice(7).trim() : undefined;
 
-    const result = await service.onboarding(parsed.data, bearer);
-    reply.code(201);
-    return { data: result };
-  });
+      const result = await service.onboarding(parsed.data, bearer);
+      reply.code(201);
+      return { data: result };
+    },
+  );
 }

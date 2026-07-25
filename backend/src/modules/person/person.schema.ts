@@ -65,8 +65,8 @@ export const searchProfileInput = z.object({
   intent: searchIntent,
   minPriceCents: z.number().int().nonnegative().optional(),
   maxPriceCents: z.number().int().nonnegative().optional(),
-  propertyTypes: z.array(z.string().max(60)).default([]),
-  districts: z.array(z.string().max(120)).default([]),
+  propertyTypes: z.array(z.string().max(60)).max(50).default([]),
+  districts: z.array(z.string().max(120)).max(100).default([]),
   bedroomsMin: z.number().int().nonnegative().optional(),
   parkingMin: z.number().int().nonnegative().optional(),
 });
@@ -110,7 +110,9 @@ export const createPersonSchema = z
     references: z.string().max(2000).optional(),
     source: personSource.default("MANUAL"),
     assignedBrokerId: z.string().uuid().optional(),
-    addresses: z.array(personAddressSchema).default([]),
+    // Cada endereço é um INSERT sequencial na transação: sem teto, um corpo
+    // grande prende uma conexão do pool por milhares de inserções.
+    addresses: z.array(personAddressSchema).max(20).default([]),
     searchProfile: searchProfileInput.optional(),
   })
   .refine((d) => d.maritalStatus !== "CASADO" || !!d.spouseName, {

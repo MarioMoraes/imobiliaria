@@ -8,8 +8,11 @@ import * as service from "./tenant.service.js";
 /**
  * Rotas administrativas de tenants (Super Admin — PRD seção 7.18).
  * Montadas sob /admin/tenants, FORA do escopo /v1: são operações de
- * plataforma, não escopadas por tenant. TODO Fundação: proteger com
- * autorização de Super Admin (auth-service/Clerk).
+ * plataforma, não escopadas por tenant.
+ *
+ * A autorização vem do `platformAdminHook` aplicado no gateway (sessão do Clerk
+ * + allowlist `PLATFORM_ADMIN_CLERK_IDS`), e não do RBAC de tenant — ver a
+ * justificativa em `gateway/platform-admin.hook.ts`.
  */
 export async function tenantRoutes(app: FastifyInstance): Promise<void> {
   app.get("/", async () => {
@@ -18,7 +21,7 @@ export async function tenantRoutes(app: FastifyInstance): Promise<void> {
 
   app.get("/:id", async (req) => {
     const { id } = req.params as { id: string };
-    return { data: await service.getById(id) };
+    return { data: await service.getByIdAsPlatform(id) };
   });
 
   app.post("/", async (req, reply) => {
@@ -37,7 +40,7 @@ export async function tenantRoutes(app: FastifyInstance): Promise<void> {
     if (!parsed.success) {
       throw AppError.badRequest("Dados do tenant inválidos", parsed.error.flatten());
     }
-    return { data: await service.update(id, parsed.data) };
+    return { data: await service.updateAsPlatform(id, parsed.data) };
   });
 }
 
@@ -59,7 +62,9 @@ export async function currentTenantRoutes(app: FastifyInstance): Promise<void> {
     }
     // `status` e `plan` são decisões de plataforma (billing/suspensão): mesmo
     // que cheguem no corpo, não podem ser mudados pelo próprio tenant.
-    const { status: _status, plan: _plan, ...safe } = parsed.data;
+    const safe = { ...parsed.data };
+    delete safe.status;
+    delete safe.plan;
     return { data: await service.update(getTenantId(), safe) };
   });
 }

@@ -10,9 +10,10 @@ import { z } from "zod";
  */
 
 export const createBankSchema = z.object({
-  // Código é auto-incremento por tenant: se omitido, o repositório atribui o
-  // próximo (MAX(code)+1). Ainda aceita um valor explícito, se enviado.
-  code: z.number().int().min(0).optional(),
+  // `code` NÃO entra: é sequencial por tenant, atribuído pelo repositório
+  // (MAX(code)+1 sob lock). Aceitar um valor do cliente permitia criar códigos
+  // duplicados de propósito — e agora há índice único, então isso seria só um
+  // 409. O formulário já não envia o campo.
   name: z.string().min(1).max(120),
   agency: z.string().max(60).optional(),
   accountNumber: z.string().max(60).optional(),

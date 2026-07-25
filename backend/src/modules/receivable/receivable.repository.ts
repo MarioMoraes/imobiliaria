@@ -5,7 +5,7 @@ import type {
   ListReceivablesQuery,
   Receivable,
   ScheduledInstallment,
-  UpdateReceivableInput,
+  PatchReceivableInput,
 } from "./receivable.schema.js";
 
 interface Row {
@@ -21,9 +21,9 @@ interface Row {
   installment: number | null;
   installments_total: number | null;
   amount_cents: string | number;
-  due_date: Date;
+  due_date: string;   // DATE -> string (ver setTypeParser em shared/db.ts)
   status: string;
-  paid_at: Date | null;
+  paid_at: string | null;
   paid_amount_cents: string | number | null;
   asaas_charge_id: string | null;
   boleto_url: string | null;
@@ -31,10 +31,6 @@ interface Row {
   created_at: Date;
   updated_at: Date;
 }
-
-/** `DATE` volta como Date do pg; a API troca em string YYYY-MM-DD (sem fuso). */
-const day = (d: Date | null): string | null =>
-  d ? d.toISOString().slice(0, 10) : null;
 
 function toReceivable(row: Row): Receivable {
   return {
@@ -50,9 +46,9 @@ function toReceivable(row: Row): Receivable {
     installment: row.installment,
     installmentsTotal: row.installments_total,
     amountCents: Number(row.amount_cents),
-    dueDate: day(row.due_date)!,
+    dueDate: row.due_date,
     status: row.status,
-    paidAt: day(row.paid_at),
+    paidAt: row.paid_at,
     paidAmountCents: row.paid_amount_cents === null ? null : Number(row.paid_amount_cents),
     asaasChargeId: row.asaas_charge_id,
     boletoUrl: row.boleto_url,
@@ -250,7 +246,7 @@ export async function insertRentSchedule(
 export async function updateReceivable(
   tenantId: string,
   id: string,
-  input: UpdateReceivableInput,
+  input: PatchReceivableInput,
 ): Promise<Receivable | null> {
   const columns: Record<string, unknown> = {
     description: input.description,

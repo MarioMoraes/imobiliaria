@@ -10,9 +10,12 @@ build/
 out/
 
 # Env
+# Regra ampla + exceção para os *.example: `.env.production` (segredos da VPS)
+# não era pego pelos padrões antigos e teria entrado no repositório.
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+!.env.*.example
 
 # Logs
 *.log

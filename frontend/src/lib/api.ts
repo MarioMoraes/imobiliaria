@@ -24,18 +24,20 @@ const DEV_ROLES = process.env.DEV_ROLES ?? "ADMIN";
  * Preferência: token do Clerk; fallback: headers de dev.
  */
 async function authHeaders(): Promise<Record<string, string>> {
-  // Headers de dev enviados SEMPRE como fallback: o backend só os honra com
-  // AUTH_DEV_MODE ligado (nunca em produção). Assim, um usuário logado no Clerk
-  // mas ainda sem tenant (pré-onboarding) consegue ver o tenant demo em dev.
-  const devFallback = { "x-tenant-id": DEMO_TENANT_ID, "x-dev-roles": DEV_ROLES };
   try {
     const { getToken } = await auth();
     const token = await getToken();
-    if (token) return { Authorization: `Bearer ${token}`, ...devFallback };
+    // Com token, mandamos SÓ o token. Enviar os headers de dev junto significava
+    // que qualquer sessão do Clerk vinha acompanhada de "sou ADMIN do tenant
+    // demo" — bastava o backend estar em dev-mode (ou o token falhar) para toda
+    // sessão do navegador virar ADMIN. Um pedido tem uma identidade só.
+    if (token) return { Authorization: `Bearer ${token}` };
   } catch {
-    // Clerk não configurado/sem contexto de request — usa só o fallback de dev.
+    // Clerk não configurado/sem contexto de request — usa o fallback de dev.
   }
-  return devFallback;
+  // Sem sessão: fallback de desenvolvimento. O backend só o honra com
+  // AUTH_DEV_MODE=true E NODE_ENV=development; em qualquer outro lugar dá 401.
+  return { "x-tenant-id": DEMO_TENANT_ID, "x-dev-roles": DEV_ROLES };
 }
 
 /* --------------------------------------------------------------- Tipos */

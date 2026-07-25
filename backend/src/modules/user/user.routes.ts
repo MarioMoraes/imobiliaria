@@ -30,6 +30,17 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
       if (!parsed.success) {
         throw AppError.badRequest("Papel inválido", parsed.error.flatten());
       }
+      // Ninguém muda o próprio papel: fecha a autopromoção e também evita o
+      // auto-lockout (o último ADMIN se rebaixando e deixando o tenant sem
+      // administrador).
+      const { userId } = getAuthUser();
+      if (userId && userId === id) {
+        throw new AppError(
+          "ERR_AUTH_003",
+          403,
+          "Não é possível alterar o seu próprio papel. Peça a outro administrador.",
+        );
+      }
       return { data: await service.changeRole(getTenantId(), id, parsed.data.role) };
     },
   );

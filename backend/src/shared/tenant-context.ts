@@ -1,8 +1,9 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { FastifyRequest } from "fastify";
 import { AppError } from "./errors.js";
-import { env } from "../config/env.js";
+import { authDevMode } from "../config/env.js";
 import { verifyClerkToken } from "./clerk.js";
+import { isUuid } from "./uuid.js";
 
 /**
  * Contexto de autenticação propagado por request via AsyncLocalStorage
@@ -10,8 +11,10 @@ import { verifyClerkToken } from "./clerk.js";
  * resolvido — o acesso a dados sempre passa por `withTenant(...)`.
  *
  * Fase 0+ (MOD-AUTH-05): a identidade vem do JWT de sessão do Clerk (claims
- * `tenant_id` + `sub`). Em desenvolvimento, `AUTH_DEV_MODE` permite simular a
- * sessão pelos headers `x-tenant-id` + `x-dev-roles` (nunca em produção).
+ * `tenant_id` + `sub`). Em desenvolvimento, `authDevMode()` (AUTH_DEV_MODE ligado
+ * **e** NODE_ENV=development) permite simular a sessão pelos headers
+ * `x-tenant-id` + `x-dev-roles` — os papéis vêm do cliente, então isso é um
+ * bypass completo do RBAC e só pode existir na máquina do desenvolvedor.
  * Migrar de provedor = trocar `verifyClerkToken`/`resolveAuth`; o contrato de
  * `getTenantId()`/`getAuthUser()` permanece imutável (RN-06).
  */
@@ -46,6 +49,8 @@ export function getAuthUser(): { userId?: string; roles: string[] } {
 export interface ResolvedAuth {
   tenantId: string;
   userId?: string;
+  /** organização do token no Clerk — contraprova do tenant_id (ver auth-context.hook). */
+  orgId?: string;
   /** papéis vindos do header no dev-mode; no fluxo Clerk fica vazio (carregados do banco). */
   devRoles: string[];
   /** true quando a identidade veio de um token Clerk válido. */
@@ -55,6 +60,16 @@ export interface ResolvedAuth {
 /**
  * Resolve a identidade do request. NÃO toca no banco — apenas extrai
  * tenant/usuário do token (Clerk) ou dos headers de desenvolvimento.
+ *
+ * Ordem das decisões (importa para a segurança):
+ *  1. Veio `Authorization`? Então a resposta SAI do token — falha de verificação
+ *     é 401, nunca degrada para o header. Antes, qualquer erro era engolido em
+ *     dev-mode, e um token inválido somado a `x-tenant-id` dava acesso a
+ *     qualquer tenant.
+ *  2. A única exceção é o token verificado que ainda não tem organização
+ *     (`ERR_AUTH_008`): aí a identidade É legítima e, em dev, o header pode
+ *     suprir o tenant para navegar antes do onboarding.
+ *  3. Sem `Authorization` nenhum, só o dev-mode aceita headers.
  */
 export async function resolveAuth(req: FastifyRequest): Promise<ResolvedAuth> {
   const auth = req.headers["authorization"];
@@ -64,22 +79,21 @@ export async function resolveAuth(req: FastifyRequest): Promise<ResolvedAuth> {
 
   if (bearer) {
     try {
-      const { tenantId, userId } = await verifyClerkToken(bearer);
-      return { tenantId, userId, devRoles: [], viaClerk: true };
+      const { tenantId, userId, orgId } = await verifyClerkToken(bearer);
+      return { tenantId, userId, orgId, devRoles: [], viaClerk: true };
     } catch (err) {
-      // Em dev, um token válido do Clerk mas SEM tenant_id (usuário logado que
-      // ainda não passou pelo onboarding) cai no fallback de header abaixo — isso
-      // permite visualizar o tenant demo sem onboarding completo. Em produção
-      // (AUTH_DEV_MODE=false) o erro sobe normalmente (401).
-      if (!env.AUTH_DEV_MODE) throw err;
+      const claimMissing = err instanceof AppError && err.code === "ERR_AUTH_008";
+      if (!claimMissing || !authDevMode()) throw err;
+      // Cai no fallback abaixo: usuário autenticado, ainda sem organização.
     }
   }
 
-  if (env.AUTH_DEV_MODE) {
+  if (authDevMode()) {
     const header = req.headers["x-tenant-id"];
-    const tenantId = Array.isArray(header) ? header[0] : header;
-    if (!tenantId) throw AppError.tenantNotResolved("Header x-tenant-id ausente");
-    return { tenantId, userId: undefined, devRoles: parseRoles(req), viaClerk: false };
+    const raw = Array.isArray(header) ? header[0] : header;
+    if (!raw) throw AppError.tenantNotResolved("Header x-tenant-id ausente");
+    if (!isUuid(raw)) throw AppError.tenantNotResolved("Header x-tenant-id não é um UUID");
+    return { tenantId: raw, userId: undefined, devRoles: parseRoles(req), viaClerk: false };
   }
 
   throw AppError.tenantNotResolved("Sem token de sessão");

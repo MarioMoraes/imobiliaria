@@ -1,4 +1,4 @@
-import { withTenant } from "../../shared/db.js";
+import { lockSequence, withTenant } from "../../shared/db.js";
 import type {
   Condominium,
   CondominiumExpense,
@@ -232,6 +232,8 @@ export async function insertExpense(
   return withTenant(tenantId, async (client) => {
     // "Lancto nº" sequencial por tenant: MAX(seq)+1 (subquery escopada pela RLS).
     // A transação do withTenant serializa inserções concorrentes.
+    // Serializa a geração do "Lancto nº" deste tenant (ver `lockSequence`).
+    await lockSequence(client, tenantId, "condominium_expenses.seq");
     const { rows } = await client.query<{ id: string }>(
       `INSERT INTO condominium_expenses
          (tenant_id, condominium_id, seq, entry_date, event_id, amount_cents, notes)

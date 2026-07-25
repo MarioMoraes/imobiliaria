@@ -1,6 +1,7 @@
 import * as contractService from "../contract/contract.service.js";
 import * as personService from "../person/person.service.js";
 import * as propertyService from "../property/property.service.js";
+import { can } from "../rbac/permissions.js";
 import type { SearchHit, SearchResults } from "./search.schema.js";
 
 /**
@@ -42,17 +43,28 @@ function personHref(roles: string[], term: string): string {
   return withQuery("/clientes", term);
 }
 
+/**
+ * A busca cruza três domínios, então a autorização também tem de ser por
+ * domínio: cada bucket só é consultado se o papel do usuário puder ler aquele
+ * domínio no endpoint dedicado.
+ *
+ * Um gate único na rota (era `property:read`, o menor denominador) transformava
+ * a barra de busca num bypass do RBAC: `AI_AGENT` e `FINANCEIRO` têm
+ * `property:read` mas não `person:read`, e recebiam nome, **CPF/CNPJ** e telefone
+ * de qualquer pessoa da base — dado pessoal que a matriz nega a eles.
+ */
 export async function search(
   tenantId: string,
   term: string,
   limit: number,
+  roles: readonly string[],
 ): Promise<SearchResults> {
   // Em paralelo: são três consultas independentes e a barra global precisa
   // responder enquanto o usuário ainda digita.
   const [properties, persons, contracts] = await Promise.all([
-    propertyService.search(tenantId, term, limit),
-    personService.search(tenantId, term, limit),
-    contractService.search(tenantId, term, limit),
+    can(roles, "property:read") ? propertyService.search(tenantId, term, limit) : [],
+    can(roles, "person:read") ? personService.search(tenantId, term, limit) : [],
+    can(roles, "contract:read") ? contractService.search(tenantId, term, limit) : [],
   ]);
 
   const imoveis: SearchHit[] = properties.map((p) => ({

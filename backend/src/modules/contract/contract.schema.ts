@@ -23,7 +23,16 @@ export const iptuChargedTo = z.enum(["LOCATARIO", "LOCADOR"]);
 export const partyRole = z.enum(["LOCADOR", "LOCATARIO", "FIADOR"]);
 
 const percent = z.number().min(0).max(100);
-const cents = z.number().int().nonnegative();
+/**
+ * Valor monetário em centavos (não-negativo).
+ *
+ * O teto não é burocracia: a coluna é BIGINT, então um valor como 9e18 era
+ * aceito e gravado, e a leitura faz `Number(...)` — acima de 2^53 a precisão se
+ * perde em silêncio e os totais do dashboard e do fluxo de caixa passam a
+ * mentir. R$ 1 bilhão em centavos é folgado para imóvel, aluguel e despesa, e
+ * mantém tudo dentro do inteiro seguro do JavaScript.
+ */
+const cents = z.number().int().nonnegative().max(100_000_000_000);
 const shortText = z.string().max(200);
 const longText = z.string().max(8000);
 /** Dia do mês (1–31). */
@@ -41,9 +50,12 @@ const contractFields = {
 
   startsAt: isoDate,
   endsAt: isoDate,
-  termMonths: z.number().int().nonnegative(),
+  // Alimenta `buildRentSchedule`: sem teto, `termMonths` grande monta
+  // milhões de parcelas em memória e num INSERT só — DoS com um request.
+  // 600 meses = 50 anos, acima de qualquer locação real.
+  termMonths: z.number().int().nonnegative().max(600),
   readjustIndex: readjustIndex,
-  readjustPeriodMonths: z.number().int().nonnegative(),
+  readjustPeriodMonths: z.number().int().nonnegative().max(600),
   lastReadjustAt: isoDate,
   ownerPayDay: dayOfMonth,
   tenantPayDay: dayOfMonth,

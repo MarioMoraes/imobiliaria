@@ -29,6 +29,7 @@ import { eventRoutes } from "../modules/event/event.routes.js";
 import { bankRoutes } from "../modules/bank/bank.routes.js";
 import { dashboardRoutes } from "../modules/dashboard/dashboard.routes.js";
 import { authContextHook } from "./auth-context.hook.js";
+import { platformAdminHook } from "./platform-admin.hook.js";
 
 /**
  * Gateway / composição de rotas (SPEC seção 4.3). Ponto único que agrega
@@ -36,7 +37,9 @@ import { authContextHook } from "./auth-context.hook.js";
  * seu prefixo em /v1.
  *
  * - /health*        → público, sem tenant
- * - /v1/*           → exige tenant (tenantContextHook aplicado no escopo)
+ * - /webhooks/*     → público na rota; autenticado por segredo do tenant no header
+ * - /admin/*        → plataforma (platformAdminHook), NÃO escopado por tenant
+ * - /v1/*           → exige tenant (authContextHook aplicado no escopo)
  */
 export async function registerRoutes(app: FastifyInstance): Promise<void> {
   // Público
@@ -52,8 +55,15 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(paymentWebhookRoutes, { prefix: "/webhooks/asaas" });
 
   // Administração da plataforma (Super Admin). Fora de /v1: não é escopado por
-  // tenant. TODO: proteger com autorização de Super Admin.
-  await app.register(tenantRoutes, { prefix: "/admin/tenants" });
+  // tenant, então o `authContextHook` não se aplica — o gate é o
+  // `platformAdminHook` (sessão do Clerk + allowlist PLATFORM_ADMIN_CLERK_IDS).
+  await app.register(
+    async (admin) => {
+      admin.addHook("onRequest", platformAdminHook);
+      await admin.register(tenantRoutes, { prefix: "/tenants" });
+    },
+    { prefix: "/admin" },
+  );
 
   // Auth público: onboarding cria o tenant (ainda não há tenant a resolver),
   // por isso fica FORA do escopo /v1 tenant-scoped abaixo. Paths não colidem

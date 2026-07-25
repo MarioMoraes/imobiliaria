@@ -5,7 +5,7 @@ import {
   runInContext,
   type TenantContext,
 } from "../shared/tenant-context.js";
-import { assertActive } from "../modules/tenant/tenant.service.js";
+import { assertActive, assertOrgMatches } from "../modules/tenant/tenant.service.js";
 import { claimInvitedMembership, loadForClerkUser } from "../modules/rbac/rbac.service.js";
 import { getClerkUserEmail, isClerkConfigured } from "../shared/clerk.js";
 import { logger } from "../shared/logger.js";
@@ -32,6 +32,9 @@ export function authContextHook(
 async function buildContext(req: FastifyRequest): Promise<TenantContext> {
   const auth = await resolveAuth(req);
   await assertActive(auth.tenantId);
+  // Contraprova do claim `tenant_id` contra a organização do token: o isolamento
+  // não pode depender só de um mapeamento de metadata no Clerk.
+  if (auth.orgId) await assertOrgMatches(auth.tenantId, auth.orgId);
 
   let userId = auth.userId;
   let roles = auth.devRoles;

@@ -11,7 +11,6 @@ const OTHER_TENANT = "00000000-0000-0000-0000-0000000000ff";
 
 test("um banco criado no tenant demo não é visível por outro tenant", async () => {
   const created = await insertBank(DEMO_TENANT, {
-    code: 341,
     name: `Banco Isolamento ${Date.now()}`,
     favorite: false,
   });

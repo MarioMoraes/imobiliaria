@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { getTenantId } from "../../shared/tenant-context.js";
 import { AppError } from "../../shared/errors.js";
 import { logger } from "../../shared/logger.js";
+import { isUuid } from "../../shared/uuid.js";
 import { requirePermission } from "../rbac/authorize.js";
 import {
   saveSettingsSchema,
@@ -72,27 +73,39 @@ export async function signatureSettingsRoutes(app: FastifyInstance): Promise<voi
  * do webhook — a ZapSign não assina os callbacks (não há HMAC).
  */
 export async function signatureWebhookRoutes(app: FastifyInstance): Promise<void> {
-  app.post<{ Params: { tenantId: string } }>("/:tenantId", async (req) => {
-    const parsed = webhookPayloadSchema.safeParse(req.body);
-    if (!parsed.success) {
-      // 200 de propósito: payload que não entendemos não deve ser reenfileirado.
-      logger.warn({ body: req.body }, "webhook da ZapSign com payload inesperado");
-      return { data: { ignored: true } };
-    }
+  app.post<{ Params: { tenantId: string } }>(
+    "/:tenantId",
+    {
+      // Mesmo raciocínio do webhook do Asaas: público, credencial única é o
+      // segredo por tenant, então precisa de teto de tentativas.
+      config: { rateLimit: { max: 60, timeWindow: "1 minute" } },
+    },
+    async (req) => {
+      const parsed = webhookPayloadSchema.safeParse(req.body);
+      if (!parsed.success) {
+        // 200 de propósito: payload que não entendemos não deve ser reenfileirado.
+        logger.warn({ body: req.body }, "webhook da ZapSign com payload inesperado");
+        return { data: { ignored: true } };
+      }
 
-    const secret = req.headers[WEBHOOK_SECRET_HEADER];
-    const ok = await service.handleWebhook(
-      req.params.tenantId,
-      typeof secret === "string" ? secret : undefined,
-      parsed.data.token,
-    );
+      const secret = req.headers[WEBHOOK_SECRET_HEADER];
+      // Mesmo motivo do webhook do Asaas: `tenantId` da URL entra no `set_config`
+      // antes de qualquer autenticação, e um id malformado viraria 500 público.
+      const ok =
+        isUuid(req.params.tenantId) &&
+        (await service.handleWebhook(
+          req.params.tenantId,
+          typeof secret === "string" ? secret : undefined,
+          parsed.data.token,
+        ));
 
-    if (!ok) {
-      // Mesma resposta para tenant inexistente e segredo errado (não confirma
-      // a existência do tenant para quem estiver sondando).
-      throw new AppError("UNAUTHORIZED", 401, "Assinatura do webhook inválida");
-    }
+      if (!ok) {
+        // Mesma resposta para tenant inexistente e segredo errado (não confirma
+        // a existência do tenant para quem estiver sondando).
+        throw new AppError("UNAUTHORIZED", 401, "Assinatura do webhook inválida");
+      }
 
-    return { data: { received: true } };
-  });
+      return { data: { received: true } };
+    },
+  );
 }

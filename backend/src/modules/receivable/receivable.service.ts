@@ -9,6 +9,7 @@ import type {
   CashFlowQuery,
   CreateReceivableInput,
   ListReceivablesQuery,
+  PatchReceivableInput,
   Receivable,
   SettleReceivableInput,
   UpdateReceivableInput,
@@ -60,17 +61,39 @@ export async function create(
   return created;
 }
 
+/** Edição de dados da cobrança (descrição, valor, vencimento). */
 export async function update(
   tenantId: string,
   id: string,
   input: UpdateReceivableInput,
+): Promise<Receivable> {
+  return patch(tenantId, id, input);
+}
+
+/**
+ * Escrita interna, incluindo os campos de ciclo de vida. Só o próprio módulo usa
+ * (baixa, cancelamento, webhook do provedor) — a rota PATCH nunca alcança isto.
+ */
+async function patch(
+  tenantId: string,
+  id: string,
+  input: PatchReceivableInput,
 ): Promise<Receivable> {
   const updated = await repo.updateReceivable(tenantId, id, input);
   if (!updated) throw AppError.notFound("Conta a receber não encontrada");
   return updated;
 }
 
-/** Baixa manual do pagamento (o gateway ainda não está integrado). */
+/**
+ * Baixa manual do pagamento.
+ *
+ * Um valor menor que o da parcela NÃO quita a cobrança: antes, `settle` gravava
+ * `PAGO` com qualquer valor, então 1 centavo fechava um aluguel de R$ 5.000 e a
+ * parcela desaparecia dos relatórios de inadimplência. Baixa parcial não é um
+ * estado que este módulo modele hoje, então recusamos explicitamente em vez de
+ * registrar um pagamento que a contabilidade não fecha. Valor a mais (juros,
+ * multa) é normal e continua aceito.
+ */
 export async function settle(
   tenantId: string,
   id: string,
@@ -82,10 +105,20 @@ export async function settle(
     throw AppError.badRequest("Conta cancelada não pode receber baixa.");
   }
 
-  const updated = await update(tenantId, id, {
+  const paidAmountCents = input.paidAmountCents ?? current.amountCents;
+  if (paidAmountCents < current.amountCents) {
+    throw new AppError(
+      "ERR_FIN_002",
+      400,
+      "Valor recebido é menor que o da parcela. Ajuste o valor da cobrança antes de dar a baixa.",
+      { amountCents: current.amountCents, paidAmountCents },
+    );
+  }
+
+  const updated = await patch(tenantId, id, {
     status: "PAGO",
     paidAt: input.paidAt ?? new Date().toISOString().slice(0, 10),
-    paidAmountCents: input.paidAmountCents ?? current.amountCents,
+    paidAmountCents,
   });
 
   await publish({
@@ -152,7 +185,7 @@ export async function markOverdueByChargeId(
 ): Promise<Receivable | null> {
   const receivable = await repo.findByChargeId(tenantId, asaasChargeId);
   if (!receivable || receivable.status !== "ABERTO") return receivable;
-  return update(tenantId, receivable.id, { status: "VENCIDO" });
+  return patch(tenantId, receivable.id, { status: "VENCIDO" });
 }
 
 /* --------------------------------------- Geração a partir do contrato */

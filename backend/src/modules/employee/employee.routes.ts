@@ -56,7 +56,13 @@ export async function employeeRoutes(app: FastifyInstance): Promise<void> {
   // `emailSent`: quando a entrega falha, a UI oferece copiar o link.
   app.post(
     "/:id/invite/resend",
-    { preHandler: requirePermission("users:manage") },
+    {
+      preHandler: requirePermission("users:manage"),
+      // Cada chamada dispara um e-mail real (Resend) e um convite no Clerk. O
+      // teto protege a reputação do domínio remetente e evita usar o produto
+      // como ferramenta de spam, mesmo por um admin legítimo com o dedo preso.
+      config: { rateLimit: { max: 10, timeWindow: "5 minutes" } },
+    },
     async (req) => {
       const { id } = req.params as { id: string };
       return { data: await service.resendInvite(getTenantId(), id) };

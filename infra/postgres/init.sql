@@ -25,7 +25,14 @@ $$;
 
 GRANT USAGE ON SCHEMA public TO app_user;
 
--- ── Registro de tenants (nível plataforma, sem RLS) ──────────────
+-- ── Registro de tenants (nível plataforma) ───────────────────────
+-- É a única tabela cuja policy não é "tenant_id = app.tenant_id": aqui a linha
+-- É o tenant. A policy (definida logo abaixo da tabela) aceita duas condições:
+--   • id = app.tenant_id   → a imobiliária lê/edita o próprio cadastro;
+--   • app.platform = 'on'  → operação de plataforma (Super Admin, unicidade
+--                            global no onboarding), via withPlatform() no código.
+-- Sem isso, qualquer consulta a `tenants` alcançaria o registro de todos os
+-- clientes, e um bug em qualquer caminho /v1 vazaria a base de clientes inteira.
 CREATE TABLE IF NOT EXISTS tenants (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name         TEXT NOT NULL,
@@ -41,6 +48,24 @@ CREATE TABLE IF NOT EXISTS tenants (
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- NULLIF(..., '') é obrigatório aqui: uma vez que `app.tenant_id` tenha sido
+-- definido na SESSÃO (é o que todo withTenant faz), ao fim da transação o valor
+-- local reverte para string VAZIA — não para NULL. Sem o NULLIF, ''::uuid lança
+-- "invalid input syntax for type uuid" e a consulta de plataforma quebra numa
+-- conexão reciclada do pool, em vez de simplesmente não casar.
+ALTER TABLE tenants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tenants FORCE  ROW LEVEL SECURITY; -- aplica também ao owner da tabela
+DROP POLICY IF EXISTS tenant_self_or_platform ON tenants;
+CREATE POLICY tenant_self_or_platform ON tenants
+  USING       (
+    current_setting('app.platform', true) = 'on'
+    OR id = NULLIF(current_setting('app.tenant_id', true), '')::uuid
+  )
+  WITH CHECK  (
+    current_setting('app.platform', true) = 'on'
+    OR id = NULLIF(current_setting('app.tenant_id', true), '')::uuid
+  );
 
 -- ── Usuários & papéis (MOD-AUTH) — tabelas de domínio, protegidas por RLS ──
 -- Fase 0: o usuário é criado sem credencial local; login/JWT vêm via Clerk
@@ -193,7 +218,7 @@ CREATE POLICY tenant_isolation ON properties
   WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
 
 -- Privilégios do app_user.
--- tenants é nível-plataforma (sem RLS): o CRUD administrativo escreve aqui.
+-- tenants tem policy própria (self OR platform) — ver a definição da tabela.
 GRANT SELECT, INSERT, UPDATE, DELETE ON tenants    TO app_user;
 GRANT SELECT, INSERT, UPDATE, DELETE ON properties TO app_user;
 
@@ -412,6 +437,9 @@ CREATE TABLE IF NOT EXISTS banks (
   updated_at             TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_banks_tenant ON banks (tenant_id);
+-- Código sequencial por tenant: o único garante que a corrida do MAX(code)+1
+-- falhe em vez de gerar dois bancos com o mesmo código (ver lockSequence).
+CREATE UNIQUE INDEX IF NOT EXISTS idx_banks_tenant_code ON banks (tenant_id, code);
 
 ALTER TABLE banks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE banks FORCE  ROW LEVEL SECURITY;
@@ -445,6 +473,7 @@ CREATE TABLE IF NOT EXISTS brokers (
   updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_brokers_tenant ON brokers (tenant_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_brokers_tenant_code ON brokers (tenant_id, code);
 
 ALTER TABLE brokers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE brokers FORCE  ROW LEVEL SECURITY;
@@ -511,6 +540,9 @@ CREATE TABLE IF NOT EXISTS condominium_expenses (
 );
 CREATE INDEX IF NOT EXISTS idx_condo_expenses_tenant ON condominium_expenses (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_condo_expenses_condo  ON condominium_expenses (condominium_id);
+-- "Lancto nº" é sequencial por TENANT (não por condomínio), como o MAX(seq)+1.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_condo_expenses_tenant_seq
+  ON condominium_expenses (tenant_id, seq);
 
 ALTER TABLE condominium_expenses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE condominium_expenses FORCE  ROW LEVEL SECURITY;
@@ -811,6 +843,9 @@ CREATE TABLE IF NOT EXISTS contracts (
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_contracts_tenant        ON contracts (tenant_id);
+-- "Contrato Nº" é identidade de negócio: dois contratos com o mesmo número
+-- confundem locador, locatário e a cobrança. O único torna a corrida visível.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_contracts_tenant_code ON contracts (tenant_id, code);
 CREATE INDEX IF NOT EXISTS idx_contracts_tenant_status ON contracts (tenant_id, status);
 CREATE INDEX IF NOT EXISTS idx_contracts_ends_at       ON contracts (tenant_id, ends_at) WHERE status = 'VIGENTE';
 

@@ -14,7 +14,16 @@ import { z } from "zod";
 /** Percentual 0–100 com até 2 casas (taxa adm %, juros, multa). */
 const percent = z.number().min(0).max(100);
 /** Valor monetário em centavos (não-negativo). */
-const cents = z.number().int().nonnegative();
+/**
+ * Valor monetário em centavos (não-negativo).
+ *
+ * O teto não é burocracia: a coluna é BIGINT, então um valor como 9e18 era
+ * aceito e gravado, e a leitura faz `Number(...)` — acima de 2^53 a precisão se
+ * perde em silêncio e os totais do dashboard e do fluxo de caixa passam a
+ * mentir. R$ 1 bilhão em centavos é folgado para imóvel, aluguel e despesa, e
+ * mantém tudo dentro do inteiro seguro do JavaScript.
+ */
+const cents = z.number().int().nonnegative().max(100_000_000_000);
 
 export const createCondominiumSchema = z.object({
   name: z.string().min(2).max(120),

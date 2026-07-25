@@ -33,6 +33,7 @@ export const onboardingSchema = z.object({
     .optional(),
   invites: z
     .array(z.object({ email: z.string().email(), role: onboardingRoles }))
+    .max(50)
     .optional(),
 });
 

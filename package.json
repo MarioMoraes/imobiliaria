@@ -17,7 +17,11 @@
     "test": "npm run test --workspaces --if-present",
     "infra:up": "docker compose up -d",
     "infra:down": "docker compose down",
-    "infra:reset": "docker compose down -v"
+    "infra:reset": "docker compose down -v",
+    "images:build": "docker build -f backend/Dockerfile -t ${BACKEND_IMAGE:-offices-ai/backend:latest} . && docker build -f frontend/Dockerfile --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY -t ${FRONTEND_IMAGE:-offices-ai/frontend:latest} .",
+    "prod:up": "docker compose -f docker-compose.prod.yml --env-file .env.production up -d",
+    "prod:down": "docker compose -f docker-compose.prod.yml --env-file .env.production down",
+    "prod:logs": "docker compose -f docker-compose.prod.yml --env-file .env.production logs -f"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

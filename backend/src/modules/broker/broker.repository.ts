@@ -1,4 +1,4 @@
-import { withTenant } from "../../shared/db.js";
+import { lockSequence, withTenant } from "../../shared/db.js";
 import type { Broker, CreateBrokerInput, UpdateBrokerInput } from "./broker.schema.js";
 
 interface Row {
@@ -67,6 +67,8 @@ export async function insertBroker(
   return withTenant(tenantId, async (client) => {
     // Código sequencial por tenant: MAX(code)+1 (subquery escopada pela RLS).
     // A transação do withTenant serializa inserções concorrentes.
+    // Serializa a geração do código sequencial deste tenant (ver `lockSequence`).
+    await lockSequence(client, tenantId, "brokers.code");
     const { rows } = await client.query<Row>(
       `INSERT INTO brokers
          (tenant_id, code, name, address, district, city, state, zip,

@@ -1,4 +1,4 @@
-import { withTenant } from "../../shared/db.js";
+import { lockSequence, withTenant } from "../../shared/db.js";
 import type { Bank, CreateBankInput, UpdateBankInput } from "./bank.schema.js";
 
 interface Row {
@@ -66,16 +66,16 @@ export async function insertBank(
   input: CreateBankInput,
 ): Promise<Bank> {
   return withTenant(tenantId, async (client) => {
-    // Código auto-incremento por tenant: quando não vem informado ($2 nulo),
-    // usa MAX(code)+1 do próprio tenant (a subquery é escopada pela RLS). A
-    // transação do withTenant evita corrida entre inserções concorrentes.
+    // Código auto-incremento por tenant: usa MAX(code)+1 do próprio tenant (a
+    // subquery é escopada pela RLS). O lock serializa as inserções concorrentes
+    // do MESMO tenant — a transação por si só não faz isso (ver `lockSequence`).
+    await lockSequence(client, tenantId, "banks.code");
     const { rows } = await client.query<Row>(
       `INSERT INTO banks (tenant_id, code, name, agency, account_number, favorite)
-       VALUES ($1, COALESCE($2, (SELECT COALESCE(MAX(code), 0) + 1 FROM banks)), $3, $4, $5, $6)
+       VALUES ($1, (SELECT COALESCE(MAX(code), 0) + 1 FROM banks), $2, $3, $4, $5)
        RETURNING *`,
       [
         tenantId,
-        input.code ?? null,
         input.name,
         input.agency ?? null,
         input.accountNumber ?? null,
@@ -103,7 +103,7 @@ export async function updateBank(
     sets.push(`${col} = $${values.length}`);
   };
 
-  if (input.code !== undefined) push("code", input.code);
+  // `code` não é editável: é a identidade sequencial do banco no tenant.
   if (input.name !== undefined) push("name", input.name);
   if (input.agency !== undefined) push("agency", input.agency ?? null);
   if (input.accountNumber !== undefined) push("account_number", input.accountNumber ?? null);

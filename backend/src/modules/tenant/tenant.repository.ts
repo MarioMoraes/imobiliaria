@@ -1,4 +1,4 @@
-import { pool } from "../../shared/db.js";
+import { withPlatform, withTenant } from "../../shared/db.js";
 import type {
   CreateTenantInput,
   Tenant,
@@ -7,10 +7,18 @@ import type {
 } from "./tenant.schema.js";
 
 /**
- * Acesso a dados de tenants. Diferente dos módulos de domínio, usa o `pool`
- * diretamente (sem `withTenant`): `tenants` é nível-plataforma e não tem RLS.
- * O gate de acesso aqui é a autorização de Super Admin (a implementar), não o
- * isolamento por tenant.
+ * Acesso a dados de tenants. `tenants` é a tabela de registro da plataforma, e a
+ * policy de RLS dela aceita DUAS condições (ver infra/postgres/init.sql):
+ * `id = app.tenant_id` (a própria imobiliária) ou `app.platform = 'on'`.
+ *
+ * Por isso as funções vêm em pares, e o sufixo importa:
+ *  - sem sufixo  → `withTenant`, alcança só a linha do próprio tenant. É o que
+ *    o autoatendimento (`/v1/tenant`) e o `assertActive` usam.
+ *  - `AsPlatform` → `withPlatform`, atravessa tenants. Só para a área de Super
+ *    Admin e para a unicidade global no onboarding (quando ainda não há tenant).
+ *
+ * Manter os dois caminhos separados é o que impede que um bug futuro no
+ * autoatendimento leia o cadastro de outra imobiliária.
  */
 
 interface Row {
@@ -45,42 +53,101 @@ function toTenant(row: Row): Tenant {
   };
 }
 
-export async function listTenants(): Promise<Tenant[]> {
-  const { rows } = await pool.query<Row>(
-    "SELECT * FROM tenants ORDER BY created_at DESC LIMIT 200",
-  );
-  return rows.map(toTenant);
+export async function listTenantsAsPlatform(): Promise<Tenant[]> {
+  return withPlatform(async (client) => {
+    const { rows } = await client.query<Row>(
+      "SELECT * FROM tenants ORDER BY created_at DESC LIMIT 200",
+    );
+    return rows.map(toTenant);
+  });
 }
 
+/**
+ * A própria imobiliária. Roda sob `withTenant(id)`, então a policy só devolve a
+ * linha quando `id` é o tenant corrente — se um dia alguém passar um id
+ * arbitrário aqui, o resultado é "não encontrado", não o dado de outro cliente.
+ */
 export async function findTenantById(id: string): Promise<Tenant | null> {
-  const { rows } = await pool.query<Row>("SELECT * FROM tenants WHERE id = $1", [id]);
-  return rows[0] ? toTenant(rows[0]) : null;
+  return withTenant(id, async (client) => {
+    const { rows } = await client.query<Row>("SELECT * FROM tenants WHERE id = $1", [id]);
+    return rows[0] ? toTenant(rows[0]) : null;
+  });
 }
 
+export async function findTenantByIdAsPlatform(id: string): Promise<Tenant | null> {
+  return withPlatform(async (client) => {
+    const { rows } = await client.query<Row>("SELECT * FROM tenants WHERE id = $1", [id]);
+    return rows[0] ? toTenant(rows[0]) : null;
+  });
+}
+
+/** Unicidade global de slug/CNPJ: por definição atravessa tenants. */
 export async function findTenantBySlug(slug: string): Promise<Tenant | null> {
-  const { rows } = await pool.query<Row>("SELECT * FROM tenants WHERE slug = $1", [slug]);
-  return rows[0] ? toTenant(rows[0]) : null;
+  return withPlatform(async (client) => {
+    const { rows } = await client.query<Row>("SELECT * FROM tenants WHERE slug = $1", [slug]);
+    return rows[0] ? toTenant(rows[0]) : null;
+  });
 }
 
 export async function findTenantByCnpj(cnpj: string): Promise<Tenant | null> {
-  const { rows } = await pool.query<Row>("SELECT * FROM tenants WHERE cnpj = $1", [cnpj]);
-  return rows[0] ? toTenant(rows[0]) : null;
+  return withPlatform(async (client) => {
+    const { rows } = await client.query<Row>("SELECT * FROM tenants WHERE cnpj = $1", [cnpj]);
+    return rows[0] ? toTenant(rows[0]) : null;
+  });
 }
 
-export async function insertTenant(input: CreateTenantInput): Promise<Tenant> {
-  const { rows } = await pool.query<Row>(
-    `INSERT INTO tenants (name, slug, domain, logo_url, plan)
-     VALUES ($1, $2, $3, $4, $5)
-     RETURNING *`,
-    [input.name, input.slug, input.domain ?? null, input.logoUrl ?? null, input.plan],
-  );
-  return toTenant(rows[0]!);
+export async function insertTenantAsPlatform(input: CreateTenantInput): Promise<Tenant> {
+  return withPlatform(async (client) => {
+    const { rows } = await client.query<Row>(
+      `INSERT INTO tenants (name, slug, domain, logo_url, plan)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [input.name, input.slug, input.domain ?? null, input.logoUrl ?? null, input.plan],
+    );
+    return toTenant(rows[0]!);
+  });
 }
 
-export async function updateTenant(
+/** Remove o tenant (cascata em users/user_roles). Só o rollback do onboarding usa. */
+export async function deleteTenantAsPlatform(id: string): Promise<void> {
+  await withPlatform(async (client) => {
+    await client.query("DELETE FROM tenants WHERE id = $1", [id]);
+  });
+}
+
+/** Edição pela plataforma: qualquer tenant, inclusive `status`/`plan`. */
+export async function updateTenantAsPlatform(
   id: string,
   patch: UpdateTenantInput,
 ): Promise<Tenant | null> {
+  const built = buildUpdate(patch);
+  if (!built) return findTenantByIdAsPlatform(id);
+
+  return withPlatform(async (client) => {
+    const { rows } = await client.query<Row>(built.sql, [...built.values, id]);
+    return rows[0] ? toTenant(rows[0]) : null;
+  });
+}
+
+/** Edição pela própria imobiliária: a policy garante que só a própria linha muda. */
+export async function updateCurrentTenant(
+  tenantId: string,
+  patch: UpdateTenantInput,
+): Promise<Tenant | null> {
+  const built = buildUpdate(patch);
+  if (!built) return findTenantById(tenantId);
+
+  return withTenant(tenantId, async (client) => {
+    const { rows } = await client.query<Row>(built.sql, [...built.values, tenantId]);
+    return rows[0] ? toTenant(rows[0]) : null;
+  });
+}
+
+/**
+ * Monta o SET do UPDATE. `null` quando não há nada a mudar. O último placeholder
+ * é sempre o id, que o caller acrescenta aos values.
+ */
+function buildUpdate(patch: UpdateTenantInput): { sql: string; values: unknown[] } | null {
   const sets: string[] = [];
   const values: unknown[] = [];
   let i = 1;
@@ -113,14 +180,11 @@ export async function updateTenant(
     sets.push(`status = $${i++}`);
     values.push(patch.status);
   }
-  if (sets.length === 0) return findTenantById(id);
+  if (sets.length === 0) return null;
 
   sets.push("updated_at = now()");
-  values.push(id);
-
-  const { rows } = await pool.query<Row>(
-    `UPDATE tenants SET ${sets.join(", ")} WHERE id = $${i} RETURNING *`,
+  return {
+    sql: `UPDATE tenants SET ${sets.join(", ")} WHERE id = $${i} RETURNING *`,
     values,
-  );
-  return rows[0] ? toTenant(rows[0]) : null;
+  };
 }

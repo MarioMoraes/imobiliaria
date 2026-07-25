@@ -24,6 +24,18 @@ const schema = z.object({
   RABBITMQ_URL: z.string().default("amqp://guest:guest@localhost:5672"),
   CORS_ORIGIN: z.string().default("http://localhost:3000"),
 
+  // Ligue APENAS quando o backend estiver atrás de um proxy reverso de
+  // confiança (o Caddy do docker-compose.prod.yml). Ligado, o Fastify passa a
+  // ler o IP do cliente de `X-Forwarded-For`; desligado, todo request atrás do
+  // proxy chega com o IP do PRÓPRIO proxy — e aí o rate limit dos webhooks vira
+  // um balde único para o mundo inteiro. O inverso também é perigoso: se o
+  // backend for alcançável direto, confiar no cabeçalho deixa qualquer um
+  // forjar o próprio IP e escapar do limite. Por isso o default é false.
+  TRUST_PROXY: z
+    .string()
+    .default("false")
+    .transform((v) => v.trim().toLowerCase() === "true" || v.trim() === "1"),
+
   // ── Autenticação (MOD-AUTH-05) ─────────────────────────────────
   // Clerk é o provedor de identidade. As chaves são opcionais em dev para não
   // travar o boot; sem elas, o AUTH_DEV_MODE abaixo permite simular a sessão.
@@ -31,17 +43,37 @@ const schema = z.object({
   // Chave pública do JWT (PEM) para verificação networkless do token do Clerk.
   CLERK_JWT_KEY: z.string().optional(),
   // Modo de desenvolvimento: sem Authorization, aceita x-tenant-id + x-dev-roles
-  // para simular um usuário autenticado. NUNCA pode ficar ligado em produção.
+  // para simular um usuário autenticado. É um bypass completo do gate de
+  // autenticação, então o default é DESLIGADO: quem quiser precisa pedir
+  // explicitamente, e só vale com NODE_ENV=development (ver `authDevMode()`).
+  // Um default ligado transformaria "esqueci de definir NODE_ENV" em "API aberta".
   // NÃO usar z.coerce.boolean(): Boolean("false") === true, então "false" nunca
   // desligaria o dev-mode. Interpretamos a string explicitamente.
   AUTH_DEV_MODE: z
     .string()
-    .default("true")
+    .default("false")
     .transform((v) => v.trim().toLowerCase() === "true" || v.trim() === "1"),
 
-  // ── Object storage (S3-compatível; MinIO em dev) ───────────────
+  // Administradores da PLATAFORMA (Super Admin), por id de usuário do Clerk
+  // (`user_...`), separados por vírgula. É uma identidade deliberadamente
+  // separada do RBAC de tenant: os papéis de tenant vêm de um claim do JWT da
+  // organização, e um ADMIN de imobiliária não pode virar admin da plataforma.
+  // Default vazio = área de plataforma trancada (nega todo mundo).
+  PLATFORM_ADMIN_CLERK_IDS: z
+    .string()
+    .default("")
+    .transform((v) =>
+      v
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean),
+    ),
+
+  // ── Object storage (S3-compatível) ─────────────────────────────
   // Mídia (fotos de imóveis) mora no bucket; o Postgres guarda só a chave.
-  // Defaults apontam para o MinIO local do docker-compose.
+  // Os defaults abaixo são de um MinIO local, mas o docker-compose NÃO sobe
+  // MinIO: o bucket é externo (R2) nos dois ambientes. Sem configurar as S3_*,
+  // o upload de fotos falha — o resto do sistema funciona.
   S3_ENDPOINT: z.string().default("http://localhost:9000"),
   S3_REGION: z.string().default("us-east-1"),
   S3_ACCESS_KEY: z.string().default("minioadmin"),
@@ -122,3 +154,15 @@ if (parsed.NODE_ENV === "production" && !process.env.APP_ENCRYPTION_KEY?.trim())
 
 export const env = parsed;
 export type Env = typeof env;
+
+/**
+ * Único ponto que decide se o bypass de desenvolvimento está ativo. Exige as
+ * DUAS condições: o opt-in explícito e `NODE_ENV=development`.
+ *
+ * A checagem é positiva de propósito (`=== "development"`, não
+ * `!== "production"`): qualquer ambiente que não se declare "development" —
+ * staging, um container sem NODE_ENV, um teste de carga — falha fechado.
+ */
+export function authDevMode(): boolean {
+  return env.AUTH_DEV_MODE && env.NODE_ENV === "development";
+}

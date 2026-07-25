@@ -2,6 +2,7 @@ import { createClerkClient, verifyToken } from "@clerk/backend";
 import { env } from "../config/env.js";
 import { AppError } from "./errors.js";
 import { logger } from "./logger.js";
+import { isUuid } from "./uuid.js";
 
 /**
  * Cliente da API do Clerk (server-side). Usado pelo onboarding para criar a
@@ -133,6 +134,27 @@ export async function getClerkUserEmail(userId: string): Promise<string | null> 
 export interface ClerkAuth {
   tenantId: string;
   userId: string;
+  /**
+   * Id da organização no Clerk (`org_...`), quando o token tem uma org ativa.
+   * Serve de contraprova do `tenant_id`: o backend confere contra
+   * `tenants.clerk_org_id` (ver `auth-context.hook.ts`), para que o isolamento
+   * não dependa de um único mapeamento de metadata do lado do Clerk.
+   */
+  orgId?: string;
+}
+
+/**
+ * Opções comuns de verificação. `authorizedParties` fixa a audiência: sem ele, o
+ * `verifyToken` aceita qualquer token de sessão emitido pela nossa instância do
+ * Clerk, inclusive um obtido por outro frontend/origem — o cenário clássico de
+ * "deputado confuso". A lista é a origem do nosso próprio app.
+ */
+function verifyOptions() {
+  return {
+    secretKey: env.CLERK_SECRET_KEY,
+    jwtKey: env.CLERK_JWT_KEY,
+    authorizedParties: [env.APP_BASE_URL],
+  };
 }
 
 /**
@@ -145,10 +167,7 @@ export async function verifyClerkSession(token: string): Promise<{ userId: strin
     throw AppError.tenantNotResolved("Clerk não configurado (defina CLERK_SECRET_KEY)");
   }
   try {
-    const claims = await verifyToken(token, {
-      secretKey: env.CLERK_SECRET_KEY,
-      jwtKey: env.CLERK_JWT_KEY,
-    });
+    const claims = await verifyToken(token, verifyOptions());
     return { userId: claims.sub };
   } catch (err) {
     if (err instanceof AppError) throw err;
@@ -163,15 +182,19 @@ export async function verifyClerkToken(token: string): Promise<ClerkAuth> {
     throw AppError.tenantNotResolved("Clerk não configurado (defina CLERK_SECRET_KEY)");
   }
   try {
-    const claims = await verifyToken(token, {
-      secretKey: env.CLERK_SECRET_KEY,
-      jwtKey: env.CLERK_JWT_KEY,
-    });
+    const claims = await verifyToken(token, verifyOptions());
     const tenantId = typeof claims.tenant_id === "string" ? claims.tenant_id : undefined;
-    if (!tenantId) {
-      throw AppError.tenantNotResolved("Token sem claim tenant_id");
+    // Erro DISTINTO de "token inválido": a identidade foi verificada, só falta a
+    // organização. É o único caso que o dev-mode pode complementar com header.
+    if (!tenantId) throw AppError.tenantClaimMissing();
+    // O claim é config do lado do Clerk (JWT template) — tratamos como entrada
+    // não confiável: sem UUID válido, o RLS só quebraria no primeiro SELECT.
+    if (!isUuid(tenantId)) {
+      logger.warn({ tenantId }, "claim tenant_id não é um UUID");
+      throw AppError.tenantNotResolved("Claim tenant_id inválido");
     }
-    return { tenantId, userId: claims.sub };
+    const orgId = typeof claims.org_id === "string" ? claims.org_id : undefined;
+    return { tenantId, userId: claims.sub, orgId };
   } catch (err) {
     if (err instanceof AppError) throw err;
     logger.warn({ err }, "falha ao verificar token do Clerk");

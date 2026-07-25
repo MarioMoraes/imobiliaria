@@ -1,0 +1,147 @@
+# Demonstração LOCAL — roda no Docker Desktop da máquina do cliente.
+#
+#   docker compose -f docker-compose.demo.yml up -d
+#   → http://localhost:3000
+#
+# Diferenças em relação ao docker-compose.prod.yml:
+#  • sem Caddy/HTTPS: o acesso é localhost, então não há domínio nem certificado;
+#  • as imagens vêm de um arquivo .tar carregado com `docker load`, não de um
+#    registro (o cliente não precisa de conta em lugar nenhum);
+#  • senhas fixas e simples: nada aqui é alcançável de fora da máquina.
+#
+# O que NÃO muda: `AUTH_DEV_MODE` continua desligado e o login é o do Clerk, de
+# verdade. A demonstração mostra o produto, não uma versão com a porta aberta.
+name: offices-ai-demo
+
+services:
+  frontend:
+    image: ${FRONTEND_IMAGE:-offices-ai/frontend:demo}
+    container_name: offices-demo-frontend
+    restart: unless-stopped
+    ports:
+      # Se a 3000 já estiver ocupada na máquina do cliente, basta definir
+      # FRONTEND_PORT no .env — os endereços que o backend usa acompanham.
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      BACKEND_URL: http://backend:3001
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:?}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:?}
+      PLATFORM_ADMIN_CLERK_IDS: ${PLATFORM_ADMIN_CLERK_IDS:-}
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  backend:
+    image: ${BACKEND_IMAGE:-offices-ai/backend:demo}
+    container_name: offices-demo-backend
+    restart: unless-stopped
+    # Publicada para dar um caminho de diagnóstico se a demo não abrir
+    # (http://localhost:3001/health). O navegador não usa esta porta: as
+    # chamadas saem de dentro do frontend pela rede interna.
+    ports:
+      - "${BACKEND_PORT:-3001}:3001"
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      LOG_LEVEL: info
+      DATABASE_URL: postgres://app_user:demo_app_user@postgres:5432/imobiliaria
+      REDIS_URL: redis://redis:6379
+      RABBITMQ_URL: amqp://imobiliaria:demo_rabbit@rabbitmq:5672
+      GOTENBERG_URL: http://gotenberg:3000
+      CORS_ORIGIN: http://localhost:${FRONTEND_PORT:-3000}
+      APP_BASE_URL: http://localhost:${FRONTEND_PORT:-3000}
+      # Sem endereço público, o registro automático de webhook na ZapSign/Asaas
+      # é pulado — é o comportamento esperado numa demo offline.
+      PUBLIC_BASE_URL: http://localhost:${BACKEND_PORT:-3001}
+      AUTH_DEV_MODE: "false"
+      TRUST_PROXY: "false" # sem proxy na frente: confiar em X-Forwarded-For aqui
+                           # deixaria qualquer um forjar o próprio IP
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:?}
+      PLATFORM_ADMIN_CLERK_IDS: ${PLATFORM_ADMIN_CLERK_IDS:-}
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_REGION: ${S3_REGION:-auto}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+      S3_BUCKET: ${S3_BUCKET:-imobiliaria-media}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-true}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: offices-demo-postgres
+    restart: unless-stopped
+    # Sem porta publicada de propósito: muita gente já tem um Postgres na 5432 e
+    # o conflito faria a demo não subir por um motivo que não é dela.
+    environment:
+      POSTGRES_USER: imobiliaria
+      POSTGRES_PASSWORD: demo_postgres
+      POSTGRES_DB: imobiliaria
+      APP_DB_PASSWORD: demo_app_user
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/10-init.sql:ro
+      - ./infra/postgres/prod/20-app-user-password.sh:/docker-entrypoint-initdb.d/20-app-user-password.sh:ro
+      # Não é script de init: fica montado para ser chamado à mão depois que o
+      # cliente criar a conta (ver README-DEMO.md).
+      - ./infra/postgres/demo:/demo:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U imobiliaria -d imobiliaria"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    container_name: offices-demo-redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3-alpine
+    container_name: offices-demo-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: imobiliaria
+      RABBITMQ_DEFAULT_PASS: demo_rabbit
+    healthcheck:
+      # `ping` responde antes de a porta 5672 aceitar conexão, e o backend não
+      # retenta — os eventos ficariam desligados até reiniciar o container.
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 30s
+
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    container_name: offices-demo-gotenberg
+    restart: unless-stopped
+    command:
+      - "gotenberg"
+      - "--chromium-deny-list=^file:(?!///tmp/).*|^https?://(localhost|127\\.|0\\.0\\.0\\.0|\\[?::1|169\\.254\\.|10\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.)"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:

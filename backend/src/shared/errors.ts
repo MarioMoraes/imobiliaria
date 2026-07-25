@@ -10,6 +10,7 @@ export type ErrorCode =
   | "NOT_FOUND"
   | "TENANT_REQUIRED"
   | "CONFLICT"
+  | "TOO_MANY_REQUESTS"
   | "INTERNAL"
   // Códigos canônicos do MOD-AUTH (PRD seção 5). São a referência herdada por
   // todos os módulos; emitidos no campo `code` do corpo de erro.
@@ -18,6 +19,8 @@ export type ErrorCode =
   | "ERR_AUTH_005" // tenant não resolvido
   | "ERR_AUTH_006" // tenant suspenso/inativo
   | "ERR_AUTH_007" // usuário sem papel ativo
+  | "ERR_AUTH_008" // token válido, mas sem claim tenant_id (usuário sem organização)
+  | "ERR_AUTH_009" // claim tenant_id não corresponde à organização do token
   // Códigos do MOD-FUNC (PRD funcionarios §5).
   | "ERR_FUNC_001" // funcionário não encontrado
   | "ERR_FUNC_004" // identidade duplicada (CPF/e-mail)
@@ -74,6 +77,18 @@ export class AppError extends Error {
     return new AppError("ERR_AUTH_005", 401, message);
   }
 
+  /**
+   * Token de sessão válido, porém sem o claim `tenant_id` — o usuário está
+   * autenticado mas não pertence a nenhuma organização (não fez onboarding).
+   * Diferente de `tenantNotResolved`: aqui a identidade FOI verificada, e é o
+   * único caso em que o fallback de dev pode assumir um tenant (ver
+   * `resolveAuth`). Confundir os dois é o que permitia usar um token inválido
+   * para entrar em qualquer tenant pelo header.
+   */
+  static tenantClaimMissing(message = "Token sem claim tenant_id") {
+    return new AppError("ERR_AUTH_008", 401, message);
+  }
+
   /** Tenant existe mas está suspenso/inativo/cancelado. */
   static tenantSuspended(message = "Tenant suspenso") {
     return new AppError("ERR_AUTH_006", 403, message);
@@ -85,6 +100,62 @@ export class AppError extends Error {
   }
 }
 
+/**
+ * Erros do Postgres que descrevem um problema do PEDIDO, não do servidor.
+ *
+ * Sem esse mapeamento, violar uma constraint (CNPJ repetido, código sequencial em
+ * corrida, FK inexistente, uuid malformado na URL) devolvia 500 INTERNAL e um log
+ * de "erro não tratado" — o cliente não tinha como saber que a culpa era do
+ * próprio pedido, e o log enchia de falso positivo.
+ *
+ * Só os códigos que temos certeza de serem culpa do cliente entram aqui; o resto
+ * segue para 500, que é o comportamento seguro.
+ */
+const PG_ERRORS: Record<string, { status: number; code: ErrorCode; message: string }> = {
+  // unique_violation
+  "23505": {
+    status: 409,
+    code: "CONFLICT",
+    message: "Registro já existente (valor duplicado).",
+  },
+  // foreign_key_violation
+  "23503": {
+    status: 400,
+    code: "BAD_REQUEST",
+    message: "Referência inválida: o registro relacionado não existe.",
+  },
+  // not_null_violation
+  "23502": {
+    status: 400,
+    code: "BAD_REQUEST",
+    message: "Campo obrigatório ausente.",
+  },
+  // check_violation
+  "23514": {
+    status: 400,
+    code: "BAD_REQUEST",
+    message: "Valor fora do permitido para o campo.",
+  },
+  // invalid_text_representation (ex.: 'abc' onde se espera uuid)
+  "22P02": {
+    status: 400,
+    code: "BAD_REQUEST",
+    message: "Identificador ou valor em formato inválido.",
+  },
+  // string_data_right_truncation
+  "22001": {
+    status: 400,
+    code: "BAD_REQUEST",
+    message: "Valor mais longo que o permitido para o campo.",
+  },
+  // numeric_value_out_of_range
+  "22003": {
+    status: 400,
+    code: "BAD_REQUEST",
+    message: "Valor numérico fora da faixa permitida.",
+  },
+};
+
 export function toErrorBody(err: unknown): {
   statusCode: number;
   body: { error: { code: ErrorCode; message: string; details?: unknown } };
@@ -94,6 +165,19 @@ export function toErrorBody(err: unknown): {
       statusCode: err.statusCode,
       body: { error: { code: err.code, message: err.message, details: err.details } },
     };
+  }
+
+  // Erro do driver do Postgres: `code` é o SQLSTATE. Nunca repassamos a mensagem
+  // do banco (ela revela nome de tabela, coluna e constraint) — só a nossa.
+  const pgCode = (err as { code?: unknown })?.code;
+  if (typeof pgCode === "string") {
+    const mapped = PG_ERRORS[pgCode];
+    if (mapped) {
+      return {
+        statusCode: mapped.status,
+        body: { error: { code: mapped.code, message: mapped.message } },
+      };
+    }
   }
   // Erros do próprio Fastify (JSON malformado, corpo vazio com content-type
   // json, payload grande) já trazem um statusCode 4xx e uma mensagem útil.

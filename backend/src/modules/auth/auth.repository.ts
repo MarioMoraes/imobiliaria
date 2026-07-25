@@ -4,9 +4,13 @@ import type { OnboardedUser, OnboardingInput } from "./auth.schema.js";
 
 /**
  * Acesso a dados do onboarding. `createTenantWithAdmin` roda tenant + primeiro
- * usuário + papel em UMA transação: `tenants` é nível-plataforma (sem RLS),
- * mas `users`/`user_roles` têm RLS — por isso definimos `app.tenant_id` para o
- * tenant recém-criado dentro da mesma transação antes de inserir o admin.
+ * usuário + papel em UMA transação, e por isso precisa dos DOIS escopos de RLS
+ * na mesma transação:
+ *  - `app.platform = 'on'` para inserir em `tenants` (a linha ainda não existe,
+ *    então a condição `id = app.tenant_id` da policy não teria como valer);
+ *  - `app.tenant_id = <novo tenant>` para inserir em `users`/`user_roles`.
+ * Depois de definido o `app.tenant_id`, a policy de `tenants` também passa a
+ * valer pelo primeiro braço — o `app.platform` só é necessário para o INSERT.
  */
 
 interface TenantRow {
@@ -69,6 +73,8 @@ export async function createTenantWithAdmin(
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    // Escopo de plataforma: sem ele a policy de `tenants` recusa o INSERT.
+    await client.query("SELECT set_config('app.platform', 'on', true)");
 
     const { rows: tenantRows } = await client.query<TenantRow>(
       `INSERT INTO tenants (name, slug, cnpj, creci, plan, status, clerk_org_id)

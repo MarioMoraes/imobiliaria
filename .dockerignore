@@ -1,0 +1,40 @@
+# Contexto de build dos DOIS Dockerfiles (backend e frontend) é esta raiz —
+# por isso o .dockerignore vive aqui, e não dentro de cada workspace (o Docker
+# só lê o do diretório de contexto).
+#
+# O que entra no contexto é enviado ao daemon a cada build: `node_modules` da
+# máquina sozinho são centenas de MB, e ainda por cima são de outra plataforma —
+# o `npm ci` de dentro da imagem é quem instala os corretos.
+node_modules
+**/node_modules
+
+# Artefatos de build locais (a imagem gera os seus).
+dist
+**/dist
+.next
+**/.next
+out
+**/out
+*.tsbuildinfo
+
+# Segredos: NUNCA devem virar camada de imagem.
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Histórico e material que não afeta o runtime.
+.git
+.github
+.gitignore
+docs
+imagens
+*.md
+!README.md
+
+# Ruído local.
+.DS_Store
+.idea
+.vscode
+coverage
+*.log

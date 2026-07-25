@@ -6,7 +6,9 @@
  * é aplicada aqui, no momento da geração.
  *
  * Modelos legados escritos como documento HTML completo continuam funcionando:
- * são repassados sem alteração (ver `isHtmlDocument`).
+ * a marcação é preservada, mas passa por `sanitizeDocumentHtml` — o Gotenberg
+ * renderiza esse HTML num Chromium com acesso à rede interna, então nada no
+ * documento pode buscar recurso externo.
  */
 
 /** Folha de estilo padrão do contrato. As margens da página vêm do Gotenberg. */
@@ -53,8 +55,43 @@ const applyEmphasis = (s: string): string =>
  * escapados do catálogo — nenhum dado de cadastro consegue injetar marcação no
  * documento.
  */
+/**
+ * Remove do HTML tudo que faria o renderizador BUSCAR um recurso externo.
+ *
+ * Por que isto existe: o HTML do modelo é conteúdo de usuário (só exige
+ * `contract:write`) e vai inteiro para o Gotenberg, que o renderiza num Chromium
+ * **dentro da rede interna**. Sem saneamento, um
+ * `<img src="http://169.254.169.254/latest/meta-data/...">` faz o servidor buscar
+ * o recurso e o resultado é embutido no PDF que o autor baixa depois — SSRF com
+ * exfiltração pelo próprio documento, alcançando metadata de nuvem e serviços
+ * que só existem atrás do firewall.
+ *
+ * A regra é uma allow-list de esquema: `data:` (imagem embutida no próprio
+ * modelo) e âncoras internas (`#`) passam; `http:`, `https:`, `file:`, `//host`
+ * e afins são neutralizados. Aplica-se apenas ao caminho de HTML legado — o
+ * caminho de texto puro já escapa tudo.
+ */
+const EXTERNAL_REF_ATTR = /\s(src|href|srcset|poster|data|background|action|formaction)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi;
+const CSS_URL = /url\(\s*(['"]?)(?!data:)[^)'"]*\1\s*\)/gi;
+/** Elementos que só existem para trazer conteúdo de fora. */
+const FETCHING_TAGS = /<\s*\/?\s*(iframe|frame|object|embed|link|script|base|applet)\b[^>]*>/gi;
+
+function isSafeRef(value: string): boolean {
+  const v = value.replace(/^["']|["']$/g, "").trim().toLowerCase();
+  return v.startsWith("data:") || v.startsWith("#") || v === "";
+}
+
+export function sanitizeDocumentHtml(html: string): string {
+  return html
+    .replace(FETCHING_TAGS, "")
+    .replace(EXTERNAL_REF_ATTR, (match, attr: string, value: string) =>
+      isSafeRef(value) ? match : ` data-removido-${attr.toLowerCase()}=""`,
+    )
+    .replace(CSS_URL, "none");
+}
+
 export function toDocumentHtml(content: string): string {
-  if (isHtmlDocument(content)) return content;
+  if (isHtmlDocument(content)) return sanitizeDocumentHtml(content);
 
   const paragraphs = applyEmphasis(escapeHtml(content.replace(/\r\n/g, "\n")))
     .split(/\n{2,}/)

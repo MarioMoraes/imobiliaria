@@ -21,7 +21,7 @@ interface Row {
   user_id: string;
   cpf: string;
   position: string;
-  hired_at: Date | null;
+  hired_at: string | null;   // DATE -> string (ver setTypeParser em shared/db.ts)
   access_status: string;
   created_at: Date;
   updated_at: Date;
@@ -45,7 +45,7 @@ function toEmployee(row: Row): Employee {
     email: row.email,
     cpf: row.cpf,
     position: row.position,
-    hiredAt: row.hired_at ? row.hired_at.toISOString().slice(0, 10) : null,
+    hiredAt: row.hired_at,
     accessStatus: row.access_status as EmployeeAccessStatus,
     userStatus: row.user_status,
     roles: row.roles,

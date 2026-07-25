@@ -1,0 +1,201 @@
+# Stack COMPLETA de produção/demonstração (VPS única).
+#
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d
+#
+# Diferenças em relação ao docker-compose.yml (que é só a infra de dev):
+#  • sobe também backend, frontend e o proxy reverso;
+#  • NENHUM banco/fila publica porta no host — o único caminho de fora é o
+#    Caddy (80/443). Postgres exposto na internet com a senha do init.sql seria
+#    a base de todos os clientes a um `psql` de distância;
+#  • HTTPS automático (Let's Encrypt) — o Clerk e os webhooks do Asaas/ZapSign
+#    precisam de um endereço público com TLS válido.
+#
+# Todos os valores vêm de `.env.production` (veja .env.production.example).
+name: offices-ai
+
+services:
+  # ── Proxy reverso + TLS automático ───────────────────────────────
+  caddy:
+    image: caddy:2-alpine
+    container_name: offices-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?defina APP_DOMAIN no .env.production}
+      ACME_EMAIL: ${ACME_EMAIL:?defina ACME_EMAIL no .env.production}
+    volumes:
+      - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # Os certificados vivem aqui. Perder este volume = pedir tudo de novo ao
+      # Let's Encrypt, que tem limite semanal por domínio.
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+
+  # ── Aplicação ────────────────────────────────────────────────────
+  frontend:
+    image: ${FRONTEND_IMAGE:-offices-ai/frontend:latest}
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        # Assadas no bundle do navegador no momento do BUILD — mudar depois no
+        # `environment` não tem efeito nenhum (ver frontend/Dockerfile).
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:?}
+        NEXT_PUBLIC_CLERK_SIGN_UP_FORCE_REDIRECT_URL: ${NEXT_PUBLIC_CLERK_SIGN_UP_FORCE_REDIRECT_URL:-/onboarding}
+    container_name: offices-frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      # Rede interna do compose: o navegador NUNCA fala com o backend direto
+      # (todas as chamadas saem de Server Components / Server Actions).
+      BACKEND_URL: http://backend:3001
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:?}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:?}
+      PLATFORM_ADMIN_CLERK_IDS: ${PLATFORM_ADMIN_CLERK_IDS:-}
+      # DEMO_TENANT_ID / DEV_ROLES ficam DE FORA de propósito: são o fallback de
+      # desenvolvimento do lib/api.ts. Em produção o backend os recusa, mas não
+      # defini-los evita que um erro de configuração vire uma sessão fantasma.
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  backend:
+    image: ${BACKEND_IMAGE:-offices-ai/backend:latest}
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: offices-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # app_user é NÃO-superusuário: é o que faz o RLS valer (SPEC 3.1).
+      DATABASE_URL: postgres://app_user:${APP_DB_PASSWORD:?}@postgres:5432/${POSTGRES_DB:-imobiliaria}
+      REDIS_URL: redis://:${REDIS_PASSWORD:?}@redis:6379
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-imobiliaria}:${RABBITMQ_PASSWORD:?}@rabbitmq:5672
+      GOTENBERG_URL: http://gotenberg:3000
+      # Um domínio só: o frontend é a raiz e /webhooks/* vai para cá (Caddyfile).
+      CORS_ORIGIN: https://${APP_DOMAIN}
+      APP_BASE_URL: https://${APP_DOMAIN}
+      PUBLIC_BASE_URL: https://${APP_DOMAIN}
+      AUTH_DEV_MODE: "false"
+      TRUST_PROXY: "true" # atrás do Caddy — sem isto o rate limit vira balde único
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:?}
+      CLERK_JWT_KEY: ${CLERK_JWT_KEY:-}
+      PLATFORM_ADMIN_CLERK_IDS: ${PLATFORM_ADMIN_CLERK_IDS:-}
+      # Cifra os tokens de ZapSign/Asaas guardados por tenant. Trocar esta chave
+      # depois torna ilegível tudo que já foi cifrado com a anterior.
+      APP_ENCRYPTION_KEY: "${APP_ENCRYPTION_KEY:?gere com openssl rand -base64 32}"
+      S3_ENDPOINT: ${S3_ENDPOINT}
+      S3_REGION: ${S3_REGION:-auto}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      S3_BUCKET: ${S3_BUCKET:-imobiliaria-media}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-true}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+    healthcheck:
+      # /health/ready confirma que o Postgres respondeu — é o que o frontend
+      # espera antes de subir.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  # ── Dados e serviços de apoio (sem porta publicada) ──────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: offices-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-imobiliaria}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: ${POSTGRES_DB:-imobiliaria}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Os dois scripts rodam em ordem alfabética, e SÓ na primeira criação do
+      # volume. O 20- troca a senha de `app_user` (que o init.sql cria com um
+      # valor conhecido, versionado neste repositório).
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/10-init.sql:ro
+      - ./infra/postgres/prod/20-app-user-password.sh:/docker-entrypoint-initdb.d/20-app-user-password.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-imobiliaria} -d ${POSTGRES_DB:-imobiliaria}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    container_name: offices-redis
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?}", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: offices-rabbitmq
+    restart: unless-stopped
+    environment:
+      # A imagem oficial libera o `guest` para conexões remotas (ao contrário do
+      # RabbitMQ instalado na máquina, que o restringe ao loopback). Numa VPS
+      # isso é uma credencial padrão conhecida com acesso ao barramento inteiro —
+      # daí um usuário próprio, mesmo com a porta não publicada.
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-imobiliaria}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?}
+    volumes:
+      - rabbitdata:/var/lib/rabbitmq
+    healthcheck:
+      # `ping` responde OK enquanto o listener AMQP (5672) ainda está subindo, e
+      # o backend liberado cedo demais falha a conexão — como ele NÃO retenta
+      # (shared/events.ts conecta uma vez), os eventos ficariam desligados até
+      # alguém reiniciar o container. `check_port_connectivity` só passa quando a
+      # porta realmente aceita conexão.
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 30s
+
+  # HTML → PDF (MOD-CONTRATO). Mesma deny-list do compose de dev: o Chromium
+  # daqui não pode alcançar localhost, metadata da nuvem (169.254.169.254) nem
+  # as faixas privadas — inclusive os outros containers desta stack.
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    container_name: offices-gotenberg
+    restart: unless-stopped
+    command:
+      - "gotenberg"
+      - "--chromium-deny-list=^file:(?!///tmp/).*|^https?://(localhost|127\\.|0\\.0\\.0\\.0|\\[?::1|169\\.254\\.|10\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.)"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
+  redisdata:
+  rabbitdata:
+  caddy_data:
+  caddy_config:

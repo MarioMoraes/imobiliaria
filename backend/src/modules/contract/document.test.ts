@@ -31,6 +31,37 @@ test("modelo legado em HTML completo passa intacto", () => {
   assert.ok(isHtmlDocument("\n  <HTML>\n<body>x</body></html>"), "tolera espaços e caixa alta");
 });
 
+test("modelo em HTML não busca recurso externo (o Gotenberg renderiza na rede interna)", () => {
+  const malicioso = [
+    "<!doctype html><html><body>",
+    '<img src="http://169.254.169.254/latest/meta-data/iam/">',
+    '<iframe src="http://imobiliaria-postgres:5432"></iframe>',
+    '<link rel="stylesheet" href="https://exfil.example/x.css">',
+    '<div style="background: url(http://exfil.example/beacon.png)">x</div>',
+    "</body></html>",
+  ].join("");
+
+  const out = toDocumentHtml(malicioso);
+
+  assert.ok(!out.includes("169.254.169.254"), "metadata da nuvem não pode sobrar");
+  assert.ok(!out.includes("imobiliaria-postgres"), "serviço interno não pode sobrar");
+  assert.ok(!out.includes("exfil.example"), "nenhum host externo pode sobrar");
+  assert.ok(!/<iframe/i.test(out), "iframe é removido");
+  assert.ok(!/<link/i.test(out), "link é removido");
+  assert.ok(out.includes("Contrato") === false && out.includes("<body>"), "o documento segue HTML");
+});
+
+test("modelo em HTML preserva imagem embutida e âncora interna", () => {
+  const ok =
+    '<!doctype html><html><body><img src="data:image/png;base64,AAAA">' +
+    '<a href="#clausula-3">Cláusula 3</a></body></html>';
+
+  const out = toDocumentHtml(ok);
+
+  assert.ok(out.includes("data:image/png;base64,AAAA"), "data URL é conteúdo do próprio modelo");
+  assert.ok(out.includes('href="#clausula-3"'), "âncora interna não busca nada");
+});
+
 test("fragmento solto NÃO é tratado como HTML (escapa, por segurança)", () => {
   assert.ok(!isHtmlDocument("<p>oi</p>"));
   assert.ok(toDocumentHtml("<p>oi</p>").includes("&lt;p&gt;oi&lt;/p&gt;"));

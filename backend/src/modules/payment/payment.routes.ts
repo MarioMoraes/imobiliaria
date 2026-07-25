@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { getTenantId } from "../../shared/tenant-context.js";
 import { AppError } from "../../shared/errors.js";
 import { logger } from "../../shared/logger.js";
+import { isUuid } from "../../shared/uuid.js";
 import { requirePermission } from "../rbac/authorize.js";
 import {
   savePaymentSettingsSchema,
@@ -65,28 +66,42 @@ export async function paymentSettingsRoutes(app: FastifyInstance): Promise<void>
  * assina os callbacks (não há HMAC).
  */
 export async function paymentWebhookRoutes(app: FastifyInstance): Promise<void> {
-  app.post<{ Params: { tenantId: string } }>("/:tenantId", async (req) => {
-    const parsed = webhookPayloadSchema.safeParse(req.body);
-    if (!parsed.success) {
-      // 200 de propósito: payload que não entendemos não deve ser reenfileirado
-      // (o Asaas interrompe a fila inteira do tenant após falhas seguidas).
-      logger.warn({ body: req.body }, "webhook do Asaas com payload inesperado");
-      return { data: { ignored: true } };
-    }
+  app.post<{ Params: { tenantId: string } }>(
+    "/:tenantId",
+    {
+      // Endpoint público cuja única credencial é o token por tenant. Sem limite,
+      // um atacante testaria segredos indefinidamente. O teto é generoso o
+      // bastante para o volume real do Asaas (que reentrega em caso de falha).
+      config: { rateLimit: { max: 60, timeWindow: "1 minute" } },
+    },
+    async (req) => {
+      const parsed = webhookPayloadSchema.safeParse(req.body);
+      if (!parsed.success) {
+        // 200 de propósito: payload que não entendemos não deve ser reenfileirado
+        // (o Asaas interrompe a fila inteira do tenant após falhas seguidas).
+        logger.warn({ body: req.body }, "webhook do Asaas com payload inesperado");
+        return { data: { ignored: true } };
+      }
 
-    const token = req.headers[WEBHOOK_TOKEN_HEADER];
-    const ok = await service.handleWebhook(
-      req.params.tenantId,
-      typeof token === "string" ? token : undefined,
-      parsed.data,
-    );
+      const token = req.headers[WEBHOOK_TOKEN_HEADER];
+      // `tenantId` vem da URL e é usado antes de qualquer autenticação: sem
+      // validar o formato, um id qualquer chegava ao `set_config` e só estourava
+      // no cast `::uuid` da policy, virando 500 num endpoint público.
+      const ok =
+        isUuid(req.params.tenantId) &&
+        (await service.handleWebhook(
+          req.params.tenantId,
+          typeof token === "string" ? token : undefined,
+          parsed.data,
+        ));
 
-    if (!ok) {
-      // Mesma resposta para tenant inexistente e token errado (não confirma a
-      // existência do tenant para quem estiver sondando).
-      throw new AppError("UNAUTHORIZED", 401, "Token do webhook inválido");
-    }
+      if (!ok) {
+        // Mesma resposta para tenant inexistente e token errado (não confirma a
+        // existência do tenant para quem estiver sondando).
+        throw new AppError("UNAUTHORIZED", 401, "Token do webhook inválido");
+      }
 
-    return { data: { received: true } };
-  });
+      return { data: { received: true } };
+    },
+  );
 }

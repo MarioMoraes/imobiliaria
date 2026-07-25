@@ -25,8 +25,16 @@ export const iptuChargedTo = z.enum(["LOCATARIO", "LOCADOR"]);
 
 /** Percentual 0–100 (Tx Adm %). */
 const percent = z.number().min(0).max(100);
-/** Valor monetário em centavos (não-negativo). */
-const cents = z.number().int().nonnegative();
+/**
+ * Valor monetário em centavos (não-negativo).
+ *
+ * O teto não é burocracia: a coluna é BIGINT, então um valor como 9e18 era
+ * aceito e gravado, e a leitura faz `Number(...)` — acima de 2^53 a precisão se
+ * perde em silêncio e os totais do dashboard e do fluxo de caixa passam a
+ * mentir. R$ 1 bilhão em centavos é folgado para imóvel, aluguel e despesa, e
+ * mantém tudo dentro do inteiro seguro do JavaScript.
+ */
+const cents = z.number().int().nonnegative().max(100_000_000_000);
 /** Área em m² (não-negativa, até 2 casas). */
 const area = z.number().nonnegative();
 /** Texto curto opcional. */
@@ -67,7 +75,7 @@ const propertyFields = {
   positionBack: z.boolean(),
 
   // Características
-  bedrooms: z.number().int().nonnegative(),
+  bedrooms: z.number().int().nonnegative().max(1_000),
   builtArea: area,
   landArea: area,
   floorInfo: shortText,
@@ -83,14 +91,14 @@ const propertyFields = {
   iptuCents: cents,
   iptuChargedTo: iptuChargedTo,
   iptuReimburseOwner: z.boolean(),
-  iptuInstallments: z.number().int().nonnegative(),
+  iptuInstallments: z.number().int().nonnegative().max(120),
   iptuInstallmentCents: cents,
   adminFeePercent: percent,
   chargeAdminFee: z.boolean(),
   isGuaranteed: z.boolean(),
 
   // Locação / comissão
-  leaseTermMonths: z.number().int().nonnegative(),
+  leaseTermMonths: z.number().int().nonnegative().max(600),
   leaseStart: isoDate,
   penaltyInfo: shortText,
   hasCommission: z.boolean(),
@@ -109,7 +117,7 @@ const propertyFields = {
   isAuthorized: z.boolean(),
   isExclusive: z.boolean(),
   authTerm: shortText,
-  authDays: z.number().int().nonnegative(),
+  authDays: z.number().int().nonnegative().max(3_650),
   authExpiry: isoDate,
   isRecorded: z.boolean(),
   hasDeed: z.boolean(),
