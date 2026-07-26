@@ -456,6 +456,27 @@ test("rotas: GET /v1/ai/credits devolve o saldo para quem tem ai:read", async ()
   assert.equal(typeof data.available, "number");
 });
 
+/**
+ * O saldo é cota, o histórico é auditoria — e o gate de cada um é diferente.
+ * FINANCEIRO pode perguntar ao copiloto (`ai:use`), então precisa enxergar
+ * quanto resta; mas não vê o que os outros perguntaram (`ai:read`).
+ */
+test("rotas: quem tem ai:use (e não ai:read) vê o saldo, mas não o histórico", async () => {
+  const saldo = await app.inject({
+    method: "GET",
+    url: "/v1/ai/credits",
+    headers: headers("FINANCEIRO"),
+  });
+  assert.equal(saldo.statusCode, 200, "quem pode perguntar precisa ver o saldo");
+
+  const historico = await app.inject({
+    method: "GET",
+    url: "/v1/ai/conversations",
+    headers: headers("FINANCEIRO"),
+  });
+  assert.equal(historico.statusCode, 403, "o histórico continua restrito à gestão");
+});
+
 test("rotas: conversa inexistente responde 404 ERR_AI_001", async () => {
   const res = await app.inject({
     method: "GET",

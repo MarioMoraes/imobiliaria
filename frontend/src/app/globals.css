@@ -804,6 +804,13 @@ a {
   background: rgba(255, 255, 255, 0.18);
   color: #fff;
 }
+/* A tendência também precisa clarear. `trend-up`/`trend-down` pintam de verde
+   e vermelho — cores pensadas para o card branco, que sobre o gradiente da
+   marca ficam ilegíveis (o verde some quase por completo). No card em destaque
+   a direção já é dita pela seta; a cor semântica pode ceder à legibilidade. */
+.stat--feature .stat-trend {
+  color: rgba(255, 255, 255, 0.88);
+}
 
 /* --------------------------------------------------------------- Badges */
 .badge {
