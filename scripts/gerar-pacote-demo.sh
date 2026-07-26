@@ -71,7 +71,16 @@ cp docker-compose.demo.yml                     "$SAIDA/$PACOTE/"
 cp infra/postgres/init.sql                     "$SAIDA/$PACOTE/infra/postgres/"
 cp infra/postgres/prod/20-app-user-password.sh "$SAIDA/$PACOTE/infra/postgres/prod/"
 cp infra/postgres/demo/ativar-dados-demo.sh    "$SAIDA/$PACOTE/infra/postgres/demo/"
-cp docs/README-DEMO.md                         "$SAIDA/$PACOTE/LEIA-ME.md"
+# O endereço do Clerk que o navegador do cliente precisa alcançar está codificado
+# em base64 dentro da própria chave publicável. Extraí-lo aqui deixa o LEIA-ME
+# com o domínio exato a liberar no firewall — sem isso, "não acontece nada" ao
+# clicar em Entrar vira um diagnóstico às cegas.
+CLERK_HOST="$(printf '%s' "${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY#pk_*_}" | base64 -d 2>/dev/null | tr -d '$')"
+if [[ -z "$CLERK_HOST" ]]; then
+  echo "AVISO: não consegui extrair o domínio do Clerk da chave publicável." >&2
+  CLERK_HOST="<domínio da sua instância do Clerk>"
+fi
+sed "s|__CLERK_HOST__|$CLERK_HOST|g" docs/README-DEMO.md > "$SAIDA/$PACOTE/LEIA-ME.md"
 
 # `.env` (sem sufixo) é lido automaticamente pelo compose: o cliente não precisa
 # passar --env-file nem editar nada.

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
-import { SignInButton, SignUpButton } from "@clerk/nextjs";
 import { Icon } from "@/components/Icon";
+import { CriarContaButton, EntrarButton } from "./LandingCta";
 import "./landing.css";
 
 export const metadata: Metadata = {
@@ -46,48 +46,6 @@ export default async function LandingPage({
       <CtaFinal />
       <Rodape />
     </div>
-  );
-}
-
-/**
- * Botão de login. `mode="modal"` faz o Clerk abrir o formulário em popup sobre
- * a landing, sem navegar — quem já tem conta entra sem perder a página. A rota
- * /sign-in continua existindo para links diretos e para o redirect do
- * middleware em rota protegida.
- */
-function EntrarButton({
-  className,
-  children,
-}: {
-  className: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <SignInButton mode="modal" forceRedirectUrl="/dashboard" signUpForceRedirectUrl="/onboarding">
-      <button type="button" className={className}>
-        {children}
-      </button>
-    </SignInButton>
-  );
-}
-
-/**
- * Botão de cadastro, também em popup. O destino é `/onboarding` (não o painel):
- * quem acabou de criar a conta ainda precisa cadastrar a imobiliária.
- */
-function CriarContaButton({
-  className,
-  children,
-}: {
-  className: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <SignUpButton mode="modal" forceRedirectUrl="/onboarding" signInForceRedirectUrl="/dashboard">
-      <button type="button" className={className}>
-        {children}
-      </button>
-    </SignUpButton>
   );
 }
 

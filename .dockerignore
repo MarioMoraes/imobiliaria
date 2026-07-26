@@ -31,6 +31,10 @@ docs
 imagens
 *.md
 !README.md
+# Matriz do design (12 MB de HTML/PNG de referência). Os tokens já foram
+# portados para `globals.css` — nada em `src/` importa esta pasta, então ela só
+# engorda o contexto enviado ao daemon a cada build.
+frontend/design
 
 # Ruído local.
 .DS_Store

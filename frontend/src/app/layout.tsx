@@ -29,8 +29,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   // afterSignOutUrl: sair leva de volta à landing pública ("/").
+  //
+  // Os *FallbackRedirectUrl existem porque o destino PADRÃO do Clerk depois do
+  // login é "/" — a landing. Quem entrasse por um ponto que esquecesse de dizer
+  // para onde ir caía de volta na tela inicial, como se o login tivesse
+  // falhado, e ainda ficava com os botões "Entrar"/"Criar conta" inertes (o
+  // Clerk não abre o formulário para quem já tem sessão). É `fallback` e não
+  // `force` de propósito: `force` atropelaria o `redirect_url` da URL e
+  // quebraria o fluxo de convite (/aceitar-convite).
   return (
-    <ClerkProvider afterSignOutUrl="/">
+    <ClerkProvider
+      afterSignOutUrl="/"
+      signInFallbackRedirectUrl="/dashboard"
+      signUpFallbackRedirectUrl="/onboarding"
+    >
       <html lang="pt-BR" className={`${inter.variable} ${poppins.variable}`}>
         {/*
           suppressHydrationWarning: extensões de navegador (Grammarly, Bitdefender,

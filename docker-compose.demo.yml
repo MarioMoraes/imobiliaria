@@ -121,6 +121,13 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: imobiliaria
       RABBITMQ_DEFAULT_PASS: demo_rabbit
+    volumes:
+      # Volume NOMEADO de propósito. A imagem declara `VOLUME /var/lib/rabbitmq`,
+      # então sem isto o compose cria um volume anônimo novo a cada recriação — e
+      # ao reaproveitar um anônimo antigo o broker morre no boot com
+      # `.erlang.cookie: eacces`, derrubando a demo inteira (o backend espera o
+      # rabbit ficar saudável). Aconteceu em teste; com volume nomeado, não.
+      - rabbitdata:/var/lib/rabbitmq
     healthcheck:
       # `ping` responde antes de a porta 5672 aceitar conexão, e o backend não
       # retenta — os eventos ficariam desligados até reiniciar o container.
@@ -145,3 +152,4 @@ services:
 
 volumes:
   pgdata:
+  rabbitdata:

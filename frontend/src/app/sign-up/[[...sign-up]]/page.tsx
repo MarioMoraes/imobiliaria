@@ -13,7 +13,11 @@ export default function SignUpPage() {
         Offices AI Imobiliária
       </Link>
       <div className="auth-body">
-        <SignUp signInUrl="/sign-in" forceRedirectUrl="/onboarding" />
+        <SignUp
+          signInUrl="/sign-in"
+          forceRedirectUrl="/onboarding"
+          signInForceRedirectUrl="/dashboard"
+        />
       </div>
     </main>
   );
