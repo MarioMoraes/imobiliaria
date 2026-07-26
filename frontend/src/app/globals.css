@@ -1687,3 +1687,262 @@ textarea.editor-surface:focus {
   display: grid;
   place-items: center;
 }
+
+/* =========================================================================
+   Copiloto de IA (/agentes/copiloto)
+   Bolhas de conversa. Reusa os tokens da marca: a bolha do usuário leva o
+   gradiente assinatura, a do agente fica na superfície neutra — a hierarquia
+   é a mesma do resto do painel, só aplicada a um formato novo.
+   ========================================================================= */
+
+.chat {
+  display: flex;
+  flex-direction: column;
+  /* Altura fixa (e não crescer com o conteúdo): o composer precisa ficar
+     ancorado embaixo, senão ele desce junto com a conversa e sai da tela. */
+  height: calc(100vh - 220px);
+  min-height: 420px;
+  overflow: hidden;
+}
+
+.chat-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.chat-empty {
+  margin: auto;
+  max-width: 460px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.chat-empty .stat-icon {
+  margin-bottom: 4px;
+}
+
+.chat-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.chat-turn {
+  display: flex;
+}
+.chat-turn-user {
+  justify-content: flex-end;
+}
+.chat-turn-assistant {
+  justify-content: flex-start;
+}
+
+.chat-bubble {
+  max-width: min(72ch, 82%);
+  padding: 12px 16px;
+  border-radius: 16px;
+  line-height: 1.55;
+  font-size: 0.94rem;
+  box-shadow: var(--shadow-sm);
+}
+/* Parágrafos vêm de quebras de linha do texto do agente; o espaçamento é
+   entre eles, nunca nas pontas (senão a bolha ganha folga assimétrica). */
+.chat-bubble p + p {
+  margin-top: 0.6em;
+}
+
+.chat-turn-user .chat-bubble {
+  background: var(--grad-brand);
+  color: var(--white);
+  border-bottom-right-radius: 5px;
+}
+.chat-turn-assistant .chat-bubble {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--dark-text);
+  border-bottom-left-radius: 5px;
+}
+
+.chat-thinking {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.chat-error {
+  align-self: center;
+  color: var(--danger);
+  background: var(--danger-bg);
+  border: 1px solid var(--danger);
+  border-radius: 10px;
+  padding: 8px 14px;
+}
+
+.chat-composer {
+  display: flex;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--white);
+}
+.chat-composer .input {
+  flex: 1;
+}
+
+/* =========================================================================
+   Créditos de IA (popup em /agentes)
+   O disponível domina; saldo/reservado/consumido ficam como apoio. A barra
+   mede o consumo sobre o pacote e muda de cor conforme o que resta.
+   ========================================================================= */
+
+.credits-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  /* `.modal-body` só tem 4px de padding — a convenção do app é o conteúdo do
+     popup trazer o próprio respiro (é o que `.card-pad` faz no BankManager).
+     Sem isto o painel encostava nas bordas do modal. */
+  padding: 22px;
+}
+
+.credits-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 22px 16px 18px;
+  border-radius: var(--r-lg);
+  background: var(--surface-highlight);
+  border: 1px solid var(--border);
+}
+.credits-hero-label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-weight: 600;
+}
+.credits-hero-value {
+  font-family: var(--font-head);
+  font-size: 2.75rem;
+  line-height: 1.05;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  /* Gradiente da marca no número principal — mesmo tratamento dos destaques
+     do painel, que é o que amarra este popup ao resto do produto. */
+  background: var(--grad-brand);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.credits-hero-unit {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.credits-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.credits-meter .bar {
+  height: 10px;
+}
+/* A barra herda o gradiente da marca; os estados de alerta o substituem por
+   uma cor sólida — num aviso, saturação chama mais atenção que gradiente. */
+.credits-meter-warning .bar > span {
+  background: var(--warning);
+}
+.credits-meter-danger .bar > span {
+  background: var(--danger);
+}
+.credits-meter-foot {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.credits-alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+.credits-alert svg {
+  flex: 0 0 auto;
+}
+.credits-alert-warning {
+  background: var(--warning-bg);
+  border: 1px solid var(--warning);
+  color: var(--warning);
+}
+.credits-alert-danger {
+  background: var(--danger-bg);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+}
+
+/* `auto-fit` + `minmax` em vez de 3 colunas fixas: quem aperta este bloco é a
+   largura do MODAL, não a da janela — uma media query de viewport deixaria os
+   três blocos espremidos num popup estreito de tela grande. Assim eles caem
+   para duas colunas (ou uma) quando o espaço real acaba. */
+.credits-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  gap: 10px;
+}
+.credits-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: var(--white);
+}
+.credits-tile-label {
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted-2);
+  font-weight: 600;
+}
+.credits-tile-value {
+  font-family: var(--font-head);
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--dark);
+}
+.credits-tile-hint {
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.3;
+}
+
+.credits-note {
+  line-height: 1.5;
+  padding-top: 2px;
+  border-top: 1px solid var(--border);
+  margin-top: -2px;
+}
+
+@media (max-width: 520px) {
+  .credits-hero-value {
+    font-size: 2.2rem;
+  }
+}

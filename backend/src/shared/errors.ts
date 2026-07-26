@@ -43,6 +43,12 @@ export type ErrorCode =
   // Códigos do MOD-FIN (financeiro_11 §5).
   | "ERR_FIN_001" // conta a receber não encontrada
   | "ERR_FIN_002" // operação inválida (ex.: cobrança bancária não configurada)
+  // Códigos do MOD-AI (agentes_ia_20 §5).
+  | "ERR_AI_001" // conversa não encontrada
+  | "ERR_AI_002" // entrada inválida para o agente
+  | "ERR_AI_003" // ferramenta negada pelo RBAC de quem perguntou
+  | "ERR_AI_005" // provedor de IA não configurado (sem chave no ambiente)
+  | "ERR_AI_006" // créditos de IA insuficientes
   // Códigos do envio de e-mail transacional (shared/mailer.ts / Resend).
   | "ERR_MAIL_001" // envio não configurado (RESEND_API_KEY ausente)
   | "ERR_MAIL_002" // provedor inalcançável

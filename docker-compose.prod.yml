@@ -117,8 +117,10 @@ services:
         condition: service_healthy
 
   # ── Dados e serviços de apoio (sem porta publicada) ──────────────
+  # Postgres 16 com a extensão `vector` (MOD-AI). Ver nota em docker-compose.yml
+  # sobre REINDEX ao migrar um volume que veio da imagem Alpine.
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: offices-postgres
     restart: unless-stopped
     environment:

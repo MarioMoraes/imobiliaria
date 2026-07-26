@@ -133,6 +133,50 @@ const schema = z.object({
   // URL pública do FRONTEND (≠ PUBLIC_BASE_URL, que é este backend). Compõe o
   // redirectUrl do convite: para onde o convidado volta após aceitar no Clerk.
   APP_BASE_URL: z.string().default("http://localhost:3000"),
+
+  // ── Camada de IA (MOD-AI) ──────────────────────────────────────
+  // Ao contrário da ZapSign/Asaas, estas contas são da PLATAFORMA e não do
+  // tenant: a imobiliária consome créditos de IA (ai_credits), não traz a
+  // própria chave. Por isso vivem no env e não em tenant_*_settings.
+  //
+  // Qual provedor atende. `anthropic` é o alvo de produção; `gemini` existe
+  // para desenvolvimento (tem free tier) e implementa as mesmas interfaces —
+  // ver modules/ai/providers/index.ts.
+  AI_PROVIDER: z.enum(["anthropic", "gemini"]).default("anthropic"),
+
+  // Sem a chave do provedor escolhido, as rotas /v1/ai/* respondem 503 — o
+  // resto do produto continua de pé.
+  ANTHROPIC_API_KEY: z.string().optional(),
+  ANTHROPIC_MODEL: z.string().default("claude-opus-5"),
+  // Modelo barato para a classificação de intenção/sentimento, que é uma
+  // tarefa de rótulo e não precisa do orquestrador.
+  ANTHROPIC_FAST_MODEL: z.string().default("claude-haiku-4-5"),
+
+  // Embeddings: a Anthropic não expõe API de embeddings; a Voyage é a parceira
+  // recomendada. Sem SDK Node oficial — o cliente usa fetch, como o mailer.
+  VOYAGE_API_KEY: z.string().optional(),
+  VOYAGE_API_URL: z.string().default("https://api.voyageai.com/v1"),
+  // Trocar o modelo muda a dimensão do vetor e invalida o índice inteiro
+  // (rag_chunks.embedding é vector(1024)); exige reindexação completa.
+  VOYAGE_MODEL: z.string().default("voyage-3"),
+
+  // ── Gemini (AI_PROVIDER=gemini) ────────────────────────────────
+  // Chave do Google AI Studio. Os IDs ficam configuráveis porque o catálogo do
+  // Gemini gira rápido: a série 2.5 já responde "no longer available to new
+  // users" para chaves criadas hoje. Se um ID sair do ar, é uma variável de
+  // ambiente, não um deploy.
+  //
+  // O default é um modelo `lite` de propósito. `gemini-3.6-flash` responde
+  // melhor, mas o free tier o limita a 5 requisições por MINUTO — e uma única
+  // pergunta consome várias (classificação + cada volta do laço de
+  // ferramentas), então duas perguntas seguidas já estouram a cota. Como este
+  // provedor existe para testar, previsibilidade vale mais que eloquência.
+  GEMINI_API_KEY: z.string().optional(),
+  GEMINI_MODEL: z.string().default("gemini-3.5-flash-lite"),
+  GEMINI_FAST_MODEL: z.string().default("gemini-3.5-flash-lite"),
+  // Precisa suportar `outputDimensionality` para entregar as 1024 dimensões
+  // que `rag_chunks.embedding` espera (ver providers/gemini.client.ts).
+  GEMINI_EMBEDDING_MODEL: z.string().default("gemini-embedding-001"),
 });
 
 const parsed = schema.parse(process.env);

@@ -25,6 +25,24 @@ Regras de fronteira:
   regra de negócio. Somar seis indicadores pelos services daria seis chamadas
   e as somas em JS. Qualquer coisa além de agregação vai para o módulo dono.
 
+## Desvio deliberado do SPEC: o grafo do MOD-AI
+
+O SPEC (seções 6 e 7) prescreve **LangGraph** para orquestrar o agente. `ai/`
+usa um grafo próprio em TypeScript (`ai/graph/`), e isso é uma decisão, não
+descuido:
+
+- O grafo do PRD tem quatro nós determinísticos em sequência, sem ramificação
+  nem ciclo — o único laço real (pedir ferramenta → executar → continuar) já
+  vive dentro do tool runner do SDK do provedor. `graph/run.ts` é um `for` sobre
+  um array de nós tipados; um framework de grafos aqui orquestraria um `if`.
+- O estado fica no nosso Postgres, sob `withTenant`/RLS, sem invólucro. O
+  checkpointer do LangGraph traria um segundo lugar onde dado de tenant é
+  gravado — exatamente o tipo de caminho paralelo que o isolamento não pode ter.
+
+O dia em que houver ramificação de verdade (múltiplos canais com fluxos
+diferentes, retomada de conversa longa), `graph/run.ts` é o único arquivo que
+muda — e aí vale reavaliar.
+
 ## Roadmap de módulos (SPEC seção 16)
 
 | Módulo (dir)         | Serviço no SPEC        | Fase | Status        |
@@ -51,6 +69,6 @@ Regras de fronteira:
 | `publishing/`        | publishing-service     | 3    | ⬜            |
 | `notification/`      | notification-service   | 2    | ⬜            |
 | `billing/`           | billing-service        | 0/2  | ⬜            |
-| `ai-orchestrator/`   | ai-orchestrator-service| 4    | ⬜ LangGraph  |
+| `ai/`                | ai-orchestrator-service| 4    | 🟡 copiloto interno: RAG (pgvector) + tools + créditos |
 | `admin/`             | admin-service          | 0/2  | ⬜            |
 | `dashboard/`         | (leitura agregada)     | 1    | ✅ resumo do painel (só SELECT) |

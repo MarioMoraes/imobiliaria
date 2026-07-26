@@ -657,6 +657,65 @@ export function fetchBrokers(): Promise<Broker[] | null> {
   return get<Broker[]>("/v1/brokers");
 }
 
+/* ------------------------------------------------------- Copiloto (MOD-AI) */
+
+export interface AiCredits {
+  balance: number;
+  reserved: number;
+  used: number;
+  /** balance - reserved: o que dá para gastar agora. */
+  available: number;
+}
+
+export interface AiConversation {
+  id: string;
+  channel: string;
+  status: string;
+  sentiment: string | null;
+  unresolvedAttempts: number;
+  title: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AiMessage {
+  id: string;
+  role: string;
+  content: string;
+  tokens: number;
+  createdAt: string;
+}
+
+export interface AiToolCall {
+  id: string;
+  tool: string;
+  input: unknown;
+  output: string | null;
+  status: string;
+  durationMs: number | null;
+  createdAt: string;
+}
+
+export interface AiConversationDetail extends AiConversation {
+  messages: AiMessage[];
+  toolCalls: AiToolCall[];
+}
+
+/** Saldo de créditos de IA do tenant. Null quando a rota falha (sem permissão). */
+export function fetchAiCredits(): Promise<AiCredits | null> {
+  return get<AiCredits>("/v1/ai/credits");
+}
+
+/** Conversas do copiloto (mais recentes primeiro). */
+export function fetchAiConversations(): Promise<AiConversation[] | null> {
+  return get<AiConversation[]>("/v1/ai/conversations");
+}
+
+/** Uma conversa com histórico e trilha de ferramentas. */
+export function fetchAiConversation(id: string): Promise<AiConversationDetail | null> {
+  return get<AiConversationDetail>(`/v1/ai/conversations/${id}`);
+}
+
 /** Funcionários (colaboradores internos) do tenant da sessão. */
 export function fetchEmployees(): Promise<Employee[] | null> {
   return get<Employee[]>("/v1/employees");

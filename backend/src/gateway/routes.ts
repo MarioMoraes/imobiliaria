@@ -28,6 +28,7 @@ import { districtRoutes } from "../modules/district/district.routes.js";
 import { eventRoutes } from "../modules/event/event.routes.js";
 import { bankRoutes } from "../modules/bank/bank.routes.js";
 import { dashboardRoutes } from "../modules/dashboard/dashboard.routes.js";
+import { aiRoutes } from "../modules/ai/ai.routes.js";
 import { authContextHook } from "./auth-context.hook.js";
 import { platformAdminHook } from "./platform-admin.hook.js";
 
@@ -87,6 +88,8 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       await v1.register(bankRoutes, { prefix: "/banks" });
       // Painel inicial: leitura agregada dos demais módulos.
       await v1.register(dashboardRoutes, { prefix: "/dashboard" });
+      // Copiloto de IA (MOD-AI): conversa, histórico, créditos e o índice do RAG.
+      await v1.register(aiRoutes, { prefix: "/ai" });
       await v1.register(userRoutes, { prefix: "/users" });
       // Busca global da barra do topo (compõe imóveis + pessoas + contratos).
       await v1.register(searchRoutes, { prefix: "/search" });

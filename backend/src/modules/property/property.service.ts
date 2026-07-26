@@ -28,6 +28,22 @@ export function list(tenantId: string): Promise<Property[]> {
   return repo.listProperties(tenantId);
 }
 
+/**
+ * Varredura paginada do inventário disponível. Interface pública para quem
+ * precisa percorrer TODOS os imóveis (o indexador do RAG, em MOD-AI) — `list`
+ * corta em 100 porque serve a uma tela.
+ *
+ * `after` é o cursor: passe o último item da página anterior, ou null para
+ * começar. Devolve menos que `limit` quando acabou.
+ */
+export function listForIndex(
+  tenantId: string,
+  after: { createdAt: string; id: string } | null,
+  limit = 200,
+): Promise<Property[]> {
+  return repo.listAvailableForIndex(tenantId, after, limit);
+}
+
 /** Imóveis vinculados a um condomínio (tela "Consulta Condôminos"). */
 export function listByCondominium(
   tenantId: string,

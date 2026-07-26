@@ -3,8 +3,14 @@
 # Uso: docker compose up -d   (ou: npm run infra:up)
 
 services:
+  # pgvector/pgvector:pg16 é o Postgres 16 oficial com a extensão `vector`
+  # pré-compilada (MOD-AI: índice do RAG). Substitui postgres:16-alpine — a
+  # imagem é Debian, não Alpine, então a libc muda de musl para glibc. O
+  # diretório de dados é compatível (mesma major), mas a ordenação de texto
+  # depende da libc: ao migrar um volume existente, rode
+  # `REINDEX DATABASE imobiliaria` uma vez.
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: imobiliaria-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-imobiliaria}

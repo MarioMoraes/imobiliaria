@@ -81,7 +81,7 @@ services:
         condition: service_healthy
 
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: offices-demo-postgres
     restart: unless-stopped
     # Sem porta publicada de propósito: muita gente já tem um Postgres na 5432 e

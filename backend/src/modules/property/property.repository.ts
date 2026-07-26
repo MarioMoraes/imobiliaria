@@ -319,6 +319,36 @@ export async function listProperties(tenantId: string): Promise<Property[]> {
 }
 
 /**
+ * Página do inventário disponível, para varredura completa.
+ *
+ * Existe porque `listProperties` tem `LIMIT 100` fixo (é a lista da tela): quem
+ * precisa do inventário INTEIRO — hoje o indexador do RAG — não pode usá-la sem
+ * perder imóveis em silêncio. A alternativa seria o outro módulo fazer SELECT
+ * direto em `properties`, quebrando a fronteira; um método público paginado
+ * mantém o SQL de imóveis dentro do módulo de imóveis.
+ *
+ * Pagina por `created_at, id` (e não por OFFSET) para que uma inserção no meio
+ * da varredura não faça um imóvel ser pulado ou visitado duas vezes.
+ */
+export async function listAvailableForIndex(
+  tenantId: string,
+  after: { createdAt: string; id: string } | null,
+  limit: number,
+): Promise<Property[]> {
+  return withTenant(tenantId, async (client) => {
+    const { rows } = await client.query<Row>(
+      `SELECT ${SELECT_COLS} FROM properties p ${OWNERS_LATERAL}
+        WHERE p.status = 'available'
+          AND ($1::timestamptz IS NULL OR (p.created_at, p.id) > ($1::timestamptz, $2::uuid))
+        ORDER BY p.created_at, p.id
+        LIMIT $3`,
+      [after?.createdAt ?? null, after?.id ?? null, limit],
+    );
+    return rows.map(toProperty);
+  });
+}
+
+/**
  * Imóveis de um condomínio (tela "Consulta Condôminos"). Ordena pelo código
  * sequencial — os apartamentos aparecem na ordem em que foram cadastrados.
  */

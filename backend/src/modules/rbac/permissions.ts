@@ -39,7 +39,10 @@ export type Operation =
   | "condominium:delete"
   | "broker:read"
   | "broker:write"
-  | "broker:delete";
+  | "broker:delete"
+  | "ai:use"
+  | "ai:read"
+  | "ai:admin";
 
 const MATRIX: Record<Operation, Role[]> = {
   "users:read": ["SUPER_ADMIN", "ADMIN", "GESTOR"],
@@ -70,6 +73,18 @@ const MATRIX: Record<Operation, Role[]> = {
   "broker:read": ["SUPER_ADMIN", "ADMIN", "GESTOR", "FINANCEIRO", "CORRETOR"],
   "broker:write": ["SUPER_ADMIN", "ADMIN", "GESTOR"],
   "broker:delete": ["SUPER_ADMIN", "ADMIN"],
+  // Camada de IA (MOD-AI). `ai:use` é perguntar ao copiloto — quem opera o dia
+  // a dia. Note que AI_AGENT NÃO está aqui: ele é a identidade dos canais
+  // externos (o cliente final, sem sessão), não de quem consome o copiloto
+  // interno. Dentro da conversa, cada ferramenta é reavaliada contra os papéis
+  // de quem perguntou (ver tools/registry.ts), então `ai:use` não é um atalho
+  // para ler o que o papel não alcança.
+  "ai:use": ["SUPER_ADMIN", "ADMIN", "GESTOR", "FINANCEIRO", "CORRETOR"],
+  // Histórico das conversas e saldo de créditos: é auditoria (pode conter o que
+  // outra pessoa perguntou), por isso fica com a gestão.
+  "ai:read": ["SUPER_ADMIN", "ADMIN", "GESTOR"],
+  // Reindexação completa do RAG — operação cara, varre o inventário inteiro.
+  "ai:admin": ["SUPER_ADMIN", "ADMIN"],
 };
 
 /** Papéis que podem executar `op`. */

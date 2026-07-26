@@ -9,11 +9,13 @@ import {
 } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
 import {
+  fetchAiCredits,
   fetchDashboardSummary,
   fetchProperties,
   formatDay,
   formatPrice,
   propertyKindLabel,
+  type AiCredits,
   type DashboardReceivableBrief,
   type DashboardSummary,
 } from "../../../lib/api";
@@ -68,9 +70,10 @@ function compactPrice(cents: number): string {
 }
 
 export default async function DashboardPage() {
-  const [summary, properties, clerkUser] = await Promise.all([
+  const [summary, properties, credits, clerkUser] = await Promise.all([
     fetchDashboardSummary(),
     fetchProperties(),
+    fetchAiCredits(),
     currentUser().catch(() => null),
   ]);
 
@@ -98,7 +101,7 @@ export default async function DashboardPage() {
         </Section>
       ) : (
         <>
-          <Stats summary={summary} />
+          <Stats summary={summary} credits={credits} />
 
           <div className="grid" style={{ gridTemplateColumns: "1.6fr 1fr" }}>
             <div className="stack">
@@ -137,7 +140,13 @@ export default async function DashboardPage() {
 
 /* ------------------------------------------------------------------ Cards */
 
-function Stats({ summary }: { summary: DashboardSummary }) {
+function Stats({
+  summary,
+  credits,
+}: {
+  summary: DashboardSummary;
+  credits: AiCredits | null;
+}) {
   const { properties, contracts, finance } = summary;
   return (
     <div className="grid grid-4 mb-4">
@@ -165,48 +174,41 @@ function Stats({ summary }: { summary: DashboardSummary }) {
         tone="accent"
       />
       {finance ? (
-        <>
-          <StatCard
-            icon="wallet"
-            label="Recebido no mês"
-            value={compactPrice(finance.receivedThisMonthCents)}
-            trend={
-              finance.openThisMonthCents > 0
-                ? `${compactPrice(finance.openThisMonthCents)} em aberto`
-                : undefined
-            }
-            tone="success"
-            feature
-          />
-          <StatCard
-            icon="clock"
-            label="Em atraso"
-            value={compactPrice(finance.overdueCents)}
-            trend={
-              finance.overdueCount > 0
-                ? `${finance.overdueCount} parcela${finance.overdueCount > 1 ? "s" : ""}`
-                : undefined
-            }
-            trendDir="down"
-            tone="warning"
-          />
-        </>
+        <StatCard
+          icon="clock"
+          label="Em atraso"
+          value={compactPrice(finance.overdueCents)}
+          trend={
+            finance.overdueCount > 0
+              ? `${finance.overdueCount} parcela${finance.overdueCount > 1 ? "s" : ""}`
+              : undefined
+          }
+          trendDir="down"
+          tone="warning"
+        />
       ) : (
-        <>
-          <StatCard
-            icon="key"
-            label="Imóveis alugados"
-            value={String(properties.rented)}
-            tone="success"
-          />
-          <StatCard
-            icon="users"
-            label="Locatários ativos"
-            value={String(summary.persons.tenants)}
-            tone="warning"
-          />
-        </>
+        <StatCard
+          icon="key"
+          label="Imóveis alugados"
+          value={String(properties.rented)}
+          tone="success"
+        />
       )}
+      {/* Último da linha e em destaque, a pedido: é o indicador que decide se a
+          equipe consegue usar o assistente hoje. `feature` pinta o card com o
+          gradiente da marca, então o `tone` só vale se o destaque sair. */}
+      <StatCard
+        icon="sparkles"
+        label="Créditos de IA"
+        value={credits ? credits.available.toLocaleString("pt-BR") : "—"}
+        trend={
+          credits && credits.used > 0
+            ? `${credits.used.toLocaleString("pt-BR")} consumidos`
+            : undefined
+        }
+        tone="accent"
+        feature
+      />
     </div>
   );
 }

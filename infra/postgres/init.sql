@@ -13,6 +13,7 @@
 -- ─────────────────────────────────────────────────────────────
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto"; -- gen_random_uuid()
+CREATE EXTENSION IF NOT EXISTS "vector";   -- embeddings do RAG (MOD-AI)
 
 -- Papel da aplicação (não-superusuário → RLS é aplicado).
 DO $$
@@ -1212,3 +1213,201 @@ CREATE POLICY tenant_isolation ON asaas_webhook_events
   USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
   WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
 GRANT SELECT, INSERT, UPDATE, DELETE ON asaas_webhook_events TO app_user;
+
+-- ═════════════════════════════════════════════════════════════════
+-- MOD-AI — camada de agentes de IA (docs/prd/agentes_ia_20.md §4).
+--
+-- Duas metades:
+--  1. Conversa auditada  — agent_conversations / _messages / _tool_calls.
+--     O conteúdo trafega cifrado (sufixo _enc, AES-256-GCM de shared/crypto.ts):
+--     uma pergunta da equipe pode citar valor de contrato, nome e telefone. O
+--     sufixo também avisa quem for escrever SQL depois que a coluna NÃO é
+--     pesquisável — filtrar por LIKE ali nunca vai casar.
+--  2. Índice do RAG      — rag_index_meta (o que foi indexado) e rag_chunks
+--     (os vetores). O PRD só nomeia a primeira; os embeddings precisam de casa
+--     própria porque a granularidade é outra (uma entidade → N pedaços).
+--
+-- Mais os créditos (ai_credits), que são o gate econômico de cada pergunta.
+--
+-- O isolamento é o mesmo do resto do sistema: tenant_id + RLS. Vale reler a
+-- nota sobre HNSW abaixo — é o único ponto onde o índice não é por tenant.
+--
+-- Bloco aplicável a bancos já existentes: DROP POLICY antes do CREATE.
+-- ═════════════════════════════════════════════════════════════════
+
+-- ── Conversas ────────────────────────────────────────────────────
+-- `channel` já contempla os canais externos (MOD-AI-01) mesmo que a fatia atual
+-- só use WEB: mudar schema aqui exige recriar o volume, então é mais barato
+-- nascer com o domínio completo.
+CREATE TABLE IF NOT EXISTS agent_conversations (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id           UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  person_id           UUID,                                  -- FK lógica → persons (cliente final)
+  user_id             UUID,                                  -- FK lógica → users (equipe, no copiloto)
+  channel             TEXT NOT NULL DEFAULT 'WEB'
+    CHECK (channel IN ('WEB', 'WHATSAPP', 'INSTAGRAM', 'EMAIL')),
+  status              TEXT NOT NULL DEFAULT 'ATIVA'
+    CHECK (status IN ('ATIVA', 'HANDOFF', 'ENCERRADA')),
+  -- Sentimento da última mensagem do usuário (POS/NEU/NEG). Alimenta a regra de
+  -- handoff do MOD-AI-09 junto com unresolved_attempts.
+  sentiment           TEXT CHECK (sentiment IN ('POS', 'NEU', 'NEG')),
+  unresolved_attempts INT NOT NULL DEFAULT 0,
+  title               TEXT,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_agent_conversations_tenant
+  ON agent_conversations (tenant_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_agent_conversations_status
+  ON agent_conversations (tenant_id, status);
+
+ALTER TABLE agent_conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE agent_conversations FORCE  ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON agent_conversations;
+CREATE POLICY tenant_isolation ON agent_conversations
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON agent_conversations TO app_user;
+
+-- ── Mensagens (append-only) ──────────────────────────────────────
+-- Nunca sofre UPDATE: o histórico é a auditoria. `tokens` guarda o consumo real
+-- devolvido pelo provedor, que é o que fecha a conta dos créditos.
+CREATE TABLE IF NOT EXISTS agent_messages (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  conversation_id UUID NOT NULL REFERENCES agent_conversations(id) ON DELETE CASCADE,
+  role            TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
+  content_enc     TEXT NOT NULL,                             -- cifrado; não pesquisável
+  tokens          INT NOT NULL DEFAULT 0,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_agent_messages_conversation
+  ON agent_messages (conversation_id, created_at);
+
+ALTER TABLE agent_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE agent_messages FORCE  ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON agent_messages;
+CREATE POLICY tenant_isolation ON agent_messages
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON agent_messages TO app_user;
+
+-- ── Chamadas de ferramenta (trilha de auditoria) ─────────────────
+-- `input` fica em claro (é o filtro que o agente montou — útil para depurar por
+-- que ele achou o que achou); `output_enc` é cifrado porque carrega o dado de
+-- domínio devolvido. `status` inclui DENIED: a ferramenta existiu, o agente
+-- pediu, e o RBAC do usuário recusou — isso precisa aparecer na auditoria.
+CREATE TABLE IF NOT EXISTS agent_tool_calls (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  conversation_id UUID NOT NULL REFERENCES agent_conversations(id) ON DELETE CASCADE,
+  message_id      UUID REFERENCES agent_messages(id) ON DELETE SET NULL,
+  tool            TEXT NOT NULL,
+  input           JSONB,
+  output_enc      TEXT,                                      -- cifrado; não pesquisável
+  status          TEXT NOT NULL DEFAULT 'OK'
+    CHECK (status IN ('OK', 'ERROR', 'DENIED')),
+  duration_ms     INT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_agent_tool_calls_conversation
+  ON agent_tool_calls (conversation_id, created_at);
+
+ALTER TABLE agent_tool_calls ENABLE ROW LEVEL SECURITY;
+ALTER TABLE agent_tool_calls FORCE  ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON agent_tool_calls;
+CREATE POLICY tenant_isolation ON agent_tool_calls
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON agent_tool_calls TO app_user;
+
+-- ── Créditos de IA ───────────────────────────────────────────────
+-- Uma linha por tenant. `reserved` é o dinheiro empenhado enquanto a chamada ao
+-- LLM está no ar: sem ele, duas perguntas simultâneas passariam as duas pelo
+-- teste de saldo e a segunda estouraria o limite. Disponível = balance - reserved.
+-- Os CHECKs impedem que um estorno duplicado deixe o saldo negativo.
+CREATE TABLE IF NOT EXISTS ai_credits (
+  tenant_id  UUID PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,
+  balance    BIGINT NOT NULL DEFAULT 0 CHECK (balance  >= 0),
+  reserved   BIGINT NOT NULL DEFAULT 0 CHECK (reserved >= 0),
+  used       BIGINT NOT NULL DEFAULT 0 CHECK (used     >= 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE ai_credits ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai_credits FORCE  ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON ai_credits;
+CREATE POLICY tenant_isolation ON ai_credits
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON ai_credits TO app_user;
+
+-- ── RAG: o que já foi indexado ───────────────────────────────────
+-- `content_hash` é o que evita reembeddar (chamada paga) quando o evento chega
+-- mas o texto renderizado não mudou — salvar um imóvel só para corrigir uma
+-- observação não deveria custar nada.
+CREATE TABLE IF NOT EXISTS rag_index_meta (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  entity_type TEXT NOT NULL,                                 -- 'property' (por ora)
+  entity_id   UUID NOT NULL,
+  content_hash TEXT NOT NULL,
+  chunk_count INT NOT NULL DEFAULT 0,
+  indexed_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (tenant_id, entity_type, entity_id)
+);
+
+ALTER TABLE rag_index_meta ENABLE ROW LEVEL SECURITY;
+ALTER TABLE rag_index_meta FORCE  ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON rag_index_meta;
+CREATE POLICY tenant_isolation ON rag_index_meta
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON rag_index_meta TO app_user;
+
+-- ── RAG: os vetores ──────────────────────────────────────────────
+-- `embedding` é vector(1024) porque é a dimensão do voyage-3 (VOYAGE_MODEL).
+-- Trocar de modelo muda a dimensão e invalida a tabela inteira — daí a nota no
+-- env.ts. `content` fica em claro: é texto derivado de campos que o usuário já
+-- pode ler pela tela do imóvel, e precisa ir literal para o prompt.
+CREATE TABLE IF NOT EXISTS rag_chunks (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  entity_type TEXT NOT NULL,
+  entity_id   UUID NOT NULL,
+  chunk_index INT  NOT NULL DEFAULT 0,
+  content     TEXT NOT NULL,
+  embedding   vector(1024) NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Reindexação incremental apaga e reinsere por entidade; sem este índice o
+-- DELETE varreria a tabela toda a cada imóvel salvo.
+CREATE INDEX IF NOT EXISTS idx_rag_chunks_entity
+  ON rag_chunks (tenant_id, entity_type, entity_id);
+
+-- Busca por similaridade de cosseno (o operador é <=>).
+--
+-- NOTA (HNSW + RLS): este índice é GLOBAL — o grafo ANN não conhece tenant. O
+-- filtro por tenant continua sendo aplicado pela policy, sobre as linhas que o
+-- índice devolve; não há vazamento, o RLS segue sendo o gate. O efeito colateral
+-- é de RECALL: com muitos tenants, os k vizinhos globais podem incluir linhas de
+-- outros tenants que o RLS descarta, e a busca volta com menos que k resultados.
+-- Na escala atual (milhares de imóveis) isso não aparece; se aparecer, os ajustes
+-- são subir `hnsw.ef_search` ou particionar o índice por tenant.
+CREATE INDEX IF NOT EXISTS idx_rag_chunks_embedding
+  ON rag_chunks USING hnsw (embedding vector_cosine_ops);
+
+ALTER TABLE rag_chunks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE rag_chunks FORCE  ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON rag_chunks;
+CREATE POLICY tenant_isolation ON rag_chunks
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON rag_chunks TO app_user;
+
+-- Saldo inicial do tenant demo, para o copiloto responder já no primeiro uso.
+INSERT INTO ai_credits (tenant_id, balance)
+VALUES ('00000000-0000-0000-0000-000000000001', 10000)
+ON CONFLICT (tenant_id) DO NOTHING;
