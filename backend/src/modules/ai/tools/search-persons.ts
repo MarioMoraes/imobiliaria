@@ -11,8 +11,11 @@ import type { ToolDefinition } from "./registry.js";
 export const searchPersonsTool: ToolDefinition = {
   name: "buscar_pessoas",
   description:
-    "Busca pessoas do cadastro (proprietários, inquilinos, fiadores, compradores) por nome, documento, e-mail ou telefone. " +
-    "Use apenas quando a pergunta for sobre pessoas; para imóveis prefira as ferramentas de imóvel.",
+    "Busca pessoas do cadastro por nome, documento, e-mail ou telefone. " +
+    "Use apenas quando a pergunta já trouxer a pessoa (um nome, um CPF, um telefone); " +
+    "para imóveis prefira as ferramentas de imóvel. " +
+    "NÃO use para descobrir quem é o proprietário, o fiador ou o corretor de um imóvel — " +
+    "esse vínculo não é revelado pelo assistente.",
   requires: "person:read",
   inputSchema: {
     type: "object",

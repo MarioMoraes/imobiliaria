@@ -8,6 +8,12 @@ import * as credits from "./credits.repository.js";
 import * as ragRepo from "./rag/rag.repository.js";
 import * as aiRepo from "./ai.repository.js";
 import { chat } from "./ai.service.js";
+// Fixture de imóvel: o teste precisa de uma linha real para pendurar a foto.
+import { insertProperty } from "../property/property.repository.js";
+import { createPropertySchema } from "../property/property.schema.js";
+import * as propertyService from "../property/property.service.js";
+import * as personService from "../person/person.service.js";
+import { createPersonSchema } from "../person/person.schema.js";
 import { llmClient } from "./providers/index.js";
 import {
   EMBEDDING_DIMENSIONS,
@@ -260,6 +266,173 @@ test("grafo: ferramenta sem permissão é negada, e a conversa continua", async 
   const detail = await aiRepo.findConversationDetail(DEMO_TENANT, result.conversationId);
   const call = detail!.toolCalls.find((t) => t.tool === "buscar_pessoas");
   assert.equal(call?.status, "DENIED", "a recusa tem que aparecer na auditoria");
+});
+
+/**
+ * A regressão que originou a ferramenta: o imóvel tinha fotos no cadastro e o
+ * agente respondia que não tinha. Fotos não estavam no documento do RAG nem em
+ * ferramenta nenhuma — o modelo respondia com o que recebia, e não recebia nada.
+ *
+ * O teste cobre o caminho inteiro: a foto sai do banco, a ferramenta a anexa e
+ * ela chega em `attachments`, FORA do texto. Fora do texto é o ponto: uma URL
+ * presignada tem centenas de caracteres, e depender de o modelo copiá-la sem
+ * errar um byte seria um bug esperando a hora.
+ */
+test("grafo: a ferramenta de fotos anexa as imagens à resposta", async () => {
+  await credits.grant(DEMO_TENANT, 1000);
+
+  const property = await insertProperty(
+    DEMO_TENANT,
+    createPropertySchema.parse({
+      title: "Apartamento com fotos",
+      kind: "rent",
+      purpose: "rent",
+      status: "available",
+    }),
+  );
+
+  // INSERT direto: `propertyService.addPhoto` sobe o binário para o bucket, e a
+  // suíte não depende de object storage. A URL é presignada em memória (só
+  // assinatura, sem rede), então `listPhotos` funciona sem bucket de pé.
+  await withTenant(DEMO_TENANT, async (client) => {
+    await client.query(
+      `INSERT INTO property_photos (tenant_id, property_id, storage_key, content_type, size_bytes, caption, position)
+       VALUES ($1, $2, $3, 'image/jpeg', 1024, 'Sala de estar', 0)`,
+      [DEMO_TENANT, property.id, `${DEMO_TENANT}/properties/${property.id}/teste.jpg`],
+    );
+  });
+
+  const llm = stubLlm({
+    callTools: [{ name: "mostrar_fotos_imovel", input: { id: property.id } }],
+    answer: "Aqui estão as fotos do apartamento.",
+  });
+
+  const result = await chat(
+    DEMO_TENANT,
+    { message: "Me mostra as fotos desse imóvel", roles: ["ADMIN"] },
+    { llm, embeddings: stubEmbeddings() },
+  );
+
+  assert.equal(result.attachments.length, 1, "a foto tem que chegar como anexo");
+  assert.equal(result.attachments[0]!.caption, "Sala de estar");
+  assert.ok(result.attachments[0]!.url.length > 0, "o anexo precisa de URL para renderizar");
+
+  assert.doesNotMatch(
+    llm.toolResults[0] ?? "",
+    /https?:\/\//,
+    "a URL não pode entrar no contexto do modelo — só a contagem e as legendas",
+  );
+  assert.match(llm.toolResults[0] ?? "", /1 foto\(s\)/);
+});
+
+/**
+ * Dados reservados (ver o cabeçalho de tools/registry.ts): as ferramentas de
+ * imóvel não podem ligar o imóvel a quem está por trás dele. O papel aqui é
+ * ADMIN de propósito — a regra não é de permissão, e um teste com papel fraco
+ * passaria pelo motivo errado, escondendo a regressão real.
+ */
+test("ferramentas: o imóvel não entrega o proprietário, nem para ADMIN", async () => {
+  await credits.grant(DEMO_TENANT, 1000);
+
+  // E-mail único por execução: o banco de teste não é recriado entre rodadas e
+  // `person.create` recusa contato repetido (ERR_PESSOA_004).
+  const email = `fulano.dono.${randomUUID()}@example.com`;
+  const owner = await personService.create(
+    DEMO_TENANT,
+    // Pelo schema, e não por objeto literal: `personType` e `nationality` têm
+    // default no zod e NOT NULL no banco — um literal cru quebra no INSERT.
+    createPersonSchema.parse({
+      fullName: "Fulano Proprietário da Silva",
+      roles: ["LOCADOR"],
+      email,
+    }),
+  );
+
+  const property = await insertProperty(
+    DEMO_TENANT,
+    createPropertySchema.parse({
+      title: "Imóvel com dono cadastrado",
+      kind: "rent",
+      purpose: "rent",
+      status: "available",
+    }),
+  );
+  await propertyService.addOwner(DEMO_TENANT, property.id, owner.id, 100);
+
+  const llm = stubLlm({
+    callTools: [{ name: "detalhar_imovel", input: { id: property.id } }],
+    answer: "Esse dado se consulta na ficha do imóvel.",
+  });
+
+  await chat(
+    DEMO_TENANT,
+    { message: "Quem é o dono desse imóvel?", roles: ["ADMIN"] },
+    { llm, embeddings: stubEmbeddings() },
+  );
+
+  const output = llm.toolResults[0] ?? "";
+  assert.ok(output.includes("Imóvel com dono cadastrado"), "o imóvel em si continua descrito");
+  assert.doesNotMatch(output, /Fulano/, "o nome do proprietário não pode chegar ao modelo");
+  assert.doesNotMatch(output, /fulano\.dono/, "nem o contato dele");
+  assert.doesNotMatch(
+    output,
+    /[Pp]ropriet[áa]rio/,
+    "nem a contagem de donos — ela confirmava a existência do vínculo",
+  );
+});
+
+/**
+ * O filtro de ids tem teste próprio em graph/sanitize.test.ts; este cobre o que
+ * aquele não alcança: que ele está de fato NO CAMINHO da resposta, e antes da
+ * gravação — um id que ficasse no histórico voltaria ao modelo na pergunta
+ * seguinte como texto que ele pode repetir.
+ */
+test("resposta: o id interno não chega ao usuário nem ao histórico", async () => {
+  await credits.grant(DEMO_TENANT, 1000);
+  const id = "8bb63ba6-43fd-4d59-ba94-1eb5cd665856";
+
+  const llm = stubLlm({ answer: `Encontrei a casa no Centro [id: ${id}], disponível.` });
+
+  const result = await chat(
+    DEMO_TENANT,
+    { message: "Tem casa no Centro?", roles: ["ADMIN"] },
+    { llm, embeddings: stubEmbeddings() },
+  );
+
+  assert.equal(result.answer, "Encontrei a casa no Centro, disponível.");
+
+  const detail = await aiRepo.findConversationDetail(DEMO_TENANT, result.conversationId);
+  const gravada = detail!.messages.find((m) => m.role === "assistant");
+  assert.doesNotMatch(gravada!.content, /8bb63ba6/, "o id não pode ficar gravado na conversa");
+});
+
+/** O outro lado: sem foto, a ferramenta diz isso explicitamente. */
+test("grafo: imóvel sem foto devolve a ausência em vez de silêncio", async () => {
+  await credits.grant(DEMO_TENANT, 1000);
+
+  const property = await insertProperty(
+    DEMO_TENANT,
+    createPropertySchema.parse({
+      title: "Imóvel sem foto",
+      kind: "sale",
+      purpose: "sale",
+      status: "available",
+    }),
+  );
+
+  const llm = stubLlm({
+    callTools: [{ name: "mostrar_fotos_imovel", input: { id: property.id } }],
+    answer: "Esse imóvel não tem fotos cadastradas.",
+  });
+
+  const result = await chat(
+    DEMO_TENANT,
+    { message: "Tem foto desse imóvel?", roles: ["ADMIN"] },
+    { llm, embeddings: stubEmbeddings() },
+  );
+
+  assert.equal(result.attachments.length, 0);
+  assert.match(llm.toolResults[0] ?? "", /nenhuma foto cadastrada/);
 });
 
 test("grafo: falha do provedor estorna a reserva", async () => {

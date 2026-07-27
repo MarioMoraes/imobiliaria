@@ -46,7 +46,8 @@ export async function indexProperty(
     return "removed";
   }
 
-  const text = renderPropertyDocument(property);
+  const photos = await propertyService.countPhotos(tenantId, [propertyId]);
+  const text = renderPropertyDocument(property, photos.get(propertyId) ?? 0);
   const hash = contentHash(text);
 
   const current = await ragRepo.getIndexedHash(tenantId, ENTITY_TYPE, propertyId);
@@ -89,10 +90,17 @@ export async function reindexTenant(
     const page = await propertyService.listForIndex(tenantId, cursor, PAGE_SIZE);
     if (page.length === 0) break;
 
+    // Uma contagem para a página inteira — ver `countPhotos` no repositório de
+    // imóveis: por imóvel seriam 200 queries a mais por página.
+    const photos = await propertyService.countPhotos(
+      tenantId,
+      page.map((p) => p.id),
+    );
+
     const pending: { id: string; text: string; hash: string }[] = [];
     for (const property of page) {
       result.scanned += 1;
-      const text = renderPropertyDocument(property);
+      const text = renderPropertyDocument(property, photos.get(property.id) ?? 0);
       const hash = contentHash(text);
       const current = await ragRepo.getIndexedHash(tenantId, ENTITY_TYPE, property.id);
       if (current === hash) {

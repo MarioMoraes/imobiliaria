@@ -44,7 +44,17 @@ function money(cents: number | null): string | null {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-export function renderPropertyDocument(property: Property): string {
+/**
+ * `photoCount` é o número REAL de linhas em `property_photos`, e não o campo
+ * `hasPhotos` do cadastro — aquele é uma marcação que alguém preenche no
+ * formulário e envelhece sozinha. Entra no documento porque "tem foto?" é
+ * pergunta de primeira linha, e sem isso o agente respondia que não havia
+ * fotos: o documento não falava delas, e o prompt manda não inventar.
+ *
+ * Como o número entra no texto indexado, ele entra no `contentHash` — por isso
+ * `property.photo_added` e `property.photo_removed` disparam reindexação.
+ */
+export function renderPropertyDocument(property: Property, photoCount = 0): string {
   const parts: string[] = [];
 
   const kind = KIND_LABEL[property.kind] ?? property.kind;
@@ -86,6 +96,14 @@ export function renderPropertyDocument(property: Property): string {
     property.allowStudents ? "aceita estudantes" : "não aceita estudantes",
   ];
   parts.push(`Regras: ${regras.join(", ")}.`);
+
+  // Frase inteira pelo mesmo motivo das regras: a pergunta chega como "tem foto
+  // desse apartamento?", e é com essas palavras que o trecho precisa casar.
+  parts.push(
+    photoCount > 0
+      ? `Fotos: ${photoCount} foto(s) cadastrada(s), disponíveis para mostrar.`
+      : "Fotos: nenhuma foto cadastrada.",
+  );
 
   if (property.notes) parts.push(`Observações: ${property.notes}`);
 

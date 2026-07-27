@@ -5,7 +5,7 @@ import type {
   LlmUsage,
 } from "../providers/types.js";
 import type { RetrievedChunk } from "../rag/rag.repository.js";
-import type { Sentiment } from "../ai.schema.js";
+import type { ChatAttachment, Sentiment } from "../ai.schema.js";
 
 /**
  * Estado que atravessa o grafo do agente (PRD MOD-AI §6).
@@ -44,6 +44,8 @@ export interface AgentState {
 
   /** Preenchido por respond. */
   answer?: string;
+  /** Mídia que as ferramentas anexaram a esta rodada (fotos de imóvel). */
+  attachments: ChatAttachment[];
   usage: LlmUsage;
 
   /** Preenchido por check-handoff. */
@@ -62,6 +64,7 @@ export function initialState(input: {
   return {
     ...input,
     retrieved: [],
+    attachments: [],
     usage: { inputTokens: 0, outputTokens: 0 },
     needsHandoff: false,
   };

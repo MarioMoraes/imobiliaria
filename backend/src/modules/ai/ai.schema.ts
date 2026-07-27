@@ -75,10 +75,31 @@ export interface Credits {
   available: number;
 }
 
+/**
+ * Mídia que acompanha a resposta — hoje, fotos de imóvel.
+ *
+ * Vem num campo estruturado, e não no texto: o modelo teria de reproduzir uma
+ * URL presignada de ~500 caracteres sem errar um byte, e o prompt de sistema
+ * ainda proíbe Markdown. Aqui a ferramenta coleta a URL e a interface a
+ * renderiza; o modelo só anuncia o que está sendo mostrado.
+ *
+ * As URLs expiram em 1 hora (`presignGetUrl`), então isto é bom para a rodada
+ * atual e não é persistido junto da mensagem — recarregar a conversa antiga
+ * mostra o texto, não as imagens.
+ */
+export interface ChatAttachment {
+  kind: "photo";
+  url: string;
+  caption: string | null;
+  /** De qual imóvel a foto veio, para a legenda da galeria. */
+  source: string;
+}
+
 /** Resposta de uma rodada do copiloto. */
 export interface ChatAnswer {
   conversationId: string;
   answer: string;
   /** Créditos efetivamente debitados nesta rodada. */
   creditsUsed: number;
+  attachments: ChatAttachment[];
 }

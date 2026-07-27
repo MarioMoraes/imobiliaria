@@ -4,7 +4,9 @@ import type { LlmTool, ToolInputSchema } from "../providers/types.js";
 import * as aiRepo from "../ai.repository.js";
 import { searchPropertiesTool } from "./search-properties.js";
 import { getPropertyTool } from "./get-property.js";
+import { listPhotosTool } from "./list-photos.js";
 import { searchPersonsTool } from "./search-persons.js";
+import type { ChatAttachment } from "../ai.schema.js";
 
 /**
  * Catálogo de ferramentas do agente e o invólucro que as governa.
@@ -27,6 +29,29 @@ import { searchPersonsTool } from "./search-persons.js";
  *
  * Toda chamada — autorizada, negada ou com falha — vira uma linha em
  * `agent_tool_calls`. É a trilha que responde "por que o agente disse isso".
+ *
+ * ────────────────────────────────────────────────────────────────
+ * DADOS RESERVADOS — a segunda regra, e ela NÃO é de permissão.
+ *
+ * Nenhuma ferramenta pode ligar um IMÓVEL às PESSOAS por trás dele:
+ * proprietário, fiador ou corretor responsável. Não é uma questão de papel —
+ * vale inclusive para ADMIN. Quem precisa desse dado abre a ficha do imóvel na
+ * tela, onde o acesso é explícito, deliberado e fica no log da aplicação; uma
+ * conversa é fácil de encaminhar por print, e um agente que responde "o dono é
+ * o Sr. Fulano, telefone tal" transforma um clique auditável num vazamento
+ * casual.
+ *
+ * Isso é diferente do gate de RBAC acima: `buscar_pessoas` continua existindo e
+ * continua liberada por `person:read`. O que se corta é o CAMINHO imóvel →
+ * pessoa. Buscar alguém pelo nome é uma coisa; descobrir quem é o dono do 101
+ * é outra.
+ *
+ * Na prática, ao escrever uma ferramenta nova:
+ * - não devolva `property.owners` (nem os nomes, nem a contagem);
+ * - não devolva o corretor responsável nem partes de contrato a partir do imóvel;
+ * - se precisar do vínculo para uma regra interna, use-o e não o coloque no
+ *   texto que volta ao modelo — tudo que a ferramenta devolve é dizível.
+ * ────────────────────────────────────────────────────────────────
  */
 
 export interface ToolContext {
@@ -34,6 +59,13 @@ export interface ToolContext {
   conversationId: string;
   /** Papéis de quem fez a pergunta. */
   roles: readonly string[];
+  /**
+   * Anexa mídia à resposta desta rodada (fotos de imóvel). Existe porque nem
+   * tudo que a ferramenta produz cabe no texto que volta ao modelo — ver
+   * `list-photos.ts`. Só o nó `respond` sabe o que fazer com o que for
+   * coletado; a ferramenta só empurra.
+   */
+  attach: (attachment: ChatAttachment) => void;
 }
 
 /** Ferramenta antes de ganhar contexto: descreve o que faz e o que exige. */
@@ -49,6 +81,7 @@ export interface ToolDefinition {
 const DEFINITIONS: ToolDefinition[] = [
   searchPropertiesTool,
   getPropertyTool,
+  listPhotosTool,
   searchPersonsTool,
 ];
 

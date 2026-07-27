@@ -139,7 +139,14 @@ export async function chat(
     },
   });
 
-  return { conversationId: conversation.id, answer, creditsUsed: used };
+  // As fotos vão só na resposta desta rodada: as URLs são presignadas e expiram
+  // em 1 hora, então gravá-las com a mensagem guardaria links mortos.
+  return {
+    conversationId: conversation.id,
+    answer,
+    creditsUsed: used,
+    attachments: state.attachments,
+  };
 }
 
 async function requireConversation(tenantId: string, id: string): Promise<Conversation> {

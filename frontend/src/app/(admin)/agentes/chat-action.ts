@@ -12,10 +12,21 @@ import { sendJson } from "../../../lib/api";
  * questão de segundos, e a alternativa (um route handler com SSE) seria o
  * primeiro `route.ts` do projeto — fica para quando o ganho justificar.
  */
+/** Foto que o copiloto anexou à resposta (ver ChatAttachment no backend). */
+export interface ChatAttachment {
+  kind: "photo";
+  url: string;
+  caption: string | null;
+  source: string;
+}
+
 export async function chatAction(input: {
   conversationId?: string;
   message: string;
-}): Promise<{ ok: true; conversationId: string; answer: string } | { ok: false; error: string }> {
+}): Promise<
+  | { ok: true; conversationId: string; answer: string; attachments: ChatAttachment[] }
+  | { ok: false; error: string }
+> {
   const message = input.message.trim();
   if (!message) return { ok: false, error: "Escreva uma pergunta." };
 
@@ -26,9 +37,17 @@ export async function chatAction(input: {
 
   if (!result.ok) return { ok: false, error: result.error };
 
-  const data = result.data as { conversationId?: string; answer?: string } | undefined;
+  const data = result.data as
+    | { conversationId?: string; answer?: string; attachments?: ChatAttachment[] }
+    | undefined;
   if (!data?.answer || !data.conversationId) {
     return { ok: false, error: "O assistente não devolveu uma resposta." };
   }
-  return { ok: true, conversationId: data.conversationId, answer: data.answer };
+  return {
+    ok: true,
+    conversationId: data.conversationId,
+    answer: data.answer,
+    // Backend antigo (ou resposta sem fotos) não manda o campo.
+    attachments: data.attachments ?? [],
+  };
 }

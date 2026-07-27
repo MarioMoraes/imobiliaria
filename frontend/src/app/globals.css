@@ -1746,8 +1746,19 @@ textarea.editor-surface:focus {
   justify-content: flex-start;
 }
 
-.chat-bubble {
+/* Coluna do turno: a bolha e, abaixo dela, as fotos que o agente anexou. A
+   largura máxima mora aqui (e não na bolha) para que a galeria acompanhe o
+   mesmo limite em vez de atravessar a conversa inteira. */
+.chat-turn-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   max-width: min(72ch, 82%);
+  min-width: 0;
+}
+
+.chat-bubble {
+  max-width: 100%;
   padding: 12px 16px;
   border-radius: 16px;
   line-height: 1.55;
@@ -1770,6 +1781,59 @@ textarea.editor-surface:focus {
   border: 1px solid var(--border);
   color: var(--dark-text);
   border-bottom-left-radius: 5px;
+}
+
+/* Galeria de fotos anexadas à resposta do copiloto. */
+.chat-photos {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.chat-photo-source {
+  margin-bottom: 6px;
+  font-weight: 600;
+  color: var(--muted);
+}
+/* auto-fill com mínimo em px: numa resposta com uma foto só ela fica do tamanho
+   de uma miniatura, e não esticada por toda a largura da bolha. */
+.chat-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  gap: 8px;
+}
+.chat-photo {
+  position: relative;
+  display: block;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.chat-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.25s ease;
+}
+.chat-photo:hover img {
+  transform: scale(1.05);
+}
+.chat-photo-caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 12px 8px 5px;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  color: var(--white);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.72), transparent);
+  /* Legenda longa não pode empurrar a imagem nem virar três linhas. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .chat-thinking {

@@ -29,13 +29,11 @@ export const getPropertyTool: ToolDefinition = {
     // `getById` lança 404 quando não existe; o registry converte em texto para o
     // modelo, que aí explica que o imóvel não foi encontrado.
     const property = await propertyService.getById(ctx.tenantId, id);
-    const owners = property.owners.length;
+    const photos = await propertyService.countPhotos(ctx.tenantId, [id]);
 
-    return [
-      `[id: ${property.id}] ${renderPropertyDocument(property)}`,
-      // Contagem, não nomes: quem pergunta pode ter `property:read` sem ter
-      // `person:read`, e o nome do proprietário é dado de pessoa.
-      `Proprietários cadastrados: ${owners}.`,
-    ].join(" ");
+    // `property.owners` vem preenchido daqui (com nome de cada dono) e é
+    // descartado de propósito — nem os nomes, nem a contagem. Ver a regra dos
+    // dados reservados em registry.ts.
+    return `[id: ${property.id}] ${renderPropertyDocument(property, photos.get(id) ?? 0)}`;
   },
 };

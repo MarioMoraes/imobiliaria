@@ -44,10 +44,16 @@ export const searchPropertiesTool: ToolDefinition = {
       return `Nenhum imóvel encontrado para "${termo}".`;
     }
 
+    // Uma contagem para o lote todo — o resultado tem no máximo 15 imóveis.
+    const photos = await propertyService.countPhotos(
+      ctx.tenantId,
+      properties.map((p) => p.id),
+    );
+
     // Reusa o mesmo renderizador do índice: o modelo vê o imóvel descrito da
     // mesma forma venha ele do RAG ou da busca, sem dois vocabulários.
     return properties
-      .map((p) => `[id: ${p.id}] ${renderPropertyDocument(p)}`)
+      .map((p) => `[id: ${p.id}] ${renderPropertyDocument(p, photos.get(p.id) ?? 0)}`)
       .join("\n\n");
   },
 };

@@ -172,6 +172,18 @@ export async function listPhotos(tenantId: string, propertyId: string): Promise<
   return Promise.all(stored.map(toPublicPhoto));
 }
 
+/**
+ * Quantas fotos cada imóvel tem, em lote. Existe para quem precisa saber SE há
+ * fotos sem pagar o preço de presignar cada uma (`listPhotos` faz uma chamada
+ * ao storage por foto). É o que o RAG e as ferramentas do copiloto usam.
+ */
+export function countPhotos(
+  tenantId: string,
+  propertyIds: readonly string[],
+): Promise<Map<string, number>> {
+  return repo.countPhotos(tenantId, propertyIds);
+}
+
 export async function addPhoto(
   tenantId: string,
   propertyId: string,
@@ -213,4 +225,15 @@ export async function removePhoto(
   } catch {
     /* órfão no bucket é tolerável; um GC pode limpar depois */
   }
+
+  // Par do `property.photo_added`: o documento indexado no RAG diz quantas
+  // fotos o imóvel tem, então apagar a última precisa reindexar — senão o
+  // copiloto continua oferecendo fotos que não existem mais.
+  await publish({
+    type: "property.photo_removed",
+    tenantId,
+    eventId: randomUUID(),
+    occurredAt: new Date().toISOString(),
+    payload: { propertyId, photoId },
+  });
 }

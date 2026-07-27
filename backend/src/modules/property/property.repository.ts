@@ -529,6 +529,30 @@ export async function listPhotos(
   });
 }
 
+/**
+ * Quantas fotos cada imóvel da lista tem. Uma query com `GROUP BY` para o lote
+ * inteiro, e não uma por imóvel: o indexador do RAG percorre o inventário em
+ * páginas de 200, e contar de um em um seria 200 idas ao banco por página.
+ *
+ * Imóvel sem foto não volta do `GROUP BY` — quem chama trata a ausência como
+ * zero (o `Map` não terá a chave).
+ */
+export async function countPhotos(
+  tenantId: string,
+  propertyIds: readonly string[],
+): Promise<Map<string, number>> {
+  if (propertyIds.length === 0) return new Map();
+  return withTenant(tenantId, async (client) => {
+    const { rows } = await client.query<{ property_id: string; total: string }>(
+      `SELECT property_id, COUNT(*) AS total FROM property_photos
+        WHERE property_id = ANY($1::uuid[])
+        GROUP BY property_id`,
+      [propertyIds],
+    );
+    return new Map(rows.map((r) => [r.property_id, Number(r.total)]));
+  });
+}
+
 export async function insertPhoto(
   tenantId: string,
   propertyId: string,
