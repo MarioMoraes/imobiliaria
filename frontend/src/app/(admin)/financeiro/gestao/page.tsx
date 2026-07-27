@@ -15,6 +15,17 @@ const CASH_FLOW_MONTHS = 6;
 
 const monthAbbr = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
+const monthNames = [
+  "janeiro", "fevereiro", "março", "abril", "maio", "junho",
+  "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+];
+
+/** "2026-07" → "julho/2026". */
+function monthTitle(month: string): string {
+  const index = Number(month.slice(5, 7)) - 1;
+  return `${monthNames[index] ?? month}/${month.slice(0, 4)}`;
+}
+
 /** "2026-07" → "Jul". Sem `new Date()` no meio: YYYY-MM não tem fuso. */
 function monthLabel(month: string): string {
   const index = Number(month.slice(5, 7)) - 1;
@@ -37,11 +48,18 @@ function describe(r: Receivable): string {
 }
 
 export default async function GestaoFinanceiraPage() {
-  const [receivables, cashFlow] = await Promise.all([
+  const today = new Date().toISOString().slice(0, 10);
+  const currentMonth = today.slice(0, 7);
+
+  // Duas listas de propósito: os indicadores olham a carteira inteira (o "a
+  // receber" e a inadimplência não são do mês), enquanto a tabela de contas a
+  // receber mostra só a competência corrente — pedir o mês ao backend em vez de
+  // filtrar aqui evita que o limite da listagem corte justamente essas parcelas.
+  const [receivables, monthReceivables, cashFlow] = await Promise.all([
     fetchReceivables().then((r) => r ?? []),
+    fetchReceivables({ competence: currentMonth }).then((r) => r ?? []),
     fetchCashFlow(CASH_FLOW_MONTHS).then((c) => c ?? []),
   ]);
-  const today = new Date().toISOString().slice(0, 10);
   const sum = (list: Receivable[]) => list.reduce((acc, r) => acc + r.amountCents, 0);
 
   const abertos = receivables.filter((r) => r.status === "ABERTO");
@@ -85,12 +103,15 @@ export default async function GestaoFinanceiraPage() {
             <CashFlowChart points={cashFlow} />
           </Section>
 
-          <Section title="Contas a receber">
+          <Section
+            title="Contas a receber"
+            action={<span className="badge badge-blue">{monthTitle(currentMonth)}</span>}
+          >
             <div className="table-wrap">
               <table className="table">
                 <thead><tr><th>Descrição</th><th>Pagador</th><th>Competência</th><th>Venc.</th><th>Valor</th><th>Status</th></tr></thead>
                 <tbody>
-                  {receivables.map((r) => (
+                  {monthReceivables.map((r) => (
                     <tr key={r.id}>
                       <td className="strong">{describe(r)}</td>
                       <td className="text-sm">{r.payerName ?? "—"}</td>
@@ -100,11 +121,12 @@ export default async function GestaoFinanceiraPage() {
                       <td><StatusBadge status={displayStatus(r, today)} /></td>
                     </tr>
                   ))}
-                  {receivables.length === 0 && (
+                  {monthReceivables.length === 0 && (
                     <tr>
                       <td colSpan={6} className="text-sm subtle">
-                        Nenhuma cobrança ainda. Os aluguéis são gerados quando o contrato é
-                        assinado por todas as partes.
+                        {receivables.length === 0
+                          ? "Nenhuma cobrança ainda. Os aluguéis são gerados quando o contrato é assinado por todas as partes."
+                          : `Nenhuma cobrança com competência em ${monthTitle(currentMonth)}.`}
                       </td>
                     </tr>
                   )}

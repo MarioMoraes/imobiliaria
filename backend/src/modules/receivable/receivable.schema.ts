@@ -92,6 +92,8 @@ export const listReceivablesQuerySchema = z.object({
   propertyId: z.string().uuid().optional(),
   status: receivableStatus.optional(),
   kind: receivableKind.optional(),
+  /** Mês de referência (YYYY-MM) — ver `listReceivables` no repositório. */
+  competence: competence.optional(),
   dueFrom: isoDate.optional(),
   dueTo: isoDate.optional(),
   limit: z.coerce.number().int().min(1).max(500).default(200),

@@ -180,13 +180,11 @@ export function FieldBlock({
   tone,
   icon,
   title,
-  hint,
   children,
 }: {
   tone: string;
   icon: string;
   title: string;
-  hint?: string;
   children: ReactNode;
 }) {
   return (
@@ -196,7 +194,6 @@ export function FieldBlock({
           <Icon name={icon} size={15} />
         </span>
         <span className="field-block-title">{title}</span>
-        {hint && <span className="field-block-hint">{hint}</span>}
       </div>
       {children}
     </div>

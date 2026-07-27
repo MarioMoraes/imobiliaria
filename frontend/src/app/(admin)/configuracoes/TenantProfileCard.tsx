@@ -123,10 +123,6 @@ export function TenantProfileCard({ tenant }: { tenant: Tenant | null }) {
               </button>
             )}
           </div>
-          <span className="text-xs subtle">
-            PNG com fundo transparente fica melhor. A imagem é reduzida no navegador e aparece na
-            barra lateral e no topo do sistema.
-          </span>
         </div>
         <input
           ref={fileRef}
@@ -165,7 +161,6 @@ export function TenantProfileCard({ tenant }: { tenant: Tenant | null }) {
       <div className="field">
         <label>Subdomínio</label>
         <input className="input" readOnly disabled value={tenant?.slug ? `${tenant.slug}.officesai.com.br` : "—"} />
-        <span className="text-xs subtle">Definido no cadastro da conta; fale com o suporte para alterar.</span>
       </div>
 
       {error && <span className="badge badge-red">{error}</span>}

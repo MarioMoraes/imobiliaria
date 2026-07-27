@@ -1481,12 +1481,6 @@ select.input {
   font-weight: 640;
   color: var(--dark);
 }
-.field-block-hint {
-  margin-left: auto;
-  font-size: 0.74rem;
-  color: var(--muted);
-}
-
 /* Campo preenchido pelo sistema (ex.: vencimento calculado). */
 .input.is-computed {
   background: color-mix(in srgb, var(--primary) 6%, var(--white));

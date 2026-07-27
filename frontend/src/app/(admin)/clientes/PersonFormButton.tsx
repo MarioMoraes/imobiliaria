@@ -438,14 +438,8 @@ export function PersonFormButton({
 
         {/* Dados residenciais */}
         <div className="stack" style={{ gap: 10, display: tab === "residenciais" ? "flex" : "none" }}>
-          <FieldBlock
-            tone="tone-ciano"
-            icon="home"
-            title="Endereço residencial"
-            hint="ao menos um contato é obrigatório"
-          >
+          <FieldBlock tone="tone-ciano" icon="home" title="Endereço residencial">
             <AddressBlock title="" value={form.residential} onChange={(patch) => set({ residential: { ...form.residential, ...patch } })} />
-            <span className="text-xs subtle">Informe ao menos um contato (e-mail ou telefone/celular) nos dados residenciais.</span>
           </FieldBlock>
         </div>
 

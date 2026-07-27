@@ -64,6 +64,12 @@ const SELECT = `
     FROM receivables r
     LEFT JOIN persons p ON p.id = r.payer_person_id`;
 
+/**
+ * `competence` filtra pelo mês de referência da cobrança. Nas parcelas geradas
+ * ela vem preenchida; nas cobranças avulsas é nula, e aí o mês de referência é
+ * o do vencimento — daí o COALESCE, senão uma avulsa nunca apareceria em
+ * nenhum mês.
+ */
 export async function listReceivables(
   tenantId: string,
   query: ListReceivablesQuery,
@@ -80,6 +86,9 @@ export async function listReceivables(
     if (query.propertyId) add("r.property_id = ?", query.propertyId);
     if (query.status) add("r.status = ?", query.status);
     if (query.kind) add("r.kind = ?", query.kind);
+    if (query.competence) {
+      add("COALESCE(r.competence, to_char(r.due_date, 'YYYY-MM')) = ?", query.competence);
+    }
     if (query.dueFrom) add("r.due_date >= ?", query.dueFrom);
     if (query.dueTo) add("r.due_date <= ?", query.dueTo);
 

@@ -432,11 +432,6 @@ export function ContractFormButton({
                 <div className="field">
                   <label>Situação</label>
                   <input className="input" value={STATUS_LABEL[liveStatus] ?? liveStatus} readOnly disabled />
-                  <span className="text-xs subtle">
-                    {liveStatus === "VIGENTE"
-                      ? "Contrato assinado por todas as partes."
-                      : "Definida pelo sistema: passa a Vigente quando todas as assinaturas são confirmadas."}
-                  </span>
                   {(liveStatus === "VIGENTE" || liveStatus === "RENOVADO") && (
                     <div className="row gap-8" style={{ marginTop: 8 }}>
                       <button
@@ -461,12 +456,7 @@ export function ContractFormButton({
               </div>
             </FieldBlock>
 
-            <FieldBlock
-              tone="tone-azul"
-              icon="calendar"
-              title="Vigência"
-              hint="vencimento calculado automaticamente"
-            >
+            <FieldBlock tone="tone-azul" icon="calendar" title="Vigência">
               <div className="grid grid-4" style={{ gap: 12 }}>
                 <Text
                   label="Início"
@@ -538,7 +528,7 @@ export function ContractFormButton({
               </div>
             </FieldBlock>
 
-            <FieldBlock tone="tone-teal" icon="shield" title="Garantia" hint="obrigatória para enviar à assinatura">
+            <FieldBlock tone="tone-teal" icon="shield" title="Garantia">
               <div className="grid grid-3" style={{ gap: 12 }}>
                 <Select label="Modalidade" value={form.guaranteeKind} onChange={(v) => set({ guaranteeKind: v })}>
                   <option value="">—</option>
@@ -598,12 +588,7 @@ export function ContractFormButton({
 
         {/* ── Aba: Cláusulas ─────────────────────────────────────── */}
         {tab === "clausulas" && (
-          <FieldBlock
-            tone="tone-ardosia"
-            icon="list"
-            title="Cláusulas especiais"
-            hint="entram no documento gerado"
-          >
+          <FieldBlock tone="tone-ardosia" icon="list" title="Cláusulas especiais">
             <div className="field">
               <textarea
                 className="input"

@@ -163,9 +163,6 @@ export function BankFormButton({ bank, disabled }: { bank?: Bank; disabled?: boo
           <ReadonlyMoney label="Em Trânsito" cents={bank?.inTransitCents ?? 0} />
           <ReadonlyMoney label="Provável Saldo" cents={bank?.probableBalanceCents ?? 0} />
         </div>
-        <span className="text-xs subtle">
-          Saldo, Cofre, Em Trânsito e Provável Saldo são alimentados por outras rotinas do sistema.
-        </span>
 
         {error && <span className="text-sm" style={{ color: "var(--danger, #dc2626)" }}>{error}</span>}
 

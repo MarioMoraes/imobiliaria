@@ -792,10 +792,13 @@ export function fetchCashFlow(months = 6): Promise<CashFlowPoint[] | null> {
 export function fetchReceivables(params?: {
   contractId?: string;
   status?: string;
+  /** Mês de referência (YYYY-MM): competência da parcela, ou o mês do vencimento nas avulsas. */
+  competence?: string;
 }): Promise<Receivable[] | null> {
   const query = new URLSearchParams();
   if (params?.contractId) query.set("contractId", params.contractId);
   if (params?.status) query.set("status", params.status);
+  if (params?.competence) query.set("competence", params.competence);
   const qs = query.toString();
   return get<Receivable[]>(`/v1/receivables${qs ? `?${qs}` : ""}`);
 }

@@ -148,7 +148,6 @@ export function TenantsManager({ tenants }: { tenants: TenantRow[] }) {
                   </button>
                 )}
               </div>
-              <span className="text-xs subtle">PNG, JPG ou SVG · até 512 KB · quadrado fica melhor.</span>
               <input
                 ref={fileRef}
                 type="file"

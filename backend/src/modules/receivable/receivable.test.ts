@@ -103,6 +103,35 @@ test("reprocessar a assinatura não duplica as parcelas", async () => {
   }
 });
 
+test("filtro por competência traz o mês pedido, inclusive a avulsa sem competência", async () => {
+  const contractId = await rentedContract();
+  try {
+    await updateContract(DEMO_TENANT, contractId, { status: "VIGENTE" });
+    // Avulsa: sem competência, o mês de referência é o do vencimento.
+    await insertReceivable(DEMO_TENANT, {
+      contractId,
+      kind: "MULTA",
+      amountCents: 5_000,
+      dueDate: "2026-09-20",
+    });
+
+    const setembro = await listReceivables(DEMO_TENANT, { ...QUERY, competence: "2026-09" });
+    const doContrato = setembro.filter((r) => r.contractId === contractId);
+    assert.equal(doContrato.length, 2, "o aluguel de setembro e a multa vencendo em setembro");
+    assert.ok(doContrato.some((r) => r.kind === "ALUGUEL" && r.competence === "2026-09"));
+    assert.ok(doContrato.some((r) => r.kind === "MULTA" && r.competence === null));
+
+    const outubro = await listReceivables(DEMO_TENANT, { ...QUERY, competence: "2026-10" });
+    assert.equal(
+      outubro.filter((r) => r.contractId === contractId).length,
+      1,
+      "outro mês não deve arrastar a parcela de setembro",
+    );
+  } finally {
+    await dropContract(contractId);
+  }
+});
+
 test("o fluxo de caixa soma o previsto pelo vencimento e o recebido pela baixa", async () => {
   const hoje = new Date().toISOString().slice(0, 10);
   const valor = 123_456;

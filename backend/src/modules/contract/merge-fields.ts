@@ -1,3 +1,4 @@
+import { moneyToWords } from "../../shared/extenso.js";
 import type { Person, PersonAddress } from "../person/person.schema.js";
 import type { Property } from "../property/property.schema.js";
 import type { Contract } from "./contract.schema.js";
@@ -29,6 +30,15 @@ const brl = (cents: number | null | undefined): string =>
   cents === null || cents === undefined
     ? BLANK
     : (cents / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+
+/**
+ * Centavos → "dois mil e quinhentos reais".
+ *
+ * Contrato escreve o valor em algarismos e o repete em palavras; cada campo
+ * monetário do catálogo tem, por isso, um par `_extenso`.
+ */
+const brlWords = (cents: number | null | undefined): string =>
+  cents === null || cents === undefined ? BLANK : esc(moneyToWords(cents));
 
 /** ISO (YYYY-MM-DD) → dd/mm/aaaa. */
 const dateBr = (iso: string | null | undefined): string => {
@@ -141,6 +151,18 @@ interface PropertyFieldDef {
   value: (p: Property | null) => string;
 }
 
+/**
+ * O cadastro guarda **um** preço (`priceCents`); o que ele significa vem da
+ * finalidade do imóvel. Por isso os campos de venda e de locação só rendem
+ * valor quando a finalidade bate — pôr um aluguel onde o contrato diz "preço de
+ * venda" seria escrever o número errado numa escritura.
+ */
+const salePrice = (p: Property | null): number | null =>
+  p && p.purpose === "sale" ? p.priceCents : null;
+
+const rentPrice = (p: Property | null): number | null =>
+  p && (p.purpose === "rent" || p.purpose === "season") ? p.priceCents : null;
+
 const PROPERTY_FIELDS = [
   { suffix: "codigo", label: "Código do imóvel", example: "1042", value: (p) => num(p?.code) },
   { suffix: "titulo", label: "Título/descrição", example: "Apartamento 2 dormitórios", value: (p) => text(p?.title) },
@@ -167,8 +189,41 @@ const PROPERTY_FIELDS = [
   { suffix: "quartos", label: "Dormitórios", example: "2", value: (p) => num(p?.bedrooms) },
   { suffix: "area_construida", label: "Área construída (m²)", example: "68", value: (p) => num(p?.builtArea) },
   { suffix: "area_terreno", label: "Área do terreno (m²)", example: "125", value: (p) => num(p?.landArea) },
+  { suffix: "valor", label: "Preço do cadastro", example: "250.000,00", value: (p) => brl(p?.priceCents) },
+  {
+    suffix: "valor_extenso",
+    label: "Preço do cadastro (por extenso)",
+    example: "duzentos e cinquenta mil reais",
+    value: (p) => brlWords(p?.priceCents),
+  },
+  { suffix: "valor_venda", label: "Preço de venda", example: "250.000,00", value: (p) => brl(salePrice(p)) },
+  {
+    suffix: "valor_venda_extenso",
+    label: "Preço de venda (por extenso)",
+    example: "duzentos e cinquenta mil reais",
+    value: (p) => brlWords(salePrice(p)),
+  },
+  { suffix: "valor_aluguel", label: "Valor do aluguel", example: "2.500,00", value: (p) => brl(rentPrice(p)) },
+  {
+    suffix: "valor_aluguel_extenso",
+    label: "Valor do aluguel (por extenso)",
+    example: "dois mil e quinhentos reais",
+    value: (p) => brlWords(rentPrice(p)),
+  },
   { suffix: "valor_condominio", label: "Valor do condomínio", example: "450,00", value: (p) => brl(p?.condoFeeCents) },
+  {
+    suffix: "valor_condominio_extenso",
+    label: "Valor do condomínio (por extenso)",
+    example: "quatrocentos e cinquenta reais",
+    value: (p) => brlWords(p?.condoFeeCents),
+  },
   { suffix: "valor_iptu", label: "Valor do IPTU", example: "1.200,00", value: (p) => brl(p?.iptuCents) },
+  {
+    suffix: "valor_iptu_extenso",
+    label: "Valor do IPTU (por extenso)",
+    example: "mil e duzentos reais",
+    value: (p) => brlWords(p?.iptuCents),
+  },
   { suffix: "matricula", label: "Matrícula do imóvel", example: "123.456", value: (p) => text(p?.registrationNumber) },
   { suffix: "cartorio", label: "Cartório de registro", example: "1º CRI da Capital", value: (p) => text(p?.registryOffice) },
   { suffix: "local_chaves", label: "Local das chaves", example: "Na imobiliária", value: (p) => text(p?.keysLocation) },
@@ -197,6 +252,24 @@ const CONTRACT_FIELDS = [
     label: "Valor do aluguel",
     example: "2.500,00",
     value: (c, p) => brl(c.rentalValueCents ?? p?.priceCents ?? null),
+  },
+  {
+    suffix: "valor_extenso",
+    label: "Valor do aluguel (por extenso)",
+    example: "dois mil e quinhentos reais",
+    value: (c, p) => brlWords(c.rentalValueCents ?? p?.priceCents ?? null),
+  },
+  {
+    suffix: "valor_seguro",
+    label: "Valor do seguro",
+    example: "380,00",
+    value: (c) => brl(c.insuranceValueCents),
+  },
+  {
+    suffix: "valor_seguro_extenso",
+    label: "Valor do seguro (por extenso)",
+    example: "trezentos e oitenta reais",
+    value: (c) => brlWords(c.insuranceValueCents),
   },
   { suffix: "dia_pagamento", label: "Dia de pagamento", example: "10", value: (c) => num(c.tenantPayDay) },
   { suffix: "indice_reajuste", label: "Índice de reajuste", example: "IPCA", value: (c) => text(c.readjustIndex) },

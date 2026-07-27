@@ -6,26 +6,11 @@ import { Icon } from "../../../components/Icon";
 import type { PaymentSettings } from "../../../lib/api";
 import { disconnectPaymentAction, savePaymentSettingsAction } from "./actions";
 
-/**
- * Formas de recebimento. O rótulo explica o efeito prático — é o que o inquilino
- * vai encontrar ao abrir a cobrança.
- */
-const BILLING_TYPES: { value: string; label: string; hint: string }[] = [
-  {
-    value: "UNDEFINED",
-    label: "Boleto + PIX (o inquilino escolhe)",
-    hint: "Abre uma fatura com o boleto e o QR Code PIX. O PIX compensa na hora; o boleto, em D+1.",
-  },
-  {
-    value: "BOLETO",
-    label: "Somente boleto",
-    hint: "O botão da parcela abre direto o PDF do boleto registrado.",
-  },
-  {
-    value: "PIX",
-    label: "Somente PIX",
-    hint: "Compensação imediata e sem tarifa de boleto, mas exclui quem paga em lotérica.",
-  },
+/** Formas de recebimento — é o que o inquilino encontra ao abrir a cobrança. */
+const BILLING_TYPES: { value: string; label: string }[] = [
+  { value: "UNDEFINED", label: "Boleto + PIX (o inquilino escolhe)" },
+  { value: "BOLETO", label: "Somente boleto" },
+  { value: "PIX", label: "Somente PIX" },
 ];
 
 /**
@@ -99,10 +84,6 @@ export function PaymentSettingsCard({ settings }: { settings: PaymentSettings | 
           placeholder={connected ? "Deixe em branco para manter a chave atual" : "Cole aqui a chave do Asaas"}
           autoComplete="off"
         />
-        <span className="text-xs subtle">
-          Asaas → Configurações → Integrações → Chave de API. A chave é gravada cifrada e nunca
-          volta a ser exibida. Use a chave do ambiente correspondente à opção abaixo.
-        </span>
       </div>
 
       <div className="field">
@@ -114,9 +95,6 @@ export function PaymentSettingsCard({ settings }: { settings: PaymentSettings | 
             </option>
           ))}
         </select>
-        <span className="text-xs subtle">
-          {BILLING_TYPES.find((b) => b.value === billingType)?.hint}
-        </span>
       </div>
 
       <label className="row gap-8 text-sm" style={{ cursor: "pointer" }}>
@@ -127,11 +105,6 @@ export function PaymentSettingsCard({ settings }: { settings: PaymentSettings | 
       <div className="field">
         <label>URL do webhook</label>
         <input className="input" readOnly value={settings?.webhookUrl ?? "—"} />
-        <span className="text-xs subtle">
-          {settings?.webhookRegisteredAt
-            ? "Registrado automaticamente no Asaas — o pagamento dá baixa sozinho na parcela."
-            : "Em ambiente local o Asaas não alcança esta URL — a baixa sai pelo botão da parcela."}
-        </span>
       </div>
 
       {error && <span className="badge badge-red">{error}</span>}

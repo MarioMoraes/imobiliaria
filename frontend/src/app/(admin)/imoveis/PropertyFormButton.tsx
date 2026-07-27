@@ -520,11 +520,7 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
                   <option value="season">Temporada</option>
                 </Select>
               )}
-              <ReadOnly
-                label="Situação"
-                value={STATUS_LABEL[form.status] ?? form.status}
-                hint="Definida pelo sistema: o imóvel fica Alugado quando o contrato é assinado."
-              />
+              <ReadOnly label="Situação" value={STATUS_LABEL[form.status] ?? form.status} />
             </div>
             </FieldBlock>
             <FieldBlock tone="tone-azul" icon="folder" title="Vínculos">
@@ -924,9 +920,6 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
                   </div>
                 )}
 
-                <span className="text-xs subtle">
-                  As imagens são redimensionadas e comprimidas no navegador antes de salvar.
-                </span>
                 {photoError && <span className="text-xs" style={{ color: "var(--danger, #dc2626)" }}>{photoError}</span>}
               </>
             )}
@@ -1194,12 +1187,11 @@ function Text({
  * "Alugado" quando o contrato entra em vigência e volta a "Disponível" no
  * encerramento (ver contract.service no backend).
  */
-function ReadOnly({ label, value, hint }: { label: string; value: string; hint?: string }) {
+function ReadOnly({ label, value }: { label: string; value: string }) {
   return (
     <div className="field">
       <label>{label}</label>
       <input className="input" value={value} readOnly disabled />
-      {hint && <span className="text-xs subtle">{hint}</span>}
     </div>
   );
 }

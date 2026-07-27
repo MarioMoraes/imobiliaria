@@ -7,30 +7,14 @@ import type { SignatureSettings } from "../../../lib/api";
 import { disconnectSignatureAction, saveSignatureSettingsAction } from "./actions";
 
 /**
- * Modos de assinatura oferecidos. O rótulo explica o efeito jurídico/prático —
- * a escolha define qual contato passa a ser obrigatório no cadastro das partes.
+ * Modos de assinatura oferecidos. A escolha define qual contato passa a ser
+ * obrigatório no cadastro das partes (e-mail, celular ou certificado).
  */
-const AUTH_MODES: { value: string; label: string; hint: string }[] = [
-  {
-    value: "assinaturaTela-tokenEmail",
-    label: "Assinatura em tela + token por e-mail",
-    hint: "Padrão de mercado para locação. Exige e-mail em todas as partes.",
-  },
-  {
-    value: "assinaturaTela-tokenWhatsApp",
-    label: "Assinatura em tela + token por WhatsApp",
-    hint: "Melhor conversão com quem não usa e-mail. Exige celular nas partes.",
-  },
-  {
-    value: "assinaturaTela-tokenSms",
-    label: "Assinatura em tela + token por SMS",
-    hint: "Alternativa ao WhatsApp. Exige celular nas partes.",
-  },
-  {
-    value: "certificadoDigital",
-    label: "Certificado digital (ICP-Brasil)",
-    hint: "Assinatura qualificada — exige e-CPF/e-CNPJ de todas as partes.",
-  },
+const AUTH_MODES: { value: string; label: string }[] = [
+  { value: "assinaturaTela-tokenEmail", label: "Assinatura em tela + token por e-mail" },
+  { value: "assinaturaTela-tokenWhatsApp", label: "Assinatura em tela + token por WhatsApp" },
+  { value: "assinaturaTela-tokenSms", label: "Assinatura em tela + token por SMS" },
+  { value: "certificadoDigital", label: "Certificado digital (ICP-Brasil)" },
 ];
 
 /**
@@ -102,10 +86,6 @@ export function SignatureSettingsCard({ settings }: { settings: SignatureSetting
           placeholder={connected ? "Deixe em branco para manter o token atual" : "Cole aqui o token da ZapSign"}
           autoComplete="off"
         />
-        <span className="text-xs subtle">
-          ZapSign → Configurações → Integrações → API ZapSign. O token é gravado cifrado e nunca
-          volta a ser exibido.
-        </span>
       </div>
 
       <div className="field">
@@ -117,9 +97,6 @@ export function SignatureSettingsCard({ settings }: { settings: SignatureSetting
             </option>
           ))}
         </select>
-        <span className="text-xs subtle">
-          {AUTH_MODES.find((m) => m.value === authMode)?.hint}
-        </span>
       </div>
 
       <label className="row gap-8 text-sm" style={{ cursor: "pointer" }}>
@@ -130,11 +107,6 @@ export function SignatureSettingsCard({ settings }: { settings: SignatureSetting
       <div className="field">
         <label>URL do webhook</label>
         <input className="input" readOnly value={settings?.webhookUrl ?? "—"} />
-        <span className="text-xs subtle">
-          {settings?.webhookRegisteredAt
-            ? "Registrado automaticamente na ZapSign."
-            : "Em ambiente local a ZapSign não alcança esta URL — use “Sincronizar status” no contrato."}
-        </span>
       </div>
 
       {error && <span className="badge badge-red">{error}</span>}

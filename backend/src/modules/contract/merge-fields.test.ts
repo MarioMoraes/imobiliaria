@@ -96,6 +96,7 @@ const person = {
 
 const property = {
   code: 1042,
+  purpose: "rent",
   streetType: "Rua",
   address: "das Acácias",
   number: "55",
@@ -158,6 +159,37 @@ test("imóvel e contrato são formatados para o texto do contrato", () => {
   assert.equal(ctx["contrato.garantia"], "fiador");
   assert.equal(ctx["contrato.iptu_responsavel"], "locatário");
   assert.equal(ctx["contrato.numero"], "128");
+});
+
+test("todo campo monetário tem o par por extenso", () => {
+  const keys = new Set(MERGE_FIELDS.map((f) => f.key));
+  for (const key of keys) {
+    if (!key.includes("valor") || key.endsWith("_extenso")) continue;
+    assert.ok(keys.has(`${key}_extenso`), `campo de dinheiro sem par por extenso: ${key}`);
+  }
+});
+
+test("valores em dinheiro saem também por extenso", () => {
+  assert.equal(ctx["contrato.valor_extenso"], "dois mil e quinhentos reais");
+  assert.equal(ctx["imovel.valor_condominio_extenso"], "quatrocentos e cinquenta reais");
+  assert.equal(ctx["contrato.valor_seguro_extenso"], "____________", "sem valor, lacuna visível");
+});
+
+test("preço de venda e de aluguel seguem a finalidade do imóvel", () => {
+  // O cadastro guarda um preço só; a finalidade diz o que ele é.
+  assert.equal(ctx["imovel.valor_aluguel"], "2.500,00");
+  assert.equal(ctx["imovel.valor_aluguel_extenso"], "dois mil e quinhentos reais");
+  assert.equal(ctx["imovel.valor_venda"], "____________", "imóvel de locação não tem preço de venda");
+
+  const sale = buildMergeContext({
+    contract,
+    property: { ...property, purpose: "sale", priceCents: 25_000_000 } as Property,
+    persons: { locador: null, locatario: null, fiador: null },
+    names: { locador: "x", locatario: "x", fiador: "x" },
+  });
+  assert.equal(sale["imovel.valor_venda"], "250.000,00");
+  assert.equal(sale["imovel.valor_venda_extenso"], "duzentos e cinquenta mil reais");
+  assert.equal(sale["imovel.valor_aluguel"], "____________");
 });
 
 test("o contexto cobre todas as chaves do catálogo (nada renderiza vazio por engano)", () => {

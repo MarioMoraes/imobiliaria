@@ -165,8 +165,6 @@ export function SignaturePanel({
   const signed = envelope?.signers.filter((s) => s.status === "ASSINADO").length ?? 0;
   const total = envelope?.signers.length ?? 0;
 
-  const locked = envelope !== null && envelope.status !== "ASSINADO";
-
   return (
     <div className="stack" style={{ gap: 14 }}>
       <div className="field">
@@ -187,13 +185,11 @@ export function SignaturePanel({
             </option>
           ))}
         </select>
-        <span className="text-xs subtle">
-          {templates.length === 0
-            ? "Nenhum modelo cadastrado — crie um em Tabelas → Modelos de Contrato."
-            : locked
-              ? "Trocar o modelo agora só vale para um novo envio: o documento em assinatura não muda."
-              : "Documento gerado a partir deste modelo, com as variáveis do contrato preenchidas."}
-        </span>
+        {templates.length === 0 && (
+          <span className="text-xs subtle">
+            Nenhum modelo cadastrado — crie um em Tabelas → Modelos de Contrato.
+          </span>
+        )}
       </div>
 
       <div className="row">
