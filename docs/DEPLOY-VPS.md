@@ -127,16 +127,27 @@ próprio, e o build do frontend ainda exige o build-arg
 `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`. O caminho é publicar as imagens num
 registro e criar **um serviço do tipo Compose**.
 
+No painel: **projeto → + Service → Compose**, com a origem apontando para este
+repositório (branch `main`) e *compose file* `docker-compose.easypanel.yml`. Cole
+o conteúdo do seu `.env.easypanel` no campo de ambiente.
+
+Prefira a origem **Git** a colar só o YAML: o compose monta
+`./infra/postgres/init.sql` por caminho relativo, e um bind mount cujo caminho
+não existe faz o Docker criar um **diretório vazio** em vez de falhar. O Postgres
+sobe sem schema nenhum e o erro só aparece depois, como "tabela inexistente" no
+backend. Vindo do repositório, os arquivos chegam junto.
+
+Direto por SSH, sem passar pelo painel (o Traefik adota os containers pelas
+labels, independente de quem os iniciou):
+
 ```bash
 # 1. na VPS: descubra os nomes do ambiente do EasyPanel
 docker network ls | grep -i easypanel
 docker inspect $(docker ps -qf name=traefik) | grep -iE "certresolver|entryPoints"
 
-# 2. mande os arquivos (o compose monta o init.sql por caminho relativo)
-scp docker-compose.easypanel.yml                 root@IP:/opt/offices/
-scp infra/postgres/init.sql                      root@IP:/opt/offices/infra/postgres/
-scp infra/postgres/prod/20-app-user-password.sh  root@IP:/opt/offices/infra/postgres/prod/
-scp .env.easypanel                               root@IP:/opt/offices/
+# 2. clone e envie só o .env (que nunca vai para o git)
+git clone https://github.com/MarioMoraes/imobiliaria.git /opt/offices
+scp .env.easypanel root@IP:/opt/offices/
 
 # 3. suba
 docker compose -f docker-compose.easypanel.yml --env-file .env.easypanel up -d

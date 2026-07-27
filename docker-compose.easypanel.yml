@@ -1,28 +1,36 @@
-# Stack para uma VPS que JÁ RODA EASYPANEL (serviço do tipo Compose).
+# Stack para uma VPS que JÁ RODA EASYPANEL.
 #
-# Diferença única, mas estruturante, em relação ao docker-compose.prod.yml:
-# aqui NÃO existe Caddy. O EasyPanel já tem um Traefik ocupando as portas 80 e
-# 443 da máquina — dois proxies disputando as mesmas portas significa que o
-# segundo simplesmente não sobe. Quem termina o TLS e roteia o domínio é o
-# Traefik do EasyPanel; esta stack só se anuncia a ele por labels.
+# Escrito para funcionar nos DOIS modos, porque a instalação do EasyPanel pode
+# ser em Docker Swarm (redes `overlay`/`swarm` em `docker network ls`) ou em
+# Docker Engine simples:
 #
-# O roteamento reproduz exatamente o que o Caddyfile fazia:
+#   docker stack deploy -c docker-compose.easypanel.yml offices   # swarm
+#   docker compose -f docker-compose.easypanel.yml up -d          # engine
+#
+# Diferença estruturante em relação ao docker-compose.prod.yml: aqui NÃO existe
+# Caddy. O EasyPanel já tem um Traefik ocupando as portas 80 e 443 — dois proxies
+# disputando as mesmas portas significa que o segundo não sobe. Quem termina o
+# TLS e roteia o domínio é o Traefik do EasyPanel; esta stack só se anuncia a ele
+# por labels.
+#
+# O roteamento reproduz o que o Caddyfile fazia:
 #   /webhooks/*  e  /health*  → backend   (públicos por necessidade)
 #   todo o resto             → frontend  (Next.js)
-# `/v1/*` continua NÃO exposto: as chamadas ao backend saem de dentro do
-# frontend (Server Components/Actions) pela rede interna. É superfície de
-# ataque a menos.
+# `/v1/*` continua NÃO exposto: as chamadas ao backend saem de dentro do frontend
+# (Server Components/Actions) pela rede interna.
 #
-# Antes de subir, confirme na VPS os dois nomes do ambiente do EasyPanel:
-#   docker network ls | grep -i easypanel     → TRAEFIK_NETWORK
-#   docker inspect <container-do-traefik> | grep -i certresolver
-# e ajuste no .env se forem diferentes dos padrões abaixo.
+# ── Por que cada label aparece DUAS vezes ────────────────────────
+# Em Swarm, o Traefik lê as labels do SERVIÇO (`deploy.labels`); no Engine
+# simples, lê as labels do CONTAINER (`labels`). Declarar nos dois lugares, com
+# valores idênticos, faz o arquivo funcionar sem edição nos dois modos — o
+# Traefik consome as que enxerga e ignora as outras. Se você mexer numa regra de
+# roteamento, mexa nas duas cópias.
 name: offices-ai
 
 services:
   # ── Aplicação ────────────────────────────────────────────────────
   frontend:
-    image: "${FRONTEND_IMAGE:?defina FRONTEND_IMAGE, ex. usuario/offices-frontend:0.1.0}"
+    image: "${FRONTEND_IMAGE:?defina FRONTEND_IMAGE, ex. ghcr.io/mariomoraes/offices-frontend:0.1.0}"
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -37,9 +45,14 @@ services:
     networks:
       - interna
       - traefik
-    labels:
+    labels: &frontend_labels
       traefik.enable: "true"
+      # Duas grafias do MESMO conceito: o provider Docker do Traefik lê
+      # `traefik.docker.network`; o provider Swarm da v3 lê
+      # `traefik.swarm.network`. Os serviços estão em duas redes, e sem este
+      # label o Traefik pode escolher a `interna` e não alcançar o container.
       traefik.docker.network: ${TRAEFIK_NETWORK:-easypanel}
+      traefik.swarm.network: ${TRAEFIK_NETWORK:-easypanel}
       traefik.http.routers.offices-frontend.rule: Host(`${APP_DOMAIN:?}`)
       traefik.http.routers.offices-frontend.entrypoints: ${TRAEFIK_ENTRYPOINT:-websecure}
       traefik.http.routers.offices-frontend.tls.certresolver: ${TRAEFIK_CERTRESOLVER:-letsencrypt}
@@ -48,12 +61,16 @@ services:
       # backend (mais longa) venceria por acidente, não por decisão.
       traefik.http.routers.offices-frontend.priority: "1"
       traefik.http.services.offices-frontend.loadbalancer.server.port: "3000"
+    deploy:
+      labels: *frontend_labels
+      restart_policy:
+        condition: any
     depends_on:
       backend:
         condition: service_healthy
 
   backend:
-    image: "${BACKEND_IMAGE:?defina BACKEND_IMAGE, ex. usuario/offices-backend:0.1.0}"
+    image: "${BACKEND_IMAGE:?defina BACKEND_IMAGE, ex. ghcr.io/mariomoraes/offices-backend:0.1.0}"
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -88,9 +105,14 @@ services:
     networks:
       - interna
       - traefik
-    labels:
+    labels: &backend_labels
       traefik.enable: "true"
+      # Duas grafias do MESMO conceito: o provider Docker do Traefik lê
+      # `traefik.docker.network`; o provider Swarm da v3 lê
+      # `traefik.swarm.network`. Os serviços estão em duas redes, e sem este
+      # label o Traefik pode escolher a `interna` e não alcançar o container.
       traefik.docker.network: ${TRAEFIK_NETWORK:-easypanel}
+      traefik.swarm.network: ${TRAEFIK_NETWORK:-easypanel}
       # Só estes dois prefixos são públicos: os webhooks (quem chama é o servidor
       # do Asaas/ZapSign, não o navegador) e a sonda de saúde.
       traefik.http.routers.offices-backend.rule: Host(`${APP_DOMAIN}`) && (PathPrefix(`/webhooks`) || PathPrefix(`/health`))
@@ -98,9 +120,13 @@ services:
       traefik.http.routers.offices-backend.tls.certresolver: ${TRAEFIK_CERTRESOLVER:-letsencrypt}
       traefik.http.routers.offices-backend.priority: "10"
       traefik.http.services.offices-backend.loadbalancer.server.port: "3001"
+    deploy:
+      labels: *backend_labels
+      restart_policy:
+        condition: any
     healthcheck:
       # /health/ready confirma que o Postgres respondeu — é o que o frontend
-      # espera antes de subir.
+      # espera antes de subir (no Engine; em Swarm veja a nota sobre depends_on).
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/health/ready"]
       interval: 10s
       timeout: 5s
@@ -117,7 +143,7 @@ services:
   # ── Dados e apoio (rede interna apenas, sem porta publicada) ─────
   # pgvector, não o Postgres oficial: o RAG do copiloto guarda embeddings em
   # `vector(1024)` com índice HNSW (init.sql). Um Postgres sem a extensão falha
-  # já no CREATE EXTENSION, antes de criar qualquer tabela.
+  # já no CREATE EXTENSION, antes de criar a primeira tabela.
   postgres:
     image: pgvector/pgvector:pg16
     restart: unless-stopped
@@ -131,10 +157,18 @@ services:
       # Rodam em ordem alfabética e SÓ na primeira criação do volume. O 20- troca
       # a senha de `app_user`, que o init.sql cria com um valor versionado neste
       # repositório — aceitável em dev, não numa máquina pública.
-      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/10-init.sql:ro
-      - ./infra/postgres/prod/20-app-user-password.sh:/docker-entrypoint-initdb.d/20-app-user-password.sh:ro
+      #
+      # STACK_DIR precisa ser ABSOLUTO em Swarm: `docker stack deploy` não
+      # resolve caminho relativo de bind mount, e um caminho que não existe faz o
+      # Docker criar um DIRETÓRIO vazio em vez de falhar — o Postgres sobe sem
+      # schema nenhum e o erro só aparece depois, como "tabela inexistente".
+      - ${STACK_DIR:-.}/infra/postgres/init.sql:/docker-entrypoint-initdb.d/10-init.sql:ro
+      - ${STACK_DIR:-.}/infra/postgres/prod/20-app-user-password.sh:/docker-entrypoint-initdb.d/20-app-user-password.sh:ro
     networks:
       - interna
+    deploy:
+      restart_policy:
+        condition: any
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-imobiliaria} -d ${POSTGRES_DB:-imobiliaria}"]
       interval: 5s
@@ -149,6 +183,9 @@ services:
       - redisdata:/data
     networks:
       - interna
+    deploy:
+      restart_policy:
+        condition: any
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
@@ -168,6 +205,9 @@ services:
       - rabbitdata:/var/lib/rabbitmq
     networks:
       - interna
+    deploy:
+      restart_policy:
+        condition: any
     healthcheck:
       # `ping` responde OK enquanto o listener AMQP (5672) ainda sobe, e o backend
       # liberado cedo demais falha a conexão — como ele NÃO retenta
@@ -190,6 +230,9 @@ services:
       - "--chromium-deny-list=^file:(?!///tmp/).*|^https?://(localhost|127\\.|0\\.0\\.0\\.0|\\[?::1|169\\.254\\.|10\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.)"
     networks:
       - interna
+    deploy:
+      restart_policy:
+        condition: any
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 15s
