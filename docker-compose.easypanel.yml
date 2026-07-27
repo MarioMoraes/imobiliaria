@@ -54,12 +54,14 @@ services:
       traefik.docker.network: ${TRAEFIK_NETWORK:-easypanel}
       traefik.swarm.network: ${TRAEFIK_NETWORK:-easypanel}
       traefik.http.routers.offices-frontend.rule: Host(`${APP_DOMAIN:?}`)
-      traefik.http.routers.offices-frontend.entrypoints: ${TRAEFIK_ENTRYPOINT:-websecure}
+      traefik.http.routers.offices-frontend.entrypoints: ${TRAEFIK_ENTRYPOINT:-https}
       traefik.http.routers.offices-frontend.tls.certresolver: ${TRAEFIK_CERTRESOLVER:-letsencrypt}
-      # Prioridade baixa: esta é a regra "pega tudo". Sem o par de prioridades
-      # explícitas o Traefik desempata pelo comprimento da regra, e a rota do
-      # backend (mais longa) venceria por acidente, não por decisão.
-      traefik.http.routers.offices-frontend.priority: "1"
+      # As duas prioridades precisam ficar ACIMA de 2: o EasyPanel mantém um
+      # router `https-error-page` com regra HostRegexp(`.+`) e priority 1, que é
+      # quem devolve a página 404 dele. Empatar com ele é sorteio. E o backend
+      # precisa ficar acima do frontend, senão a regra "pega tudo" do frontend
+      # engoliria /webhooks e /health.
+      traefik.http.routers.offices-frontend.priority: "100"
       traefik.http.services.offices-frontend.loadbalancer.server.port: "3000"
     deploy:
       labels: *frontend_labels
@@ -116,9 +118,9 @@ services:
       # Só estes dois prefixos são públicos: os webhooks (quem chama é o servidor
       # do Asaas/ZapSign, não o navegador) e a sonda de saúde.
       traefik.http.routers.offices-backend.rule: Host(`${APP_DOMAIN}`) && (PathPrefix(`/webhooks`) || PathPrefix(`/health`))
-      traefik.http.routers.offices-backend.entrypoints: ${TRAEFIK_ENTRYPOINT:-websecure}
+      traefik.http.routers.offices-backend.entrypoints: ${TRAEFIK_ENTRYPOINT:-https}
       traefik.http.routers.offices-backend.tls.certresolver: ${TRAEFIK_CERTRESOLVER:-letsencrypt}
-      traefik.http.routers.offices-backend.priority: "10"
+      traefik.http.routers.offices-backend.priority: "200"
       traefik.http.services.offices-backend.loadbalancer.server.port: "3001"
     deploy:
       labels: *backend_labels
