@@ -1,0 +1,211 @@
+# Stack para uma VPS que JÁ RODA EASYPANEL (serviço do tipo Compose).
+#
+# Diferença única, mas estruturante, em relação ao docker-compose.prod.yml:
+# aqui NÃO existe Caddy. O EasyPanel já tem um Traefik ocupando as portas 80 e
+# 443 da máquina — dois proxies disputando as mesmas portas significa que o
+# segundo simplesmente não sobe. Quem termina o TLS e roteia o domínio é o
+# Traefik do EasyPanel; esta stack só se anuncia a ele por labels.
+#
+# O roteamento reproduz exatamente o que o Caddyfile fazia:
+#   /webhooks/*  e  /health*  → backend   (públicos por necessidade)
+#   todo o resto             → frontend  (Next.js)
+# `/v1/*` continua NÃO exposto: as chamadas ao backend saem de dentro do
+# frontend (Server Components/Actions) pela rede interna. É superfície de
+# ataque a menos.
+#
+# Antes de subir, confirme na VPS os dois nomes do ambiente do EasyPanel:
+#   docker network ls | grep -i easypanel     → TRAEFIK_NETWORK
+#   docker inspect <container-do-traefik> | grep -i certresolver
+# e ajuste no .env se forem diferentes dos padrões abaixo.
+name: offices-ai
+
+services:
+  # ── Aplicação ────────────────────────────────────────────────────
+  frontend:
+    image: "${FRONTEND_IMAGE:?defina FRONTEND_IMAGE, ex. usuario/offices-frontend:0.1.0}"
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      # Rede interna: o navegador NUNCA fala com o backend direto.
+      BACKEND_URL: http://backend:3001
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:?}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:?}
+      PLATFORM_ADMIN_CLERK_IDS: ${PLATFORM_ADMIN_CLERK_IDS:-}
+      # DEMO_TENANT_ID / DEV_ROLES ficam DE FORA de propósito: são o fallback de
+      # desenvolvimento do lib/api.ts. Não defini-los evita que um erro de
+      # configuração vire uma sessão fantasma.
+    networks:
+      - interna
+      - traefik
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: ${TRAEFIK_NETWORK:-easypanel}
+      traefik.http.routers.offices-frontend.rule: Host(`${APP_DOMAIN:?}`)
+      traefik.http.routers.offices-frontend.entrypoints: ${TRAEFIK_ENTRYPOINT:-websecure}
+      traefik.http.routers.offices-frontend.tls.certresolver: ${TRAEFIK_CERTRESOLVER:-letsencrypt}
+      # Prioridade baixa: esta é a regra "pega tudo". Sem o par de prioridades
+      # explícitas o Traefik desempata pelo comprimento da regra, e a rota do
+      # backend (mais longa) venceria por acidente, não por decisão.
+      traefik.http.routers.offices-frontend.priority: "1"
+      traefik.http.services.offices-frontend.loadbalancer.server.port: "3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  backend:
+    image: "${BACKEND_IMAGE:?defina BACKEND_IMAGE, ex. usuario/offices-backend:0.1.0}"
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      # app_user é NÃO-superusuário: é o que faz o RLS valer (SPEC 3.1).
+      DATABASE_URL: postgres://app_user:${APP_DB_PASSWORD:?}@postgres:5432/${POSTGRES_DB:-imobiliaria}
+      REDIS_URL: redis://:${REDIS_PASSWORD:?}@redis:6379
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-imobiliaria}:${RABBITMQ_PASSWORD:?}@rabbitmq:5672
+      GOTENBERG_URL: http://gotenberg:3000
+      CORS_ORIGIN: https://${APP_DOMAIN}
+      APP_BASE_URL: https://${APP_DOMAIN}
+      PUBLIC_BASE_URL: https://${APP_DOMAIN}
+      AUTH_DEV_MODE: "false"
+      # Atrás do Traefik. Sem isto todo request chega com o mesmo IP de origem e
+      # o rate limit vira um balde único para o mundo inteiro.
+      TRUST_PROXY: "true"
+      CLERK_SECRET_KEY: ${CLERK_SECRET_KEY:?}
+      CLERK_JWT_KEY: ${CLERK_JWT_KEY:-}
+      PLATFORM_ADMIN_CLERK_IDS: ${PLATFORM_ADMIN_CLERK_IDS:-}
+      # Cifra os tokens de ZapSign/Asaas guardados por tenant. Trocar esta chave
+      # depois torna ilegível tudo que já foi cifrado com a anterior.
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:?gere com openssl rand -base64 32}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_REGION: ${S3_REGION:-auto}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+      S3_BUCKET: ${S3_BUCKET:-imobiliaria-media}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-true}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+    networks:
+      - interna
+      - traefik
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: ${TRAEFIK_NETWORK:-easypanel}
+      # Só estes dois prefixos são públicos: os webhooks (quem chama é o servidor
+      # do Asaas/ZapSign, não o navegador) e a sonda de saúde.
+      traefik.http.routers.offices-backend.rule: Host(`${APP_DOMAIN}`) && (PathPrefix(`/webhooks`) || PathPrefix(`/health`))
+      traefik.http.routers.offices-backend.entrypoints: ${TRAEFIK_ENTRYPOINT:-websecure}
+      traefik.http.routers.offices-backend.tls.certresolver: ${TRAEFIK_CERTRESOLVER:-letsencrypt}
+      traefik.http.routers.offices-backend.priority: "10"
+      traefik.http.services.offices-backend.loadbalancer.server.port: "3001"
+    healthcheck:
+      # /health/ready confirma que o Postgres respondeu — é o que o frontend
+      # espera antes de subir.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  # ── Dados e apoio (rede interna apenas, sem porta publicada) ─────
+  # pgvector, não o Postgres oficial: o RAG do copiloto guarda embeddings em
+  # `vector(1024)` com índice HNSW (init.sql). Um Postgres sem a extensão falha
+  # já no CREATE EXTENSION, antes de criar qualquer tabela.
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-imobiliaria}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: ${POSTGRES_DB:-imobiliaria}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Rodam em ordem alfabética e SÓ na primeira criação do volume. O 20- troca
+      # a senha de `app_user`, que o init.sql cria com um valor versionado neste
+      # repositório — aceitável em dev, não numa máquina pública.
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/10-init.sql:ro
+      - ./infra/postgres/prod/20-app-user-password.sh:/docker-entrypoint-initdb.d/20-app-user-password.sh:ro
+    networks:
+      - interna
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-imobiliaria} -d ${POSTGRES_DB:-imobiliaria}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?}", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    networks:
+      - interna
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    restart: unless-stopped
+    environment:
+      # A imagem oficial libera o `guest` para conexões remotas. Mesmo sem porta
+      # publicada, é uma credencial padrão conhecida com acesso ao barramento —
+      # daí um usuário próprio.
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-imobiliaria}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?}
+    volumes:
+      - rabbitdata:/var/lib/rabbitmq
+    networks:
+      - interna
+    healthcheck:
+      # `ping` responde OK enquanto o listener AMQP (5672) ainda sobe, e o backend
+      # liberado cedo demais falha a conexão — como ele NÃO retenta
+      # (shared/events.ts conecta uma vez), os eventos ficariam desligados até
+      # alguém reiniciar o container.
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 30s
+
+  # HTML → PDF (MOD-CONTRATO). O Chromium daqui não pode alcançar localhost,
+  # a metadata da nuvem (169.254.169.254) nem as faixas privadas — inclusive os
+  # outros containers desta stack e os do EasyPanel.
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    restart: unless-stopped
+    command:
+      - "gotenberg"
+      - "--chromium-deny-list=^file:(?!///tmp/).*|^https?://(localhost|127\\.|0\\.0\\.0\\.0|\\[?::1|169\\.254\\.|10\\.|192\\.168\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.)"
+    networks:
+      - interna
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+networks:
+  # Rede privada da stack: banco, fila e cache só existem aqui dentro.
+  interna:
+  # A rede onde o Traefik do EasyPanel já está. `external: true` porque quem a
+  # criou foi o EasyPanel — esta stack se conecta, não a gerencia.
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK:-easypanel}
+
+volumes:
+  pgdata:
+  redisdata:
+  rabbitdata:

@@ -18,6 +18,10 @@ produção com carga real, veja "Limites deste formato" no fim.
    postgres · redis · rabbitmq · gotenberg   (sem porta publicada)
 ```
 
+> **A VPS já roda EasyPanel, Coolify, Dokploy ou outro painel?** Então as portas
+> 80/443 já pertencem ao Traefik dele e o Caddy desta stack não sobe. Pule para
+> "VPS que já roda EasyPanel", no fim deste documento.
+
 ## 1. Pré-requisitos
 
 - VPS com Docker Engine + plugin Compose (`docker compose version`).
@@ -107,6 +111,49 @@ tenant de demonstração e alguns imóveis de exemplo já dentro.
    (`user_...`, no painel do Clerk em *Users*) em `PLATFORM_ADMIN_CLERK_IDS` e
    reinicie: `docker compose ... up -d backend frontend`. Sem isso, `/superadmin`
    responde 404 para todo mundo — inclusive para você.
+
+## VPS que já roda EasyPanel
+
+Use `docker-compose.easypanel.yml` e `.env.easypanel.example` no lugar dos
+arquivos `*.prod.*`. A stack é a mesma **sem o Caddy**: quem termina o TLS e
+roteia o domínio é o Traefik que o EasyPanel já mantém, e esta stack só se
+anuncia a ele por labels — o roteamento (`/webhooks/*` e `/health*` para o
+backend, o resto para o frontend) é idêntico ao do Caddyfile.
+
+**Não aponte o EasyPanel para este repositório como uma "App".** Ele cai no
+Nixpacks, que tenta inferir um build genérico de Node e falha: o monorepo produz
+*dois* deployables (backend e frontend), cada um com Dockerfile multi-stage
+próprio, e o build do frontend ainda exige o build-arg
+`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`. O caminho é publicar as imagens num
+registro e criar **um serviço do tipo Compose**.
+
+```bash
+# 1. na VPS: descubra os nomes do ambiente do EasyPanel
+docker network ls | grep -i easypanel
+docker inspect $(docker ps -qf name=traefik) | grep -iE "certresolver|entryPoints"
+
+# 2. mande os arquivos (o compose monta o init.sql por caminho relativo)
+scp docker-compose.easypanel.yml                 root@IP:/opt/offices/
+scp infra/postgres/init.sql                      root@IP:/opt/offices/infra/postgres/
+scp infra/postgres/prod/20-app-user-password.sh  root@IP:/opt/offices/infra/postgres/prod/
+scp .env.easypanel                               root@IP:/opt/offices/
+
+# 3. suba
+docker compose -f docker-compose.easypanel.yml --env-file .env.easypanel up -d
+```
+
+Três pontos que decidem se funciona:
+
+- **`TRAEFIK_NETWORK` precisa ser a rede real do Traefik.** Errar aqui produz a
+  falha mais confusa possível: todos os containers sobem saudáveis e o domínio
+  responde 404 — o Traefik simplesmente não enxerga os containers.
+- **O Postgres tem de ser `pgvector/pgvector`.** O RAG do copiloto guarda
+  embeddings em `vector(1024)` com índice HNSW; um Postgres stock (inclusive o
+  do catálogo do EasyPanel) falha já no `CREATE EXTENSION`, antes da primeira
+  tabela. Por isso o banco vai dentro deste compose em vez de ser um serviço
+  gerenciado do painel.
+- **Postgres, Redis, RabbitMQ e Gotenberg ficam só na rede `interna`**, sem porta
+  publicada. O único caminho de fora é o Traefik.
 
 ## Operação
 
