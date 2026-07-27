@@ -8,14 +8,17 @@ import {
   EmptyState,
 } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
+import { CashFlowChart } from "../../../components/CashFlowChart";
 import {
   fetchAiCredits,
+  fetchCashFlow,
   fetchDashboardSummary,
   fetchProperties,
   formatDay,
   formatPrice,
   propertyKindLabel,
   type AiCredits,
+  type CashFlowPoint,
   type DashboardReceivableBrief,
   type DashboardSummary,
 } from "../../../lib/api";
@@ -47,16 +50,6 @@ function greeting(): string {
   return "Boa noite";
 }
 
-/** "2026-07" → "Jul". */
-function monthLabel(competence: string): string {
-  const [, m] = competence.split("-");
-  const nomes = [
-    "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
-    "Jul", "Ago", "Set", "Out", "Nov", "Dez",
-  ];
-  return nomes[Number(m) - 1] ?? competence;
-}
-
 /** Valores grandes em cards ficam melhores abreviados: 86.400.00 → "R$ 86,4 mil". */
 function compactPrice(cents: number): string {
   const reais = cents / 100;
@@ -69,11 +62,19 @@ function compactPrice(cents: number): string {
   return formatPrice(cents);
 }
 
+/** Janela do gráfico: 6 meses para trás, incluindo o corrente (igual à Gestão Financeira). */
+const CASH_FLOW_MONTHS = 6;
+
 export default async function DashboardPage() {
-  const [summary, properties, credits, clerkUser] = await Promise.all([
+  // O fluxo de caixa vem do MESMO endpoint que alimenta a Gestão Financeira
+  // (`/v1/receivables/cash-flow`) para as duas telas não poderem divergir.
+  // Quem não tem `finance:read` recebe null aqui e também `summary.finance`
+  // nulo — o gráfico simplesmente não entra.
+  const [summary, properties, credits, cashFlow, clerkUser] = await Promise.all([
     fetchDashboardSummary(),
     fetchProperties(),
     fetchAiCredits(),
+    fetchCashFlow(CASH_FLOW_MONTHS).then((c) => c ?? []),
     currentUser().catch(() => null),
   ]);
 
@@ -105,18 +106,22 @@ export default async function DashboardPage() {
 
           <div className="grid" style={{ gridTemplateColumns: "1.6fr 1fr" }}>
             <div className="stack">
-              {summary.finance && <RevenueChart summary={summary} />}
+              {summary.finance && <RevenueChart points={cashFlow} />}
               <RecentProperties properties={properties} />
             </div>
 
             <div className="stack">
               {summary.finance && (
                 <>
+                  {/* Os mesmos aluguéis que a lista de contas a receber do
+                      Financeiro mostra no mês corrente — inclusive os já pagos,
+                      senão as duas telas divergiriam. Por isso o título fala em
+                      "vencimentos do mês", não em "próximos". */}
                   <ReceivablesList
-                    title="Próximos vencimentos"
+                    title="Vencimentos do mês"
                     items={summary.finance.upcoming}
-                    emptyTitle="Nada a vencer"
-                    emptyHint="Quando houver parcelas em aberto, elas aparecem aqui em ordem de vencimento."
+                    emptyTitle="Nenhum aluguel neste mês"
+                    emptyHint="Os aluguéis que vencem no mês corrente aparecem aqui, em ordem de vencimento."
                   />
                   <ReceivablesList
                     title="Em atraso"
@@ -215,51 +220,20 @@ function Stats({
 
 /* ---------------------------------------------------------------- Gráfico */
 
-function RevenueChart({ summary }: { summary: DashboardSummary }) {
-  const pontos = summary.finance?.monthlyRevenue ?? [];
-  const max = Math.max(...pontos.map((p) => p.receivedCents), 1);
-  const semMovimento = pontos.every((p) => p.receivedCents === 0);
-
+/**
+ * Mesmo gráfico da Gestão Financeira — mesmo componente, mesma série do
+ * backend. O painel tinha uma versão própria, só com a barra de recebido e
+ * lendo outra consulta; a duplicação era o que fazia as duas telas mostrarem
+ * números diferentes para o mesmo mês.
+ */
+function RevenueChart({ points }: { points: CashFlowPoint[] }) {
   return (
     <Section
-      title="Recebido por mês"
-      action={<span className="badge badge-blue">Últimos {pontos.length} meses</span>}
+      title="Recebido X Previsto"
+      action={<span className="badge badge-blue">{CASH_FLOW_MONTHS} meses</span>}
       pad
     >
-      {semMovimento ? (
-        <EmptyState
-          icon="wallet"
-          title="Ainda sem recebimentos"
-          hint="Assim que a primeira parcela for baixada como paga, o histórico aparece aqui."
-        />
-      ) : (
-        <div className="chart">
-          {pontos.map((p, i) => (
-            <div
-              key={p.month}
-              style={{
-                flex: 1,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <div
-                className={`chart-bar${i === pontos.length - 1 ? "" : " muted"}`}
-                // Altura relativa ao maior mês da série; mínimo de 2% para o mês
-                // zerado continuar visível como base da barra.
-                style={{
-                  height: `${Math.max((p.receivedCents / max) * 100, 2)}%`,
-                  width: "100%",
-                }}
-                title={`${monthLabel(p.month)}: ${formatPrice(p.receivedCents)}`}
-              />
-              <span className="text-xs subtle">{monthLabel(p.month)}</span>
-            </div>
-          ))}
-        </div>
-      )}
+      <CashFlowChart points={points} />
     </Section>
   );
 }
@@ -337,6 +311,27 @@ function RecentProperties({
 
 /* ----------------------------------------------------- Contas a receber */
 
+/**
+ * Segunda linha do item: a mesma "Descrição" da lista do Financeiro
+ * ("Aluguel 3/12"), que diz mais do que o tipo da cobrança. O tipo só entra
+ * quando não há descrição — caso das cobranças avulsas. Quando o pagador é
+ * desconhecido, a descrição já virou o título e não se repete aqui.
+ */
+function detail(r: DashboardReceivableBrief): string {
+  const kind = r.kind ? r.kind.toLowerCase() : "cobrança";
+  if (!r.payerName) return kind;
+  return r.description ?? kind;
+}
+
+/**
+ * Mesma derivação da lista do Financeiro: uma parcela ABERTA cujo vencimento já
+ * passou aparece como vencida, porque a virada ABERTO→VENCIDO depende de uma
+ * rotina que pode não ter rodado ainda.
+ */
+function displayStatus(r: DashboardReceivableBrief, today: string): string {
+  return r.status === "ABERTO" && r.dueDate < today ? "VENCIDO" : r.status;
+}
+
 function ReceivablesList({
   title,
   items,
@@ -350,6 +345,7 @@ function ReceivablesList({
   emptyHint: string;
   highlight?: boolean;
 }) {
+  const today = new Date().toISOString().slice(0, 10);
   return (
     <Section
       title={title}
@@ -371,16 +367,17 @@ function ReceivablesList({
                 <span className="text-sm strong" style={{ display: "block" }}>
                   {r.payerName ?? r.description ?? "Cobrança avulsa"}
                 </span>
+                {/* "venc." e não "vence": a lista do mês inclui parcelas cujo
+                    vencimento já passou. */}
                 <span className="text-xs subtle">
-                  vence {formatDay(r.dueDate)}
-                  {r.kind ? ` · ${r.kind.toLowerCase()}` : ""}
+                  venc. {formatDay(r.dueDate)} · {detail(r)}
                 </span>
               </div>
               <div style={{ textAlign: "right" }}>
                 <span className="text-sm strong tabular" style={{ display: "block" }}>
                   {formatPrice(r.amountCents)}
                 </span>
-                <StatusBadge status={highlight ? "VENCIDO" : r.status} />
+                <StatusBadge status={highlight ? "VENCIDO" : displayStatus(r, today)} />
               </div>
             </div>
           ))}

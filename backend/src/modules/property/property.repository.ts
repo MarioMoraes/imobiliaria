@@ -553,6 +553,24 @@ export async function countPhotos(
   });
 }
 
+/**
+ * Quais destes ids ainda existem (sob o RLS do tenant). Uma consulta só para o
+ * lote — quem chama está conferindo uma lista, não um imóvel.
+ */
+export async function existingIds(
+  tenantId: string,
+  propertyIds: readonly string[],
+): Promise<Set<string>> {
+  if (propertyIds.length === 0) return new Set();
+  return withTenant(tenantId, async (client) => {
+    const { rows } = await client.query<{ id: string }>(
+      "SELECT id FROM properties WHERE id = ANY($1::uuid[])",
+      [propertyIds],
+    );
+    return new Set(rows.map((r) => r.id));
+  });
+}
+
 export async function insertPhoto(
   tenantId: string,
   propertyId: string,

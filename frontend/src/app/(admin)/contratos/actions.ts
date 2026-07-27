@@ -381,9 +381,22 @@ export async function syncChargeAction(receivableId: string): Promise<ActionResu
   return { ok: true };
 }
 
-/** Baixa manual do pagamento de uma parcela (o gateway ainda não está ligado). */
-export async function settleReceivableAction(receivableId: string): Promise<ActionResult> {
-  const res = await postJson(`/v1/receivables/${receivableId}/settle`, {});
+/**
+ * Baixa manual do pagamento de uma parcela (o gateway ainda não está ligado).
+ *
+ * `paidAt` é a data em que o dinheiro entrou, e vai explícita: sem ela o backend
+ * assume hoje, e uma baixa retroativa (parcela antiga sendo regularizada agora)
+ * entraria no caixa do mês errado — é por `paid_at` que o "Recebido por mês" do
+ * painel agrupa.
+ */
+export async function settleReceivableAction(
+  receivableId: string,
+  paidAt?: string,
+): Promise<ActionResult> {
+  const res = await postJson(
+    `/v1/receivables/${receivableId}/settle`,
+    paidAt ? { paidAt } : {},
+  );
   if (!res.ok) return { ok: false, error: res.error };
   revalidateContracts();
   return { ok: true };

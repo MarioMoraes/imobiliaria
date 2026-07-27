@@ -1,19 +1,17 @@
 import { PageHeader, StatCard, Section, StatusBadge } from "../../../../components/ui";
+import { CashFlowChart } from "../../../../components/CashFlowChart";
 import { Icon } from "../../../../components/Icon";
 import {
   fetchCashFlow,
   fetchReceivables,
   formatDay,
   formatPrice,
-  type CashFlowPoint,
   type Receivable,
 } from "../../../../lib/api";
 import { sampleTransfers } from "../../../../lib/sample";
 
 /** Janela do gráfico: 6 meses para trás, incluindo o corrente. */
 const CASH_FLOW_MONTHS = 6;
-
-const monthAbbr = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
 const monthNames = [
   "janeiro", "fevereiro", "março", "abril", "maio", "junho",
@@ -24,17 +22,6 @@ const monthNames = [
 function monthTitle(month: string): string {
   const index = Number(month.slice(5, 7)) - 1;
   return `${monthNames[index] ?? month}/${month.slice(0, 4)}`;
-}
-
-/** "2026-07" → "Jul". Sem `new Date()` no meio: YYYY-MM não tem fuso. */
-function monthLabel(month: string): string {
-  const index = Number(month.slice(5, 7)) - 1;
-  return monthAbbr[index] ?? month;
-}
-
-/** Altura da barra em % do maior valor da série (0 quando não houve movimento). */
-function barHeight(value: number, max: number): string {
-  return max > 0 ? `${Math.round((value / max) * 100)}%` : "0%";
 }
 
 /** Uma parcela em aberto cujo vencimento já passou aparece como vencida. */
@@ -173,62 +160,6 @@ export default async function GestaoFinanceiraPage() {
             </div>
           </Section>
         </div>
-      </div>
-    </>
-  );
-}
-
-/**
- * Barras de recebido (caixa realizado) x previsto (o que vencia no mês), com a
- * série já agregada pelo backend. As duas barras dividem a mesma escala — a do
- * maior valor da janela — senão meses de porte diferente pareceriam iguais.
- *
- * Não há série de saídas porque ainda não existe lançamento de despesa da
- * imobiliária: o que houvesse aqui seria invenção.
- */
-function CashFlowChart({ points }: { points: CashFlowPoint[] }) {
-  const max = Math.max(0, ...points.flatMap((p) => [p.receivedCents, p.expectedCents]));
-
-  if (points.length === 0 || max === 0) {
-    return (
-      <p className="text-sm subtle">
-        Ainda não há movimento no período. O gráfico se preenche conforme as
-        parcelas vencem e recebem baixa.
-      </p>
-    );
-  }
-
-  return (
-    <>
-      <div className="row gap-8 mb-4">
-        <span className="badge badge-blue">
-          <span className="dot" style={{ background: "var(--primary)" }} /> Recebido
-        </span>
-        <span className="badge badge-slate">
-          <span className="dot" style={{ background: "var(--border-strong)" }} /> Previsto
-        </span>
-      </div>
-      <div className="chart">
-        {points.map((p) => (
-          <div
-            key={p.month}
-            style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}
-          >
-            <div style={{ width: "100%", display: "flex", gap: 3, alignItems: "flex-end", height: 140 }}>
-              <div
-                className="chart-bar"
-                style={{ height: barHeight(p.receivedCents, max) }}
-                title={`Recebido em ${monthLabel(p.month)}: ${formatPrice(p.receivedCents)}`}
-              />
-              <div
-                className="chart-bar muted"
-                style={{ height: barHeight(p.expectedCents, max) }}
-                title={`Previsto em ${monthLabel(p.month)}: ${formatPrice(p.expectedCents)}`}
-              />
-            </div>
-            <span className="text-xs subtle">{monthLabel(p.month)}</span>
-          </div>
-        ))}
       </div>
     </>
   );

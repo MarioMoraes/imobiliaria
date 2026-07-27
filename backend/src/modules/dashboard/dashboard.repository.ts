@@ -2,7 +2,6 @@ import { withTenant } from "../../shared/db.js";
 import type {
   ContractStats,
   FinanceStats,
-  MonthlyRevenuePoint,
   PersonStats,
   PropertyStats,
   ReceivableBrief,
@@ -134,7 +133,6 @@ const toBrief = (row: BriefRow): ReceivableBrief => ({
  */
 export async function financeStats(
   tenantId: string,
-  monthsBack = 6,
   listLimit = 5,
 ): Promise<FinanceStats> {
   return withTenant(tenantId, async (client) => {
@@ -163,39 +161,23 @@ export async function financeStats(
         FROM receivables
     `);
 
-    // generate_series garante a barra do mês mesmo quando não houve recebimento
-    // — um buraco no gráfico esconderia justamente o mês ruim.
-    const series = await client.query<{ month: string; received: string }>(
-      `
-      WITH meses AS (
-        SELECT generate_series(
-                 date_trunc('month', CURRENT_DATE) - ($1::int - 1) * interval '1 month',
-                 date_trunc('month', CURRENT_DATE),
-                 interval '1 month'
-               ) AS mes
-      )
-      SELECT to_char(m.mes, 'YYYY-MM') AS month,
-             COALESCE(sum(COALESCE(r.paid_amount_cents, r.amount_cents)), 0) AS received
-        FROM meses m
-        LEFT JOIN receivables r
-               ON r.status = 'PAGO'
-              AND r.paid_at >= m.mes
-              AND r.paid_at <  m.mes + interval '1 month'
-       GROUP BY m.mes
-       ORDER BY m.mes
-      `,
-      [monthsBack],
-    );
-
     const briefCols = `
       r.id, r.due_date, r.amount_cents, r.status, r.kind, r.description,
       p.full_name AS payer_name
         FROM receivables r
         LEFT JOIN persons p ON p.id = r.payer_person_id`;
 
+    // "Vencimentos do mês" espelha a lista de contas a receber do Financeiro,
+    // recortada nos aluguéis: mesma regra de mês (a competência da parcela, ou o
+    // mês do vencimento quando ela é avulsa) e mesma ausência de filtro de
+    // status — se as duas telas usassem critérios diferentes, uma parcela
+    // apareceria em uma e sumiria na outra. O único filtro a mais é o
+    // `kind = 'ALUGUEL'`: condomínio, multa e avulsas ficam para o Financeiro.
     const upcoming = await client.query<BriefRow>(
       `SELECT ${briefCols}
-        WHERE r.status IN ('ABERTO', 'VENCIDO') AND r.due_date >= CURRENT_DATE
+        WHERE r.kind = 'ALUGUEL'
+          AND COALESCE(r.competence, to_char(r.due_date, 'YYYY-MM'))
+              = to_char(CURRENT_DATE, 'YYYY-MM')
         ORDER BY r.due_date ASC
         LIMIT $1`,
       [listLimit],
@@ -210,17 +192,12 @@ export async function financeStats(
     );
 
     const t = totals.rows[0];
-    const monthlyRevenue: MonthlyRevenuePoint[] = series.rows.map((row) => ({
-      month: row.month,
-      receivedCents: num(row.received),
-    }));
 
     return {
       receivedThisMonthCents: num(t?.received_month),
       openThisMonthCents: num(t?.open_month),
       overdueCents: num(t?.overdue_cents),
       overdueCount: num(t?.overdue_count),
-      monthlyRevenue,
       upcoming: upcoming.rows.map(toBrief),
       overdue: overdue.rows.map(toBrief),
     };

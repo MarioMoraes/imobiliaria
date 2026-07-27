@@ -75,7 +75,7 @@ export interface DashboardSummary {
     openThisMonthCents: number;
     overdueCents: number;
     overdueCount: number;
-    monthlyRevenue: { month: string; receivedCents: number }[];
+    /* A série do gráfico vem de fetchCashFlow() — mesma fonte da Gestão Financeira. */
     upcoming: DashboardReceivableBrief[];
     overdue: DashboardReceivableBrief[];
   } | null;

@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { PageHeader } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
-import { fetchProperties, type Property } from "../../../lib/api";
-import { sampleContracts, sampleProperties } from "../../../lib/sample";
+import { fetchContracts, fetchProperties, type Property } from "../../../lib/api";
+import { sampleProperties } from "../../../lib/sample";
 
 /**
  * Hub de Imóveis (padrão de /tabelas): as listas por finalidade — "Imóveis a
@@ -11,10 +11,11 @@ import { sampleContracts, sampleProperties } from "../../../lib/sample";
  * mesma entidade (`properties`), separada por `purpose`.
  */
 export default async function ImoveisPage() {
-  const liveProps = await fetchProperties();
+  const [liveProps, liveContracts] = await Promise.all([fetchProperties(), fetchContracts()]);
   const properties: Property[] = liveProps ?? sampleProperties;
   const saleCount = properties.filter((p) => p.purpose === "sale").length;
   const rentCount = properties.length - saleCount;
+  const contractCount = liveContracts?.length ?? 0;
 
   const imoveis = (n: number) => `${n} ${n === 1 ? "imóvel" : "imóveis"}`;
 
@@ -41,7 +42,9 @@ export default async function ImoveisPage() {
       icon: "contract",
       tone: "success" as const,
       description: "Contratos de locação e venda.",
-      countLabel: `${sampleContracts.length} contratos`,
+      // Contagem real: com dado de exemplo aqui o card anunciava 4 contratos e a
+      // lista abria com outro número.
+      countLabel: `${contractCount} ${contractCount === 1 ? "contrato" : "contratos"}`,
     },
   ];
 

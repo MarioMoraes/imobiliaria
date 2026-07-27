@@ -184,6 +184,78 @@ function SyncChargeButton({
 }
 
 /**
+ * Baixa manual em dois passos: o clique abre a **data do pagamento** (hoje por
+ * padrão) e o ✓ confirma.
+ *
+ * O passo extra existe porque a baixa costuma ser retroativa — a parcela é
+ * regularizada dias ou meses depois — e é essa data que decide em que mês o
+ * valor entra no caixa ("Recebido por mês" agrupa por ela). Enquanto o botão
+ * dava baixa direto, toda regularização de parcela antiga virava receita do dia
+ * em que alguém clicou.
+ */
+function SettleButton({
+  receivable,
+  today,
+  disabled,
+  onSettle,
+}: {
+  receivable: Receivable;
+  today: string;
+  disabled: boolean;
+  onSettle: (id: string, paidAt: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [paidAt, setPaidAt] = useState(today);
+
+  if (!open) {
+    return (
+      <button
+        className="btn btn-ghost btn-sm"
+        type="button"
+        onClick={() => setOpen(true)}
+        disabled={disabled}
+      >
+        Dar baixa
+      </button>
+    );
+  }
+
+  return (
+    <div className="row gap-8">
+      <input
+        className="input input-sm"
+        type="date"
+        value={paidAt}
+        max={today}
+        autoFocus
+        onChange={(e) => setPaidAt(e.target.value)}
+        aria-label={`Data do pagamento da parcela ${receivable.installment ?? ""}`}
+      />
+      <button
+        className="icon-btn"
+        style={{ width: 30, height: 30 }}
+        type="button"
+        disabled={disabled || !paidAt}
+        onClick={() => onSettle(receivable.id, paidAt)}
+        aria-label="Confirmar baixa"
+        title="Confirmar a baixa nesta data"
+      >
+        <Icon name="check" size={15} />
+      </button>
+      <button
+        className="icon-btn"
+        style={{ width: 30, height: 30 }}
+        type="button"
+        onClick={() => setOpen(false)}
+        aria-label="Cancelar baixa"
+      >
+        <Icon name="x" size={15} />
+      </button>
+    </div>
+  );
+}
+
+/**
  * Aba "Aluguéis" do contrato: as parcelas (contas a receber) geradas quando o
  * contrato entra em vigência — uma por mês do prazo, no valor do aluguel,
  * vencendo no dia do inquilino.
@@ -243,11 +315,11 @@ export function ReceivablesPanel({
     });
   }
 
-  function settle(id: string) {
+  function settle(id: string, paidAt: string) {
     setError(null);
     setNotice(null);
     startTransition(async () => {
-      const res = await settleReceivableAction(id);
+      const res = await settleReceivableAction(id, paidAt);
       if (!res.ok) {
         setError(res.error ?? "Não foi possível dar baixa.");
         return;
@@ -347,14 +419,12 @@ export function ReceivablesPanel({
                         <SyncChargeButton receivable={r} onError={setError} onSynced={load} />
                       )}
                       {r.status === "ABERTO" ? (
-                        <button
-                          className="btn btn-ghost btn-sm"
-                          type="button"
-                          onClick={() => settle(r.id)}
+                        <SettleButton
+                          receivable={r}
+                          today={today}
                           disabled={pending}
-                        >
-                          Dar baixa
-                        </button>
+                          onSettle={settle}
+                        />
                       ) : (
                         <span className="text-xs subtle">{r.paidAt ? dateBr(r.paidAt) : ""}</span>
                       )}

@@ -26,14 +26,6 @@ export interface ContractStats {
   endingSoon: number;
 }
 
-/** Uma barra do gráfico de recebimentos. */
-export interface MonthlyRevenuePoint {
-  /** Competência no formato YYYY-MM. */
-  month: string;
-  /** Soma do que foi efetivamente pago no mês (paid_amount ou amount). */
-  receivedCents: number;
-}
-
 /** Parcela a vencer ou vencida, já com o nome de quem paga. */
 export interface ReceivableBrief {
   id: string;
@@ -57,9 +49,13 @@ export interface FinanceStats {
   /** Vencido e não pago (qualquer competência). */
   overdueCents: number;
   overdueCount: number;
-  /** Últimos 6 meses, do mais antigo ao mais recente (meses sem recebimento entram zerados). */
-  monthlyRevenue: MonthlyRevenuePoint[];
-  /** Próximas parcelas a vencer (a partir de hoje). */
+  /*
+   * A série mensal do gráfico NÃO vem daqui: o painel e a Gestão Financeira
+   * leem o mesmo `GET /v1/receivables/cash-flow` (recebido x previsto). Havia
+   * uma `monthlyRevenue` própria neste resumo, e as duas consultas divergiam na
+   * tela — uma agregação a menos aqui é uma fonte da verdade a mais.
+   */
+  /** Aluguéis que ainda vencem no mês corrente (de hoje até o fim do mês). */
   upcoming: ReceivableBrief[];
   /** Parcelas vencidas, das mais antigas para as mais novas. */
   overdue: ReceivableBrief[];

@@ -98,6 +98,18 @@ export async function update(
 export async function remove(tenantId: string, id: string): Promise<void> {
   const removed = await repo.deleteProperty(tenantId, id);
   if (!removed) throw AppError.notFound("Imóvel não encontrado");
+
+  // Excluir também é fato de domínio, e este era o único caminho de escrita que
+  // não publicava: o índice do RAG só sabe que um imóvel sumiu quando chega um
+  // `property.*`, então sem este evento o chunk ficava órfão e o copiloto seguia
+  // oferecendo imóvel que não existe mais.
+  await publish({
+    type: "property.deleted",
+    tenantId,
+    eventId: randomUUID(),
+    occurredAt: new Date().toISOString(),
+    payload: { propertyId: id },
+  });
 }
 
 /** Donos (proprietários) de um imóvel. */
@@ -182,6 +194,17 @@ export function countPhotos(
   propertyIds: readonly string[],
 ): Promise<Map<string, number>> {
   return repo.countPhotos(tenantId, propertyIds);
+}
+
+/**
+ * Quais destes imóveis ainda existem. Serve a quem guarda uma cópia do dado —
+ * hoje o índice do RAG — e precisa conferir a lista antes de usá-la.
+ */
+export function existingIds(
+  tenantId: string,
+  propertyIds: readonly string[],
+): Promise<Set<string>> {
+  return repo.existingIds(tenantId, propertyIds);
 }
 
 export async function addPhoto(
