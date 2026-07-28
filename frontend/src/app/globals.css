@@ -2016,9 +2016,9 @@ textarea.editor-surface:focus {
 /**
  * Grade de vistoria do imóvel. Duas ideias sustentam o visual:
  *
- * 1. Os dados do imóvel viram uma FAIXA ESCURA no topo — herda o azul profundo
- *    da tela legada, mas com o gradiente da marca. Fixa a identidade do que
- *    está sendo vistoriado antes da lista, sem competir com o branco do cartão.
+ * 1. Os dados do imóvel viram uma FAIXA AZUL CLARA no topo — separa o "o quê"
+ *    está sendo vistoriado da lista, sem o peso de um bloco escuro dentro de um
+ *    cartão branco. O tom é o mesmo `--surface-highlight` do resto do painel.
  * 2. Bom/Médio/Ruim ganham COR SEMÂNTICA (verde/âmbar/vermelho) no cabeçalho,
  *    na caixa e numa barra na lateral da linha. A cor deixa de ser enfeite: o
  *    estado do imóvel é legível varrendo a coluna, sem ler item por item.
@@ -2028,11 +2028,14 @@ textarea.editor-surface:focus {
   overflow: hidden;
   border-radius: var(--r-lg);
   padding: 16px 20px;
-  color: #fff;
-  background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 58%, #1d4ed8 100%);
-  box-shadow: var(--shadow-lift);
+  color: var(--dark);
+  /* Variação curta de propósito: um gradiente longo desbotaria o lado direito
+     e a faixa deixaria de ler como uma superfície só. */
+  background: linear-gradient(135deg, #eaf3ff 0%, #f2f8ff 100%);
+  border: 1px solid color-mix(in srgb, var(--primary) 14%, var(--border));
+  box-shadow: var(--shadow-soft);
 }
-/* Brilho ciano no canto — a assinatura da marca, em dose baixa. */
+/* Brilho ciano no canto — a assinatura da marca, em dose bem baixa. */
 .insp-hero::after {
   content: "";
   position: absolute;
@@ -2041,7 +2044,7 @@ textarea.editor-surface:focus {
   width: 320px;
   height: 320px;
   border-radius: var(--r-full);
-  background: radial-gradient(circle, rgba(6, 182, 212, 0.35) 0%, transparent 68%);
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.14) 0%, transparent 68%);
   pointer-events: none;
 }
 .insp-hero-grid {
@@ -2062,7 +2065,7 @@ textarea.editor-surface:focus {
   font-weight: 600;
   letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.62);
+  color: var(--muted);
 }
 .insp-hero-value {
   font-family: var(--font-head);
@@ -2070,30 +2073,32 @@ textarea.editor-surface:focus {
   font-weight: 600;
   letter-spacing: -0.01em;
   margin-top: 3px;
-  color: #fff;
+  color: var(--dark);
 }
 .insp-hero-sep {
   width: 1px;
   align-self: stretch;
-  background: rgba(255, 255, 255, 0.16);
+  background: color-mix(in srgb, var(--primary) 18%, transparent);
 }
-/* "Nº 26" — o identificador da vistoria, tratado como selo. */
+/* "Nº 26" — o identificador da vistoria, tratado como selo. Agora o único
+   ponto de cor cheia da faixa: é o que ancora o olho no fundo claro. */
 .insp-hero-seq {
   display: inline-flex;
   align-items: baseline;
   gap: 5px;
   padding: 6px 12px;
   border-radius: var(--r-full);
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  backdrop-filter: blur(4px);
+  color: var(--primary);
+  background: var(--white);
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--border));
+  box-shadow: var(--shadow-sm);
 }
 .insp-hero-seq span {
   font-size: 0.66rem;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.62);
+  color: color-mix(in srgb, var(--primary) 62%, var(--muted));
 }
 .insp-hero-seq strong {
   font-family: var(--font-head);
@@ -2112,20 +2117,20 @@ textarea.editor-surface:focus {
   justify-content: space-between;
   align-items: baseline;
   font-size: 0.7rem;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--muted);
   margin-bottom: 6px;
 }
 .insp-progress-track {
   height: 5px;
   border-radius: var(--r-full);
-  background: rgba(255, 255, 255, 0.15);
+  background: color-mix(in srgb, var(--primary) 12%, var(--white));
   overflow: hidden;
 }
 .insp-progress-fill {
   height: 100%;
   border-radius: var(--r-full);
-  background: linear-gradient(90deg, #06b6d4 0%, #22d3ee 100%);
-  box-shadow: var(--shadow-glow);
+  /* O gradiente da marca (azul→ciano): num fundo claro, o ciano sozinho sumia. */
+  background: var(--grad-brand);
   transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
