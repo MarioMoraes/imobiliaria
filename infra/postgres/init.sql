@@ -351,6 +351,55 @@ VALUES
 ON CONFLICT DO NOTHING;
 
 -- ─────────────────────────────────────────────────────────────
+-- Vistoria do imóvel — compat. tela legada "Cadastro de Vistoria".
+-- Cabeçalho (uma por imóvel) + linhas do checklist, materializadas a partir
+-- do catálogo `inspection_items` do tenant.
+-- ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS property_inspections (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  property_id UUID NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+  seq         INT,                -- "Número" da tela legada; sequencial por tenant
+  notes       TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- Uma vistoria por imóvel (decisão de produto): o índice é quem garante.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_property_inspections_property ON property_inspections (property_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_property_inspections_tenant_seq ON property_inspections (tenant_id, seq);
+
+ALTER TABLE property_inspections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE property_inspections FORCE  ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON property_inspections
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON property_inspections TO app_user;
+
+CREATE TABLE IF NOT EXISTS property_inspection_entries (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id          UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  inspection_id      UUID NOT NULL REFERENCES property_inspections(id) ON DELETE CASCADE,
+  inspection_item_id UUID,             -- FK lógica → inspection_items (o item pode ser excluído)
+  description        TEXT NOT NULL,    -- snapshot: a linha sobrevive à exclusão do item
+  position           INT  NOT NULL DEFAULT 0,   -- coluna "Cód" / ordem de exibição
+  quantity           INT  NOT NULL DEFAULT 0,   -- coluna "Qtde"
+  condition          TEXT,             -- 'BOM' | 'MEDIO' | 'RUIM' | NULL (Bom/Médio/Ruim)
+  notes              TEXT,             -- coluna "Observações"
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_inspection_entries_inspection ON property_inspection_entries (inspection_id, position);
+-- Torna idempotente o "sincroniza o catálogo na abertura" (ON CONFLICT DO NOTHING).
+CREATE UNIQUE INDEX IF NOT EXISTS idx_inspection_entries_item ON property_inspection_entries (inspection_id, inspection_item_id);
+
+ALTER TABLE property_inspection_entries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE property_inspection_entries FORCE  ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON property_inspection_entries
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON property_inspection_entries TO app_user;
+
+-- ─────────────────────────────────────────────────────────────
 -- Bairros (lookup) — nome do bairro reaproveitado nos endereços. Tela
 -- "Tabelas". Tabela de domínio, protegida por RLS.
 -- ─────────────────────────────────────────────────────────────

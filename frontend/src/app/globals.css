@@ -2011,3 +2011,298 @@ textarea.editor-surface:focus {
     font-size: 2.2rem;
   }
 }
+
+/* --------------------------------------------------------------- Vistoria */
+/**
+ * Grade de vistoria do imóvel. Duas ideias sustentam o visual:
+ *
+ * 1. Os dados do imóvel viram uma FAIXA ESCURA no topo — herda o azul profundo
+ *    da tela legada, mas com o gradiente da marca. Fixa a identidade do que
+ *    está sendo vistoriado antes da lista, sem competir com o branco do cartão.
+ * 2. Bom/Médio/Ruim ganham COR SEMÂNTICA (verde/âmbar/vermelho) no cabeçalho,
+ *    na caixa e numa barra na lateral da linha. A cor deixa de ser enfeite: o
+ *    estado do imóvel é legível varrendo a coluna, sem ler item por item.
+ */
+.insp-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-lg);
+  padding: 16px 20px;
+  color: #fff;
+  background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 58%, #1d4ed8 100%);
+  box-shadow: var(--shadow-lift);
+}
+/* Brilho ciano no canto — a assinatura da marca, em dose baixa. */
+.insp-hero::after {
+  content: "";
+  position: absolute;
+  top: -60%;
+  right: -10%;
+  width: 320px;
+  height: 320px;
+  border-radius: var(--r-full);
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.35) 0%, transparent 68%);
+  pointer-events: none;
+}
+.insp-hero-grid {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+.insp-hero-item {
+  min-width: 0;
+}
+.insp-hero-item.grow {
+  flex: 1 1 240px;
+}
+.insp-hero-label {
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
+}
+.insp-hero-value {
+  font-family: var(--font-head);
+  font-size: 1.02rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-top: 3px;
+  color: #fff;
+}
+.insp-hero-sep {
+  width: 1px;
+  align-self: stretch;
+  background: rgba(255, 255, 255, 0.16);
+}
+/* "Nº 26" — o identificador da vistoria, tratado como selo. */
+.insp-hero-seq {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: var(--r-full);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(4px);
+}
+.insp-hero-seq span {
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
+}
+.insp-hero-seq strong {
+  font-family: var(--font-head);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* Progresso do preenchimento: quantos itens já receberam um estado. */
+.insp-progress {
+  position: relative;
+  margin-top: 14px;
+}
+.insp-progress-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.72);
+  margin-bottom: 6px;
+}
+.insp-progress-track {
+  height: 5px;
+  border-radius: var(--r-full);
+  background: rgba(255, 255, 255, 0.15);
+  overflow: hidden;
+}
+.insp-progress-fill {
+  height: 100%;
+  border-radius: var(--r-full);
+  background: linear-gradient(90deg, #06b6d4 0%, #22d3ee 100%);
+  box-shadow: var(--shadow-glow);
+  transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* A grade rola em si mesma para o cabeçalho ficar grudado no topo: numa lista
+   de 40 itens, sem isso não se sabe mais qual coluna é Bom e qual é Ruim. */
+.insp-grid {
+  max-height: 48vh;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--white);
+}
+.insp-grid .table {
+  font-size: 0.84rem;
+}
+.insp-grid thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, #f1f5f9 0%, #e8eef7 100%);
+  border-bottom: 1px solid var(--border-strong);
+  color: var(--muted);
+}
+.insp-grid tbody td {
+  padding: 8px 14px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.insp-grid tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+}
+.insp-grid tbody tr:hover {
+  background: var(--surface-highlight);
+}
+.insp-num {
+  color: var(--muted-2);
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  width: 46px;
+}
+.insp-desc {
+  font-weight: 500;
+  color: var(--dark);
+}
+.insp-qty.input {
+  width: 62px;
+  padding: 5px 8px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  background: color-mix(in srgb, var(--primary) 4%, var(--white));
+}
+.insp-notes.input {
+  width: 100%;
+  padding: 5px 10px;
+  border-color: transparent;
+  background: transparent;
+}
+/* A observação só ganha moldura quando o cursor chega: em 40 linhas, 40 caixas
+   desenhadas viram ruído e a lista deixa de ser escaneável. */
+.insp-grid tr:hover .insp-notes.input {
+  border-color: var(--border);
+  background: var(--white);
+}
+.insp-notes.input:focus {
+  border-color: var(--primary);
+  background: var(--white);
+}
+
+/* As três colunas de estado. `--cond` é definida por coluna e usada na caixa,
+   no cabeçalho e na barra lateral da linha. */
+.insp-cond {
+  text-align: center;
+  width: 68px;
+}
+th.insp-cond {
+  color: var(--cond);
+}
+.insp-cond-bom {
+  --cond: #16a34a;
+}
+.insp-cond-medio {
+  --cond: #d97706;
+}
+.insp-cond-ruim {
+  --cond: #dc2626;
+}
+td.insp-cond:has(:checked) {
+  background: color-mix(in srgb, var(--cond) 9%, transparent);
+}
+
+/* Caixa desenhada por nós: a nativa não aceita a cor da coluna nem o tamanho. */
+.insp-check {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--white);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.15s ease;
+  vertical-align: middle;
+}
+.insp-check:hover {
+  border-color: var(--cond);
+}
+.insp-check:checked {
+  background: var(--cond);
+  border-color: var(--cond);
+}
+/* O "tique": duas bordas de um retângulo, giradas. */
+.insp-check:checked::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 1px;
+  width: 5px;
+  height: 10px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(43deg);
+}
+.insp-check:focus-visible {
+  outline: 2px solid var(--cond);
+  outline-offset: 2px;
+}
+
+/* Barra do estado na lateral da linha: dá para ler a coluna inteira de relance. */
+tr[data-cond] td:first-child {
+  box-shadow: inset 3px 0 0 var(--row-cond, transparent);
+}
+tr[data-cond="BOM"] {
+  --row-cond: #16a34a;
+}
+tr[data-cond="MEDIO"] {
+  --row-cond: #d97706;
+}
+tr[data-cond="RUIM"] {
+  --row-cond: #dc2626;
+}
+/* O cabeçalho da coluna acompanha o alinhamento à direita dos números. */
+.insp-grid thead th.insp-num {
+  text-align: right;
+}
+
+/* Selo do título do modal — mesma linguagem do chip dos blocos de campo. */
+.insp-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.insp-title-chip {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  color: #fff;
+  background: var(--grad-brand);
+  box-shadow: var(--shadow-soft);
+}
+.insp-title-text {
+  font-family: var(--font-head);
+  font-size: 1rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--dark);
+}
+
+/* Coluna Qtde: rótulo centralizado sobre o campo, que também é centralizado. */
+.insp-qty-col,
+.insp-grid thead th.insp-qty-col {
+  text-align: center;
+  width: 88px;
+}

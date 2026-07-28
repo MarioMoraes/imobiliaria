@@ -4,6 +4,7 @@ import { Sidebar } from "../../components/Sidebar";
 import { Topbar } from "../../components/Topbar";
 import { adminNav, adminFootNav } from "../../lib/nav";
 import { fetchCurrentTenant, fetchCurrentUser } from "../../lib/api";
+import { requireSession } from "../../lib/auth-guard";
 
 /** Rótulos em português dos papéis do sistema (RBAC). */
 const ROLE_LABELS: Record<string, string> = {
@@ -22,6 +23,10 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Gate do painel inteiro: sem sessão, ninguém passa daqui — e nada é buscado
+  // no backend. Antes quem barrava era o middleware; ver `lib/auth-guard.ts`.
+  await requireSession();
+
   const [tenant, clerkUser, me] = await Promise.all([
     fetchCurrentTenant(),
     currentUser().catch(() => null),

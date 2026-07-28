@@ -1,30 +1,31 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { clerkMiddleware } from "@clerk/nextjs/server";
 
 /**
- * Middleware do Clerk (MOD-AUTH-05). Protege o painel interno, o super admin e
- * o onboarding (exige usuário já autenticado — o sign-up acontece antes).
- * Públicas: a landing de apresentação ("/"), o login, o cadastro e o aceite de
- * convite (o convidado chega por e-mail, ainda sem sessão). A landing
- * redireciona para /dashboard quando já existe sessão (ver app/page.tsx).
+ * Middleware do Clerk (MOD-AUTH-05).
+ *
+ * Ele NÃO decide mais quem entra onde. O `clerkMiddleware()` continua necessário
+ * porque é ele que resolve a sessão e disponibiliza o `auth()` para Server
+ * Components, Route Handlers e Server Actions — mas a autorização passou para
+ * junto do dado (`lib/auth-guard.ts`), como o Clerk recomenda desde a depreciação
+ * do `createRouteMatcher`: uma lista de padrões de caminho pode divergir de como
+ * o Next realmente roteia o request e deixar um recurso protegido alcançável.
+ *
+ * Onde ficam os gates agora:
+ * - `app/(admin)/layout.tsx`     → exige sessão (painel da imobiliária).
+ * - `app/superadmin/layout.tsx`  → exige sessão + admin da plataforma.
+ * - `app/onboarding/layout.tsx`  → exige sessão (o sign-up acontece antes).
+ * - Route Handlers e Server Actions → checam por conta própria; layouts não
+ *   rodam para eles. O choke point das Server Actions é o `authHeaders()` em
+ *   `lib/api.ts`, que se recusa a falar com o backend sem sessão em produção.
+ *
+ * Públicas por consequência (ninguém as protege): a landing "/", o login, o
+ * cadastro e o aceite de convite — este último precisa mesmo ser público, porque
+ * o convidado chega por e-mail ainda sem sessão.
  *
  * Em desenvolvimento sem chaves configuradas, o Clerk roda em "keyless mode":
  * o app sobe e provisiona uma instância temporária para você reivindicar.
  */
-const isPublicRoute = createRouteMatcher([
-  "/",
-  "/sign-in(.*)",
-  "/sign-up(.*)",
-  "/aceitar-convite(.*)",
-]);
-
-export default clerkMiddleware(async (auth, req) => {
-  if (!isPublicRoute(req)) {
-    // Não autenticado → redireciona para o login (em vez de 404).
-    await auth.protect({
-      unauthenticatedUrl: new URL("/sign-in", req.url).toString(),
-    });
-  }
-});
+export default clerkMiddleware();
 
 export const config = {
   matcher: [

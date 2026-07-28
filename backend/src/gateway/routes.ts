@@ -20,6 +20,7 @@ import {
   payoutRoutes,
 } from "../modules/payment/payment.routes.js";
 import { inspectionItemRoutes } from "../modules/inspection-item/inspection-item.routes.js";
+import { inspectionRoutes } from "../modules/inspection/inspection.routes.js";
 import { currentTenantRoutes, tenantRoutes } from "../modules/tenant/tenant.routes.js";
 import { userRoutes } from "../modules/user/user.routes.js";
 import { employeeRoutes } from "../modules/employee/employee.routes.js";
@@ -80,6 +81,9 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       // AsyncLocalStorage. As rotas usam `requirePermission(...)` para o RBAC.
       v1.addHook("onRequest", authContextHook);
       await v1.register(propertyRoutes, { prefix: "/properties" });
+      // Vistoria: compartilha o prefixo com propertyRoutes — os paths não
+      // colidem (tudo pende de /:id/inspection).
+      await v1.register(inspectionRoutes, { prefix: "/properties" });
       await v1.register(propertyTypeRoutes, { prefix: "/property-types" });
       // Tabelas auxiliares (lookups): cláusulas contratuais e itens de vistoria.
       await v1.register(clauseRoutes, { prefix: "/clauses" });

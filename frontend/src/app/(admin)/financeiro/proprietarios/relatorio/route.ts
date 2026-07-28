@@ -1,3 +1,4 @@
+import { auth } from "@clerk/nextjs/server";
 import { fetchPayoutReport } from "../../../../../lib/api";
 
 /**
@@ -12,6 +13,19 @@ import { fetchPayoutReport } from "../../../../../lib/api";
  * servidor tem — o navegador não pode chamar `/v1/payables/report` direto.
  */
 export async function GET(request: Request): Promise<Response> {
+  // Route Handler não roda o layout de `(admin)/`, então o gate de sessão é
+  // repetido aqui — é justamente a divergência que motivou o Clerk a depreciar
+  // a proteção por caminho no middleware. 401 (e não redirect): a resposta é um
+  // arquivo, quem chama é um `<a>`, e mandar o HTML do login viraria um PDF
+  // corrompido no visualizador.
+  const { userId } = await auth();
+  if (!userId) {
+    return new Response("Sessão expirada. Faça login novamente.", {
+      status: 401,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
+  }
+
   const month = new URL(request.url).searchParams.get("mes") ?? "";
   const competence = /^\d{4}-\d{2}$/.test(month)
     ? month

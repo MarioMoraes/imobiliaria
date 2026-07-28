@@ -22,6 +22,11 @@ const DEV_ROLES = process.env.DEV_ROLES ?? "ADMIN";
 /**
  * Headers de autenticação para o backend. Server-side apenas.
  * Preferência: token do Clerk; fallback: headers de dev.
+ *
+ * Este também é o gate de sessão das **Server Actions**: os layouts protegidos
+ * (`lib/auth-guard.ts`) não rodam quando o navegador invoca uma action, então
+ * sem esta checagem qualquer um poderia disparar as ~70 actions do painel.
+ * Como toda action chega ao backend por aqui, um único ponto cobre todas.
  */
 async function authHeaders(): Promise<Record<string, string>> {
   try {
@@ -33,9 +38,14 @@ async function authHeaders(): Promise<Record<string, string>> {
     // sessão do navegador virar ADMIN. Um pedido tem uma identidade só.
     if (token) return { Authorization: `Bearer ${token}` };
   } catch {
-    // Clerk não configurado/sem contexto de request — usa o fallback de dev.
+    // Clerk não configurado/sem contexto de request — cai no tratamento abaixo.
   }
-  // Sem sessão: fallback de desenvolvimento. O backend só o honra com
+  // Sem sessão em produção: não há a quem se passar. Falhar aqui evita gastar a
+  // ida ao backend (que responderia 401) e mantém a recusa explícita.
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("UNAUTHENTICATED");
+  }
+  // Em desenvolvimento, fallback do tenant demo. O backend só o honra com
   // AUTH_DEV_MODE=true E NODE_ENV=development; em qualquer outro lugar dá 401.
   return { "x-tenant-id": DEMO_TENANT_ID, "x-dev-roles": DEV_ROLES };
 }
@@ -217,6 +227,39 @@ export interface InspectionItem {
   id: string;
   description: string;
   active: boolean;
+}
+
+/** Estado do item na vistoria. Três caixas na tela, mutuamente exclusivas. */
+export type InspectionCondition = "BOM" | "MEDIO" | "RUIM";
+
+/** Uma linha do checklist de vistoria — nasce do catálogo de Itens de Vistoria. */
+export interface PropertyInspectionEntry {
+  id: string;
+  inspectionId: string;
+  inspectionItemId: string | null;
+  /** Snapshot da descrição: a linha sobrevive à exclusão do item no catálogo. */
+  description: string;
+  position: number;
+  quantity: number;
+  condition: InspectionCondition | null;
+  notes: string | null;
+}
+
+/** Cabeçalho da vistoria — uma por imóvel; `seq` é o "Número" da tela legada. */
+export interface PropertyInspection {
+  id: string;
+  propertyId: string;
+  seq: number | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** O que a tela de vistoria consome numa chamada só. */
+export interface PropertyInspectionView {
+  inspection: PropertyInspection;
+  entries: PropertyInspectionEntry[];
+  property: { id: string; code: number | null; title: string; address: string };
 }
 
 /** Bairro (lookup) — tela "Tabelas". Apenas o nome. */
@@ -689,6 +732,28 @@ export function fetchInspectionItems(): Promise<InspectionItem[] | null> {
   return get<InspectionItem[]>("/v1/inspection-items");
 }
 
+/**
+ * Vistoria do imóvel. O backend cria a vistoria e materializa as linhas a
+ * partir do catálogo na primeira chamada — por isso um GET já devolve a lista
+ * pronta para preencher.
+ */
+export function fetchPropertyInspection(
+  propertyId: string,
+): Promise<PropertyInspectionView | null> {
+  return get<PropertyInspectionView>(`/v1/properties/${propertyId}/inspection`);
+}
+
+/**
+ * Laudo de vistoria em PDF — devolve a `Response` CRUA, não JSON: quem chama é
+ * o route handler que repassa os bytes ao navegador (ver fetchPayoutReport).
+ */
+export async function fetchInspectionReport(propertyId: string): Promise<Response> {
+  return fetch(`${BACKEND_URL}/v1/properties/${propertyId}/inspection/report`, {
+    headers: await authHeaders(),
+    cache: "no-store",
+  });
+}
+
 /** Bairros (lookup) do tenant da sessão. */
 export function fetchDistricts(): Promise<District[] | null> {
   return get<District[]>("/v1/districts");
@@ -977,7 +1042,13 @@ export async function sendJson(
       return { ok: false, error: json.error?.message ?? `Erro ${res.status}` };
     }
     return { ok: true, data: json.data };
-  } catch {
+  } catch (err) {
+    // Sem sessão (ver authHeaders): a action foi invocada fora de uma sessão
+    // válida. Mensagem própria — "backend indisponível" mandaria o usuário
+    // investigar a infra por um problema que é de login.
+    if (err instanceof Error && err.message === "UNAUTHENTICATED") {
+      return { ok: false, error: "Sessão expirada. Faça login novamente." };
+    }
     return { ok: false, error: "Backend indisponível. Suba a infra (npm run dev)." };
   }
 }

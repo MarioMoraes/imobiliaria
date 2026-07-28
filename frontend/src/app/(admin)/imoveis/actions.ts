@@ -3,9 +3,13 @@
 import { revalidatePath } from "next/cache";
 import {
   deleteJson,
+  fetchPropertyInspection,
   fetchPropertyPhotos,
   patchJson,
   postJson,
+  sendJson,
+  type InspectionCondition,
+  type PropertyInspectionView,
   type PropertyPhoto,
 } from "../../../lib/api";
 
@@ -354,5 +358,43 @@ export async function removePhotoAction(
   const res = await deleteJson(`/v1/properties/${propertyId}/photos/${photoId}`);
   if (!res.ok) return { ok: false, error: res.error };
   revalidateLists();
+  return { ok: true };
+}
+
+/* ------------------------------------------------------------- Vistoria */
+
+/**
+ * Carrega a vistoria do imóvel. A primeira chamada cria a vistoria e as linhas
+ * a partir do catálogo de Itens de Vistoria (é o backend que faz isso), então a
+ * tela nunca abre vazia por falta de um passo de "gerar lista".
+ */
+export async function loadInspectionAction(
+  propertyId: string,
+): Promise<{ ok: boolean; view?: PropertyInspectionView; error?: string }> {
+  if (!propertyId) return { ok: false, error: "ID inválido." };
+  const view = await fetchPropertyInspection(propertyId);
+  if (view === null) {
+    return { ok: false, error: "Não foi possível carregar a vistoria." };
+  }
+  return { ok: true, view };
+}
+
+/** Grava o preenchimento inteiro da vistoria (o "Confirmar" da tela). */
+export async function saveInspectionAction(
+  propertyId: string,
+  entries: {
+    id: string;
+    quantity: number;
+    condition: InspectionCondition | null;
+    notes: string | null;
+  }[],
+  notes: string | null,
+): Promise<ActionResult> {
+  if (!propertyId) return { ok: false, error: "ID inválido." };
+  const res = await sendJson("PUT", `/v1/properties/${propertyId}/inspection`, {
+    entries,
+    notes,
+  });
+  if (!res.ok) return { ok: false, error: res.error };
   return { ok: true };
 }

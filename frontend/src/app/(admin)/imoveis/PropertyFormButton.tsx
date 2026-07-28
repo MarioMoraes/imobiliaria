@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Icon } from "../../../components/Icon";
 import { FieldBlock, TabBar, initials } from "../../../components/ui";
 import { formatCep } from "../../../lib/br-doc";
+import InspectionModal from "./InspectionModal";
 import type { Property, PropertyPhoto } from "../../../lib/api";
 import {
   addOwnerAction,
@@ -293,6 +294,8 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
   const [photoError, setPhotoError] = useState<string | null>(null);
   // Índice da foto aberta no lightbox (null = fechado).
   const [lightbox, setLightbox] = useState<number | null>(null);
+  // Vistoria do imóvel (modal por cima deste, só no modo edição).
+  const [inspectionOpen, setInspectionOpen] = useState(false);
 
   useEffect(() => setMounted(true), []);
 
@@ -930,13 +933,26 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
 
         {error && <span className="text-sm" style={{ color: "var(--danger, #dc2626)" }}>{error}</span>}
 
-        <div className="row" style={{ justifyContent: "flex-end", gap: 8, borderTop: "1px solid var(--border)", paddingTop: 12 }}>
-          <button className="btn btn-ghost btn-sm" type="button" onClick={close} disabled={pending}>
-            Cancelar
+        <div className="row" style={{ justifyContent: "space-between", gap: 8, borderTop: "1px solid var(--border)", paddingTop: 12 }}>
+          {/* Vistoria é sub-recurso do imóvel: precisa de um imóvel salvo para
+              existir, como as abas Proprietários e Fotos. */}
+          <button
+            className="btn btn-outline btn-sm"
+            type="button"
+            onClick={() => setInspectionOpen(true)}
+            disabled={!isEdit || pending}
+            title={isEdit ? undefined : "Salve o imóvel primeiro"}
+          >
+            <Icon name="list" size={14} /> Vistoria
           </button>
-          <button className="btn btn-primary btn-sm" type="button" onClick={submit} disabled={pending}>
-            {pending ? "Salvando…" : "Salvar"}
-          </button>
+          <div className="row" style={{ gap: 8 }}>
+            <button className="btn btn-ghost btn-sm" type="button" onClick={close} disabled={pending}>
+              Cancelar
+            </button>
+            <button className="btn btn-primary btn-sm" type="button" onClick={submit} disabled={pending}>
+              {pending ? "Salvando…" : "Salvar"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1031,6 +1047,9 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
           document.body,
         )}
       {mounted && lightbox !== null && createPortal(lightboxEl, document.body)}
+      {open && mounted && inspectionOpen && property && (
+        <InspectionModal propertyId={property.id} onClose={() => setInspectionOpen(false)} />
+      )}
     </>
   );
 }
