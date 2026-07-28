@@ -56,6 +56,8 @@ function makeEmpty(defaultRoles: PersonRole[]): NewPersonInput {
     agency: "",
     account: "",
     holderName: "",
+    pixKey: "",
+    pixKeyType: "",
     paymentAuthorization: "",
     notes: "",
     references: "",
@@ -126,6 +128,8 @@ function toForm(person: Person): NewPersonInput {
     agency: person.agency ?? "",
     account: person.account ?? "",
     holderName: person.holderName ?? "",
+    pixKey: person.pixKey ?? "",
+    pixKeyType: person.pixKeyType ?? "",
     paymentAuthorization: person.paymentAuthorization ?? "",
     notes: person.notes ?? "",
     references: person.references ?? "",
@@ -408,6 +412,34 @@ export function PersonFormButton({
 
         {/* Dados bancários (repasse) */}
         <div className="stack" style={{ gap: 12, display: tab === "bancarios" ? "flex" : "none" }}>
+          <FieldBlock tone="tone-esmeralda" icon="banknote" title="Chave PIX (repasse)">
+          <div className="grid grid-2" style={{ gap: 12 }}>
+            <div className="field">
+              <label>Chave PIX</label>
+              <input
+                className="input"
+                value={form.pixKey}
+                onChange={(e) => set({ pixKey: e.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label>Tipo da chave</label>
+              <select
+                className="input"
+                value={form.pixKeyType}
+                onChange={(e) => set({ pixKeyType: e.target.value })}
+              >
+                <option value="">—</option>
+                <option value="CPF">CPF</option>
+                <option value="CNPJ">CNPJ</option>
+                <option value="EMAIL">E-mail</option>
+                <option value="PHONE">Telefone</option>
+                <option value="EVP">Aleatória</option>
+              </select>
+            </div>
+          </div>
+          </FieldBlock>
+
           <FieldBlock tone="tone-esmeralda" icon="banknote" title="Conta para repasse">
           <div className="grid grid-3" style={{ gap: 12 }}>
             <div className="field">

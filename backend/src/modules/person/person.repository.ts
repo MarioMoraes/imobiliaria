@@ -39,6 +39,8 @@ interface Row {
   agency: string | null;
   account: string | null;
   holder_name: string | null;
+  pix_key: string | null;
+  pix_key_type: string | null;
   payment_authorization: string | null;
   spouse_name: string | null;
   spouse_cpf: string | null;
@@ -161,6 +163,8 @@ function toPerson(
     agency: row.agency,
     account: row.account,
     holderName: row.holder_name,
+    pixKey: row.pix_key,
+    pixKeyType: row.pix_key_type,
     paymentAuthorization: row.payment_authorization,
     spouseName: row.spouse_name,
     spouseCpf: row.spouse_cpf,
@@ -375,11 +379,12 @@ export function insertPerson(tenantId: string, input: CreatePersonInput): Promis
       `INSERT INTO persons
          (tenant_id, roles, person_type, full_name, cpf_cnpj, rg, rg_issuer, gender,
           birth_date, marital_status, nationality, occupation, email, phone, mobile,
-          bank, agency, account, holder_name, payment_authorization, spouse_name,
+          bank, agency, account, holder_name, pix_key, pix_key_type,
+          payment_authorization, spouse_name,
           spouse_cpf, spouse_rg, spouse_occupation, spouse_birth_date, notes,
           references_txt, source, assigned_broker_id)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,
-               $16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29)
+               $16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31)
        RETURNING id`,
       [
         tenantId,
@@ -401,6 +406,8 @@ export function insertPerson(tenantId: string, input: CreatePersonInput): Promis
         input.agency ?? null,
         input.account ?? null,
         input.holderName ?? null,
+        input.pixKey ?? null,
+        input.pixKeyType ?? null,
         input.paymentAuthorization ?? null,
         input.spouseName ?? null,
         input.spouseCpf ?? null,
@@ -439,6 +446,8 @@ const COLUMN: Record<string, string> = {
   agency: "agency",
   account: "account",
   holderName: "holder_name",
+  pixKey: "pix_key",
+  pixKeyType: "pix_key_type",
   paymentAuthorization: "payment_authorization",
   spouseName: "spouse_name",
   spouseCpf: "spouse_cpf",

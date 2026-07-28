@@ -6,10 +6,12 @@ import { publish } from "../../shared/events.js";
 import { logger } from "../../shared/logger.js";
 import * as personService from "../person/person.service.js";
 import * as receivableService from "../receivable/receivable.service.js";
+import * as payableService from "../payable/payable.service.js";
 import * as repo from "./payment.repository.js";
 import * as asaas from "./asaas.client.js";
 import type {
   IssuedCharge,
+  IssuedTransfer,
   PaymentCredentials,
   PaymentSettingsView,
   SavePaymentSettingsInput,
@@ -295,6 +297,112 @@ async function chargeTerms(
   };
 }
 
+/* -------------------------------------- Repasse ao proprietário (saída) */
+
+/**
+ * Envia o repasse por PIX para a chave do proprietário.
+ *
+ * Sob demanda, como a emissão do boleto: o lançamento só vira transferência no
+ * Asaas quando alguém manda pagar. E **assíncrono** — o Asaas devolve `PENDING`,
+ * o repasse fica `PROCESSANDO`, e a baixa só acontece quando chega
+ * `TRANSFER_DONE` (webhook) ou na sincronização manual. Marcar PAGO aqui diria
+ * que o proprietário recebeu um dinheiro que ainda está em trânsito.
+ *
+ * Idempotente: repasse que já tem transferência não cria uma segunda — pagar o
+ * mesmo aluguel duas vezes é dinheiro que não volta sozinho.
+ */
+export async function transferPayout(
+  tenantId: string,
+  payableId: string,
+): Promise<IssuedTransfer> {
+  const payable = await payableService.getById(tenantId, payableId);
+
+  if (payable.asaasTransferId) {
+    return { asaasTransferId: payable.asaasTransferId, status: payable.transferStatus ?? "PENDING" };
+  }
+  if (payable.status === "PAGO") {
+    throw AppError.badRequest("Repasse já quitado — não há pagamento a enviar.");
+  }
+  if (payable.status === "CANCELADO" || payable.status === "ESTORNADO") {
+    throw AppError.badRequest("Repasse cancelado não gera pagamento.");
+  }
+
+  const person = await personService.getById(tenantId, payable.payeePersonId);
+  const pixKey = person.pixKey?.trim();
+  if (!pixKey || !person.pixKeyType) {
+    throw new AppError(
+      "ERR_FIN_002",
+      422,
+      `Cadastre a chave PIX de ${person.fullName} para enviar o repasse — é por ela que o Asaas transfere.`,
+    );
+  }
+
+  const creds = await credentials(tenantId);
+  const transfer = await asaas.createTransfer(
+    { apiKey: creds.apiKey, sandbox: creds.sandbox },
+    {
+      value: toReais(payable.amountCents),
+      pixAddressKey: pixKey,
+      pixAddressKeyType: person.pixKeyType as asaas.PixKeyType,
+      description: payable.description ?? "Repasse de aluguel",
+      externalReference: payable.id,
+    },
+  );
+
+  await payableService.attachTransfer(tenantId, payable.id, {
+    asaasTransferId: transfer.id,
+    transferStatus: transfer.status,
+  });
+
+  await publish({
+    type: "payable.transfer_sent",
+    tenantId,
+    eventId: randomUUID(),
+    occurredAt: new Date().toISOString(),
+    payload: {
+      payableId: payable.id,
+      transferId: transfer.id,
+      amountCents: payable.amountCents,
+      sandbox: creds.sandbox,
+    },
+  });
+
+  // Raro, mas o Asaas pode concluir na hora — nesse caso já damos a baixa em vez
+  // de deixar o repasse preso em PROCESSANDO até alguém sincronizar.
+  if (transfer.status === "DONE") {
+    await payableService.applyTransferResult(tenantId, transfer.id, {
+      status: transfer.status,
+      effectiveDate: toDay(transfer.effectiveDate),
+    });
+  }
+
+  return { asaasTransferId: transfer.id, status: transfer.status };
+}
+
+/**
+ * "Sincronizar" o repasse: consulta o Asaas e aplica o desfecho. É o caminho
+ * manual, indispensável em desenvolvimento — o webhook não alcança a máquina
+ * local, e sem isso o repasse ficaria PROCESSANDO para sempre.
+ */
+export async function syncTransfer(tenantId: string, payableId: string): Promise<void> {
+  const payable = await payableService.getById(tenantId, payableId);
+  if (!payable.asaasTransferId) {
+    throw new AppError("ERR_FIN_002", 404, "Este repasse ainda não foi enviado ao banco.");
+  }
+
+  const creds = await credentials(tenantId);
+  const transfer = await asaas.getTransfer(
+    { apiKey: creds.apiKey, sandbox: creds.sandbox },
+    payable.asaasTransferId,
+  );
+
+  await payableService.applyTransferResult(tenantId, transfer.id, {
+    status: transfer.status,
+    effectiveDate: toDay(transfer.effectiveDate),
+    failReason: transfer.failReason,
+  });
+}
+
 /* ------------------------------------------------ Sincronização / webhook */
 
 /** Estados do Asaas que significam dinheiro na conta. */
@@ -303,6 +411,19 @@ const PAID_EVENTS = new Set(["PAYMENT_RECEIVED", "PAYMENT_CONFIRMED"]);
 /** "2026-08-10 13:45:00" | "2026-08-10" → "2026-08-10". */
 const toDay = (v: string | null | undefined): string | undefined =>
   v ? v.slice(0, 10) : undefined;
+
+/**
+ * Desfecho da transferência a partir do nome do evento, para os callbacks que
+ * não repetem o `status` no corpo. Desconhecido vira PENDING (em trânsito) — o
+ * pior erro aqui seria dar baixa por engano.
+ */
+function statusFromTransferEvent(event: string): string {
+  if (event === "TRANSFER_DONE") return "DONE";
+  if (event === "TRANSFER_FAILED") return "FAILED";
+  if (event === "TRANSFER_CANCELLED") return "CANCELLED";
+  if (event === "TRANSFER_IN_BANK_PROCESSING") return "BANK_PROCESSING";
+  return "PENDING";
+}
 
 /**
  * Aplica um callback do Asaas. Retorna `false` quando o token não confere — a
@@ -321,19 +442,22 @@ export async function handleWebhook(
     return false;
   }
 
-  const payment = payload.payment;
-  if (!payment) {
-    logger.info({ tenantId, event: payload.event }, "webhook do Asaas sem cobrança — ignorado");
+  // Um callback traz `payment` (cobrança, dinheiro entrando) ou `transfer`
+  // (repasse, dinheiro saindo). O de repasse chegou depois, então o caminho de
+  // cobrança abaixo continua tal como estava.
+  const subject = payload.payment ?? payload.transfer;
+  if (!subject) {
+    logger.info({ tenantId, event: payload.event }, "webhook do Asaas sem objeto — ignorado");
     return true;
   }
 
-  // Sem `id` do evento (formatos antigos), o id da cobrança + o tipo servem de
+  // Sem `id` do evento (formatos antigos), o id do objeto + o tipo servem de
   // chave: reentregas do mesmo evento continuam colapsando em uma só.
-  const eventId = payload.id ?? `${payload.event}:${payment.id}`;
+  const eventId = payload.id ?? `${payload.event}:${subject.id}`;
   const fresh = await repo.claimEvent(tenantId, {
     eventId,
     eventType: payload.event,
-    paymentId: payment.id,
+    paymentId: subject.id,
     payload,
   });
   if (!fresh) {
@@ -341,6 +465,22 @@ export async function handleWebhook(
     return true;
   }
 
+  const transfer = payload.transfer;
+  if (transfer) {
+    const applied = await payableService.applyTransferResult(tenantId, transfer.id, {
+      // Sem `status` no corpo, o próprio nome do evento diz o desfecho.
+      status: transfer.status ?? statusFromTransferEvent(payload.event),
+      effectiveDate: toDay(transfer.effectiveDate),
+      failReason: transfer.failReason,
+    });
+    if (!applied) {
+      // Transferência feita direto no painel do Asaas: ignorar é o certo.
+      logger.info({ tenantId, transferId: transfer.id }, "repasse desconhecido — ignorado");
+    }
+    return true;
+  }
+
+  const payment = payload.payment!;
   if (PAID_EVENTS.has(payload.event)) {
     const settled = await receivableService.settleByChargeId(tenantId, payment.id, {
       paidAt: toDay(payment.clientPaymentDate ?? payment.paymentDate),

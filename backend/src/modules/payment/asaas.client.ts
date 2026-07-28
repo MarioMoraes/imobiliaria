@@ -60,6 +60,36 @@ export interface CreateCustomerInput {
   externalReference?: string;
 }
 
+/** Tipos de chave PIX aceitos pelo Asaas. EVP = chave aleatória. */
+export type PixKeyType = "CPF" | "CNPJ" | "EMAIL" | "PHONE" | "EVP";
+
+/**
+ * Transferência (dinheiro SAINDO da conta do tenant para o proprietário).
+ *
+ * É assíncrona: o Asaas responde `PENDING` e só depois manda `TRANSFER_DONE` ou
+ * `TRANSFER_FAILED`. Quem chama não pode tratar a resposta como "pago".
+ */
+export interface AsaasTransfer {
+  id: string;
+  status: string; // PENDING | BANK_PROCESSING | DONE | FAILED | CANCELLED
+  value: number;
+  /** Data em que o dinheiro cai na conta do destinatário. */
+  effectiveDate: string | null;
+  /** Motivo, quando status = FAILED. */
+  failReason: string | null;
+  transferFee: number | null;
+}
+
+export interface CreateTransferInput {
+  /** Em REAIS (o Asaas trabalha com decimal, não centavos). */
+  value: number;
+  pixAddressKey: string;
+  pixAddressKeyType: PixKeyType;
+  description?: string;
+  /** Nosso id do repasse — volta no webhook para correlacionar. */
+  externalReference?: string;
+}
+
 export interface CreatePaymentInput {
   customer: string;
   billingType: BillingType;
@@ -114,10 +144,19 @@ async function request<T>(
   }
 
   if (res.status === 401 || res.status === 403) {
+    // O 403 costuma ser ESCOPO, não credencial errada: a mesma chave que emite
+    // boleto pode não ter permissão de saque via API, e o Asaas diz exatamente
+    // isso no corpo. A mensagem genérica mandava o operador reconectar a conta —
+    // o que não resolve — em vez de liberar a permissão da chave.
+    const body = (await res.json().catch(() => ({}))) as AsaasErrorBody;
+    const detail = body.errors?.map((e) => e.description).filter(Boolean).join("; ");
+    logger.warn({ status: res.status, detail, path }, "Asaas recusou por credencial/permissão");
     throw new AppError(
       "UNAUTHORIZED",
       401,
-      "Chave de API do Asaas inválida ou sem permissão. Revise a integração em Configurações.",
+      detail
+        ? `O Asaas recusou a operação (${context}): ${detail}`
+        : "Chave de API do Asaas inválida ou sem permissão. Revise a integração em Configurações.",
     );
   }
 
@@ -167,6 +206,35 @@ export function getPayment(creds: Credentials, paymentId: string): Promise<Asaas
 }
 
 /**
+ * Envia dinheiro por PIX para a chave do proprietário (repasse).
+ *
+ * `operationType: PIX` é fixo: o repasse sai por chave, não por dados bancários
+ * — cai na hora, sem tarifa de TED e com um campo só para o cadastro errar.
+ * Saldo insuficiente na conta Asaas é recusado aqui mesmo, com a descrição do
+ * provedor repassada ao operador.
+ */
+export function createTransfer(
+  creds: Credentials,
+  input: CreateTransferInput,
+): Promise<AsaasTransfer> {
+  return request<AsaasTransfer>(
+    creds,
+    "/transfers",
+    { method: "POST", body: { ...input, operationType: "PIX" } },
+    "envio do repasse",
+  );
+}
+
+export function getTransfer(creds: Credentials, transferId: string): Promise<AsaasTransfer> {
+  return request<AsaasTransfer>(
+    creds,
+    `/transfers/${transferId}`,
+    { method: "GET" },
+    "consulta do repasse",
+  );
+}
+
+/**
  * Registra o webhook da conta. O Asaas devolve o `authToken` no header
  * `asaas-access-token` de cada callback — é assim que autenticamos a chamada
  * (não há HMAC).
@@ -200,6 +268,14 @@ export function registerWebhook(
           "PAYMENT_OVERDUE",
           "PAYMENT_REFUNDED",
           "PAYMENT_DELETED",
+          // Repasse ao proprietário: é o TRANSFER_DONE que dá a baixa, e o
+          // TRANSFER_FAILED que devolve o lançamento para "em aberto".
+          "TRANSFER_CREATED",
+          "TRANSFER_PENDING",
+          "TRANSFER_IN_BANK_PROCESSING",
+          "TRANSFER_DONE",
+          "TRANSFER_FAILED",
+          "TRANSFER_CANCELLED",
         ],
       },
     },

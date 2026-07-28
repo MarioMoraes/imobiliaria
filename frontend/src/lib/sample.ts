@@ -94,11 +94,6 @@ export const sampleReceivables = [
   { id: "4", desc: "Comissão venda · Apto Tatuapé", party: "Bianca R.", due: "15 jul", value: 3800000, status: "pending" },
 ];
 
-export const sampleTransfers = [
-  { owner: "João Andrade", prop: "Studio Pinheiros", gross: 320000, fee: 32000, net: 288000, status: "paid" },
-  { owner: "Construtora Vera Cruz", prop: "Sala Faria Lima", gross: 850000, fee: 85000, net: 765000, status: "pending" },
-];
-
 export const sampleMaintenance = [
   { id: "MN-311", prop: "Studio Pinheiros", cat: "Hidráulica", who: "Família Ribeiro", status: "pending", cost: "R$ 380" },
   { id: "MN-308", prop: "Apto Moema", cat: "Elétrica", who: "L. Fernandes", status: "active", cost: "R$ 1.240" },

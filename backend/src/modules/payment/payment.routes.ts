@@ -37,6 +37,33 @@ export async function paymentRoutes(app: FastifyInstance): Promise<void> {
 }
 
 /**
+ * Ações de pagamento de um repasse. Montado em /v1/payables — não colide com
+ * `payableRoutes` porque os paths são distintos (transfer, sync-transfer).
+ */
+export async function payoutRoutes(app: FastifyInstance): Promise<void> {
+  // Envia o repasse por PIX. É dinheiro SAINDO, então fica sob finance:write
+  // (ADMIN/FINANCEIRO) como o resto da escrita financeira.
+  app.post<{ Params: { id: string } }>(
+    "/:id/transfer",
+    { preHandler: requirePermission("finance:write") },
+    async (req) => {
+      return { data: await service.transferPayout(getTenantId(), req.params.id) };
+    },
+  );
+
+  // Caminho manual para desenvolvimento, onde o webhook não chega — sem ele o
+  // repasse ficaria PROCESSANDO para sempre.
+  app.post<{ Params: { id: string } }>(
+    "/:id/sync-transfer",
+    { preHandler: requirePermission("finance:write") },
+    async (req) => {
+      await service.syncTransfer(getTenantId(), req.params.id);
+      return { data: { synced: true } };
+    },
+  );
+}
+
+/**
  * Configuração da integração por tenant. Montado em /v1/payment-settings.
  * A chave da API nunca é devolvida — só o hint dos últimos caracteres.
  */

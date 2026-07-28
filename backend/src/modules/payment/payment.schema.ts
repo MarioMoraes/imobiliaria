@@ -56,9 +56,10 @@ export interface PaymentSettingsRow {
 }
 
 /**
- * Callback do Asaas. Só os campos que usamos: o `event` diz o que aconteceu e
- * o `payment` traz o estado atual da cobrança. O `id` do evento é a chave de
- * idempotência (o Asaas reentrega até receber 200).
+ * Callback do Asaas. Só os campos que usamos: o `event` diz o que aconteceu e o
+ * `payment` (cobrança, dinheiro entrando) ou o `transfer` (repasse, dinheiro
+ * saindo) trazem o estado atual. Um callback traz um ou outro, nunca os dois.
+ * O `id` do evento é a chave de idempotência (o Asaas reentrega até receber 200).
  */
 export const webhookPayloadSchema = z.object({
   id: z.string().optional(),
@@ -76,8 +77,26 @@ export const webhookPayloadSchema = z.object({
       bankSlipUrl: z.string().nullable().optional(),
     })
     .optional(),
+  transfer: z
+    .object({
+      id: z.string(),
+      status: z.string().optional(),
+      value: z.number().optional(),
+      /** Dia em que o dinheiro caiu na conta do proprietário. */
+      effectiveDate: z.string().nullable().optional(),
+      failReason: z.string().nullable().optional(),
+      externalReference: z.string().nullable().optional(),
+    })
+    .optional(),
 });
 export type WebhookPayload = z.infer<typeof webhookPayloadSchema>;
+
+/** Resultado do envio de um repasse — o que a UI mostra depois do clique. */
+export interface IssuedTransfer {
+  asaasTransferId: string;
+  /** Estado bruto do Asaas: PENDING na criação, raramente DONE de imediato. */
+  status: string;
+}
 
 /** Resultado da emissão — o que a UI precisa para abrir o documento. */
 export interface IssuedCharge {

@@ -11,11 +11,13 @@ import {
   signatureWebhookRoutes,
 } from "../modules/signature/signature.routes.js";
 import { receivableRoutes } from "../modules/receivable/receivable.routes.js";
+import { payableRoutes } from "../modules/payable/payable.routes.js";
 import { searchRoutes } from "../modules/search/search.routes.js";
 import {
   paymentRoutes,
   paymentSettingsRoutes,
   paymentWebhookRoutes,
+  payoutRoutes,
 } from "../modules/payment/payment.routes.js";
 import { inspectionItemRoutes } from "../modules/inspection-item/inspection-item.routes.js";
 import { currentTenantRoutes, tenantRoutes } from "../modules/tenant/tenant.routes.js";
@@ -109,6 +111,12 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       // Contas a receber (MOD-FIN). Os aluguéis nascem aqui quando o contrato
       // entra em vigência (todas as assinaturas confirmadas).
       await v1.register(receivableRoutes, { prefix: "/receivables" });
+      // Contas a pagar (MOD-FIN): o repasse ao proprietário nasce aqui quando um
+      // aluguel é baixado, já com a taxa de administração deduzida.
+      await v1.register(payableRoutes, { prefix: "/payables" });
+      // Envio do repasse por PIX (Asaas). Compartilha o prefixo /payables — os
+      // paths não colidem (transfer, sync-transfer).
+      await v1.register(payoutRoutes, { prefix: "/payables" });
       // Cobrança bancária (Asaas). Compartilha o prefixo /receivables — os
       // paths não colidem (boleto, sync-charge).
       await v1.register(paymentRoutes, { prefix: "/receivables" });

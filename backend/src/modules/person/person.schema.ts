@@ -74,6 +74,12 @@ export type SearchProfileInput = z.infer<typeof searchProfileInput>;
 
 // "Ao menos um contato (email/telefone)" e a deduplicação são validados no
 // service (para emitir os códigos canônicos ERR_PESSOA_*), não no parse.
+/**
+ * Tipo da chave PIX na nomenclatura do próprio Asaas (`pixAddressKeyType`) —
+ * guardar já traduzido evita um mapeamento na fronteira. EVP é a chave aleatória.
+ */
+export const pixKeyType = z.enum(["CPF", "CNPJ", "EMAIL", "PHONE", "EVP"]);
+
 export const createPersonSchema = z
   .object({
     roles: z.array(personRole).min(1),
@@ -100,6 +106,8 @@ export const createPersonSchema = z
     agency: z.string().max(20).optional(),
     account: z.string().max(30).optional(),
     holderName: z.string().max(200).optional(),
+    pixKey: z.string().max(140).optional(),
+    pixKeyType: pixKeyType.optional(),
     paymentAuthorization: z.string().max(300).optional(),
     spouseName: z.string().max(200).optional(),
     spouseCpf: z.string().max(14).optional(),
@@ -150,6 +158,8 @@ export const updatePersonSchema = z
     agency: z.string().max(20).nullable().optional(),
     account: z.string().max(30).nullable().optional(),
     holderName: z.string().max(200).nullable().optional(),
+    pixKey: z.string().max(140).nullable().optional(),
+    pixKeyType: pixKeyType.nullable().optional(),
     paymentAuthorization: z.string().max(300).nullable().optional(),
     spouseName: z.string().max(200).nullable().optional(),
     spouseCpf: z.string().max(14).nullable().optional(),
@@ -229,6 +239,9 @@ export interface Person {
   agency: string | null;
   account: string | null;
   holderName: string | null;
+  /** Chave PIX do repasse (ver [pixKeyType]). */
+  pixKey: string | null;
+  pixKeyType: string | null;
   paymentAuthorization: string | null;
   spouseName: string | null;
   spouseCpf: string | null;

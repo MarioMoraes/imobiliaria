@@ -1411,3 +1411,75 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON rag_chunks TO app_user;
 INSERT INTO ai_credits (tenant_id, balance)
 VALUES ('00000000-0000-0000-0000-000000000001', 10000)
 ON CONFLICT (tenant_id) DO NOTHING;
+
+-- ═════════════════════════════════════════════════════════════════
+-- MOD-FIN / Repasse ao proprietário — contas a pagar (financeiro_11 §4).
+--
+-- Cada aluguel PAGO vira um lançamento a pagar por proprietário do imóvel,
+-- rateado por `property_owners.share_percent`, já com a taxa de administração
+-- deduzida. A taxa NÃO vira linha própria: fica em `admin_fee_cents` no mesmo
+-- lançamento, e a receita da imobiliária no período é o SUM dessa coluna. Uma
+-- linha só evita as duas fontes de verdade divergirem quando alguém edita ou
+-- cancela o repasse.
+--
+-- Os percentuais são SNAPSHOT do momento da baixa: mudar a taxa do contrato
+-- amanhã não pode reescrever o que já foi apurado.
+-- ═════════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS payables (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id          UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  contract_id        UUID REFERENCES contracts(id) ON DELETE CASCADE,
+  property_id        UUID,                            -- FK lógica → properties
+  receivable_id      UUID,                            -- FK lógica → receivables (origem)
+  payee_person_id    UUID NOT NULL,                   -- FK lógica → persons (proprietário)
+  kind               TEXT NOT NULL DEFAULT 'REPASSE', -- REPASSE|OUTRO
+  description        TEXT,
+  competence         TEXT,                            -- YYYY-MM do aluguel de origem
+  share_percent      NUMERIC(5,2) NOT NULL DEFAULT 100, -- participação do dono
+  gross_cents        BIGINT NOT NULL,                 -- parte bruta deste dono
+  admin_fee_percent  NUMERIC(5,2) NOT NULL DEFAULT 0, -- snapshot do contrato/imóvel
+  admin_fee_cents    BIGINT NOT NULL DEFAULT 0,       -- receita da imobiliária
+  amount_cents       BIGINT NOT NULL,                 -- líquido = gross - admin_fee
+  due_date           DATE NOT NULL,
+  status             TEXT NOT NULL DEFAULT 'ABERTO',  -- ABERTO|PAGO|VENCIDO|CANCELADO|ESTORNADO
+  paid_at            DATE,
+  paid_amount_cents  BIGINT,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_payables_tenant_status ON payables (tenant_id, status, due_date);
+CREATE INDEX IF NOT EXISTS idx_payables_payee         ON payables (tenant_id, payee_person_id, status);
+CREATE INDEX IF NOT EXISTS idx_payables_contract      ON payables (contract_id, due_date);
+-- Idempotência do repasse: reprocessar a baixa (webhook reentregue, botão
+-- clicado duas vezes, rotina de reconciliação) não pode pagar o dono em dobro.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_payables_source
+  ON payables (receivable_id, payee_person_id)
+  WHERE receivable_id IS NOT NULL;
+
+ALTER TABLE payables ENABLE ROW LEVEL SECURITY;
+ALTER TABLE payables FORCE  ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON payables;
+CREATE POLICY tenant_isolation ON payables
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON payables TO app_user;
+
+-- ── Chave PIX do proprietário (repasse via Asaas) ────────────────
+-- O repasse sai por PIX: uma chave só, cai na hora e sem tarifa de TED. Os
+-- campos banco/agência/conta acima continuam servindo de registro do cadastro,
+-- mas não é deles que a transferência sai.
+-- `pix_key_type` usa a nomenclatura do próprio Asaas (CPF|CNPJ|EMAIL|PHONE|EVP)
+-- para não haver tradução no meio do caminho — EVP é a chave aleatória.
+ALTER TABLE persons ADD COLUMN IF NOT EXISTS pix_key      TEXT;
+ALTER TABLE persons ADD COLUMN IF NOT EXISTS pix_key_type TEXT;
+
+-- ── Transferência do repasse (Asaas) ─────────────────────────────
+-- A transferência é assíncrona: o Asaas responde PENDING e só depois manda
+-- TRANSFER_DONE/TRANSFER_FAILED. Por isso o repasse ganha um estado próprio
+-- (PROCESSANDO) entre "em aberto" e "pago" — marcar PAGO na criação diria que o
+-- proprietário recebeu um dinheiro que ainda está em trânsito.
+ALTER TABLE payables ADD COLUMN IF NOT EXISTS asaas_transfer_id      TEXT;
+ALTER TABLE payables ADD COLUMN IF NOT EXISTS transfer_status        TEXT;
+ALTER TABLE payables ADD COLUMN IF NOT EXISTS transfer_failed_reason TEXT;
+CREATE INDEX IF NOT EXISTS idx_payables_transfer ON payables (asaas_transfer_id)
+  WHERE asaas_transfer_id IS NOT NULL;

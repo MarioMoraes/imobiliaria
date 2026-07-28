@@ -10,10 +10,19 @@ import { BankManager } from "./BankManager";
 /**
  * Grid do Financeiro: um card por área. "Bancos" abre um popup (Modal) com o
  * gerenciador de contas bancárias (lista + cadastro/edição + remoção); "Gestão
- * Financeira" é um card de navegação para o dashboard em /financeiro/gestao.
- * Mesmo padrão de cards de /tabelas.
+ * Financeira" e "Pagamento de Proprietários" são cards de navegação para as
+ * subpáginas. Mesmo padrão de cards de /tabelas.
  */
-export function FinanceiroGrid({ banks, live }: { banks: Bank[]; live: boolean }) {
+export function FinanceiroGrid({
+  banks,
+  live,
+  pendingPayouts,
+}: {
+  banks: Bank[];
+  live: boolean;
+  /** Repasses em aberto — o badge do card de proprietários. */
+  pendingPayouts: number;
+}) {
   const [banksOpen, setBanksOpen] = useState(false);
 
   return (
@@ -41,6 +50,28 @@ export function FinanceiroGrid({ banks, live }: { banks: Bank[]; live: boolean }
           </div>
         </button>
 
+        <Link href="/financeiro/proprietarios" className="lookup-card reveal">
+          <span className="stat-icon accent">
+            <Icon name="banknote" />
+          </span>
+          <div className="stack" style={{ gap: 4 }}>
+            <span className="lookup-card-title">Pagamento de Proprietários</span>
+            <span className="subtle text-sm">
+              Repasse do aluguel recebido, já com a taxa de administração deduzida.
+            </span>
+          </div>
+          <div className="lookup-card-foot">
+            <span className="badge badge-slate">
+              {pendingPayouts} em aberto
+            </span>
+            <span className="row gap-8 text-sm strong">
+              Abrir <Icon name="arrowRight" size={15} />
+            </span>
+          </div>
+        </Link>
+
+        {/* Gestão Financeira fica por último: é a visão consolidada, depois das
+            áreas operacionais. */}
         <Link href="/financeiro/gestao" className="lookup-card reveal">
           <span className="stat-icon success">
             <Icon name="wallet" />

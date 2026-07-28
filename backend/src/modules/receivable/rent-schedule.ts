@@ -1,3 +1,4 @@
+import { isoDay } from "../../shared/month.js";
 import type { ScheduledInstallment } from "./receivable.schema.js";
 
 /**
@@ -8,18 +9,6 @@ import type { ScheduledInstallment } from "./receivable.schema.js";
  * vencendo no "Dia Inq" (`tenantPayDay`) do contrato. Sem dia definido, cai no
  * dia do início da locação.
  */
-
-/** Meses com menos dias que o dia de vencimento fecham no último dia (31 → 28/30). */
-function lastDayOfMonth(year: number, month: number): number {
-  return new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-}
-
-function iso(year: number, month: number, day: number): string {
-  const clamped = Math.min(day, lastDayOfMonth(year, month));
-  const mm = String(month + 1).padStart(2, "0");
-  const dd = String(clamped).padStart(2, "0");
-  return `${year}-${mm}-${dd}`;
-}
 
 export interface RentScheduleInput {
   startsAt: string | null;
@@ -47,7 +36,7 @@ export function buildRentSchedule(contract: RentScheduleInput): ScheduledInstall
 
   // A 1ª parcela vence no mês do início — a menos que o dia de pagamento já
   // tenha passado quando a locação começou; nesse caso, no mês seguinte.
-  const firstMonthOffset = iso(y, m - 1, payDay) < startsAt ? 1 : 0;
+  const firstMonthOffset = isoDay(y, m - 1, payDay) < startsAt ? 1 : 0;
 
   const installments: ScheduledInstallment[] = [];
   for (let i = 0; i < total; i++) {
@@ -59,7 +48,7 @@ export function buildRentSchedule(contract: RentScheduleInput): ScheduledInstall
       installment: i + 1,
       installmentsTotal: total,
       amountCents: rentalValueCents,
-      dueDate: iso(year, month, payDay),
+      dueDate: isoDay(year, month, payDay),
       description: `Aluguel ${i + 1}/${total}`,
     });
   }

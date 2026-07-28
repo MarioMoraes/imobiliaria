@@ -1,14 +1,16 @@
+import Link from "next/link";
 import { PageHeader, StatCard, Section, StatusBadge } from "../../../../components/ui";
 import { CashFlowChart } from "../../../../components/CashFlowChart";
 import { Icon } from "../../../../components/Icon";
 import {
   fetchCashFlow,
+  fetchPayableSummary,
+  fetchPayables,
   fetchReceivables,
   formatDay,
   formatPrice,
   type Receivable,
 } from "../../../../lib/api";
-import { sampleTransfers } from "../../../../lib/sample";
 
 /** Janela do gráfico: 6 meses para trás, incluindo o corrente. */
 const CASH_FLOW_MONTHS = 6;
@@ -42,10 +44,14 @@ export default async function GestaoFinanceiraPage() {
   // receber" e a inadimplência não são do mês), enquanto a tabela de contas a
   // receber mostra só a competência corrente — pedir o mês ao backend em vez de
   // filtrar aqui evita que o limite da listagem corte justamente essas parcelas.
-  const [receivables, monthReceivables, cashFlow] = await Promise.all([
+  const [receivables, monthReceivables, cashFlow, payoutSummary, payouts] = await Promise.all([
     fetchReceivables().then((r) => r ?? []),
     fetchReceivables({ competence: currentMonth }).then((r) => r ?? []),
     fetchCashFlow(CASH_FLOW_MONTHS).then((c) => c ?? []),
+    fetchPayableSummary(currentMonth),
+    // Os repasses em aberto mais próximos do vencimento — o painel lateral é um
+    // resumo; a lista completa e as ações ficam em /financeiro/proprietarios.
+    fetchPayables({ status: "ABERTO", limit: 5 }).then((p) => p ?? []),
   ]);
   const sum = (list: Receivable[]) => list.reduce((acc, r) => acc + r.amountCents, 0);
 
@@ -77,7 +83,12 @@ export default async function GestaoFinanceiraPage() {
           value={`${inadimplencia.toFixed(1).replace(".", ",")}%`}
           tone={inadimplencia > 0 ? "warning" : "success"}
         />
-        <StatCard icon="receipt" label="Repasses pendentes" value="R$ 7,6k" tone="warning" />
+        <StatCard
+          icon="receipt"
+          label="Repasses pendentes"
+          value={formatPrice(payoutSummary?.openCents ?? 0)}
+          tone={payoutSummary?.openCents ? "warning" : "success"}
+        />
       </div>
 
       <div className="grid" style={{ gridTemplateColumns: "1.5fr 1fr" }}>
@@ -142,21 +153,38 @@ export default async function GestaoFinanceiraPage() {
             </div>
           </Section>
 
-          <Section title="Repasses a proprietários">
+          <Section
+            title="Repasses a proprietários"
+            action={
+              <Link href="/financeiro/proprietarios" className="text-sm strong row gap-8">
+                Ver todos <Icon name="arrowRight" size={14} />
+              </Link>
+            }
+          >
             <div className="card-pad stack" style={{ gap: 12 }}>
-              {sampleTransfers.map((t, i) => (
-                <div key={i} className="card card-pad" style={{ padding: 14 }}>
+              {payouts.map((t) => (
+                <div key={t.id} className="card card-pad" style={{ padding: 14 }}>
                   <div className="row-between mb-2">
-                    <span className="strong text-sm">{t.owner}</span>
-                    <StatusBadge status={t.status} />
+                    <span className="strong text-sm">{t.payeeName ?? "—"}</span>
+                    <StatusBadge status={t.dueDate < today ? "VENCIDO" : t.status} />
                   </div>
-                  <div className="text-xs subtle" style={{ marginBottom: 8 }}>{t.prop}</div>
+                  <div className="text-xs subtle" style={{ marginBottom: 8 }}>
+                    {t.propertyCode ? `Imóvel ${t.propertyCode}` : "—"} · vence {formatDay(t.dueDate)}
+                  </div>
                   <div className="row-between text-xs">
-                    <span className="subtle">Bruto {formatPrice(t.gross)} · taxa {formatPrice(t.fee)}</span>
-                    <span className="strong num">{formatPrice(t.net)}</span>
+                    <span className="subtle">
+                      Bruto {formatPrice(t.grossCents)} · taxa {formatPrice(t.adminFeeCents)}
+                    </span>
+                    <span className="strong num">{formatPrice(t.amountCents)}</span>
                   </div>
                 </div>
               ))}
+              {payouts.length === 0 && (
+                <p className="text-sm subtle">
+                  Nenhum repasse em aberto. Eles são gerados quando um aluguel
+                  recebe baixa.
+                </p>
+              )}
             </div>
           </Section>
         </div>

@@ -43,6 +43,8 @@ export interface NewPersonInput {
   agency?: string;
   account?: string;
   holderName?: string;
+  pixKey?: string;
+  pixKeyType?: string;
   paymentAuthorization?: string;
   // Observações
   notes?: string;
@@ -171,6 +173,8 @@ function buildPersonFields(
       agency: clean(input.agency),
       account: clean(input.account),
       holderName: clean(input.holderName),
+      pixKey: clean(input.pixKey),
+      pixKeyType: clean(input.pixKeyType),
       paymentAuthorization: clean(input.paymentAuthorization),
       notes: clean(input.notes),
       references: clean(input.references),

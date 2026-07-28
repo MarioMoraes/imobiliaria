@@ -342,6 +342,9 @@ export interface Person {
   agency: string | null;
   account: string | null;
   holderName: string | null;
+  /** Chave PIX do repasse (CPF|CNPJ|EMAIL|PHONE|EVP em `pixKeyType`). */
+  pixKey: string | null;
+  pixKeyType: string | null;
   paymentAuthorization: string | null;
   spouseName: string | null;
   spouseCpf: string | null;
@@ -566,6 +569,55 @@ export interface Receivable {
   /** PDF do boleto registrado, hospedado no provedor. */
   boletoUrl: string | null;
   invoiceUrl: string | null;
+}
+
+/**
+ * Conta a pagar (MOD-FIN). Hoje é o repasse ao proprietário: nasce quando um
+ * aluguel é baixado, já com a taxa de administração deduzida.
+ */
+export interface Payable {
+  id: string;
+  contractId: string | null;
+  propertyId: string | null;
+  /** Parcela de aluguel que originou o repasse. */
+  receivableId: string | null;
+  payeePersonId: string;
+  payeeName: string | null;
+  /** Código do imóvel (sequencial por tenant), não o UUID. */
+  propertyCode: number | null;
+  kind: string;
+  description: string | null;
+  competence: string | null;
+  /** Participação do dono no imóvel — o rateio entre coproprietários. */
+  sharePercent: number;
+  /** Parte do aluguel que cabe a este dono, antes da taxa. */
+  grossCents: number;
+  adminFeePercent: number;
+  /** Taxa de administração retida — é a receita da imobiliária. */
+  adminFeeCents: number;
+  /** Líquido a pagar: bruto menos a taxa. */
+  amountCents: number;
+  dueDate: string;
+  status: string;
+  paidAt: string | null;
+  paidAmountCents: number | null;
+  /** Transferência PIX no Asaas — nulos enquanto o repasse não foi enviado. */
+  asaasTransferId: string | null;
+  transferStatus: string | null;
+  /** Motivo da recusa; o repasse volta a ABERTO para o operador corrigir. */
+  transferFailedReason: string | null;
+}
+
+/** Indicadores do mês de repasses (agregados no backend). */
+export interface PayableSummary {
+  month: string;
+  openCents: number;
+  paidCents: number;
+  overdueCents: number;
+  overdueCount: number;
+  /** Taxa de administração apurada no mês — receita da imobiliária. */
+  adminFeeCents: number;
+  pendingCount: number;
 }
 
 /* ------------------------------------------------------------- Helpers */
@@ -801,6 +853,48 @@ export function fetchReceivables(params?: {
   if (params?.competence) query.set("competence", params.competence);
   const qs = query.toString();
   return get<Receivable[]>(`/v1/receivables${qs ? `?${qs}` : ""}`);
+}
+
+export function fetchPayables(params?: {
+  contractId?: string;
+  payeePersonId?: string;
+  status?: string;
+  /** Competência do aluguel que originou o repasse. */
+  competence?: string;
+  /** Mês de VENCIMENTO (YYYY-MM) — é por ele que a tela de repasses filtra. */
+  dueMonth?: string;
+  limit?: number;
+}): Promise<Payable[] | null> {
+  const query = new URLSearchParams();
+  if (params?.contractId) query.set("contractId", params.contractId);
+  if (params?.payeePersonId) query.set("payeePersonId", params.payeePersonId);
+  if (params?.status) query.set("status", params.status);
+  if (params?.competence) query.set("competence", params.competence);
+  if (params?.dueMonth) query.set("dueMonth", params.dueMonth);
+  if (params?.limit) query.set("limit", String(params.limit));
+  const qs = query.toString();
+  return get<Payable[]>(`/v1/payables${qs ? `?${qs}` : ""}`);
+}
+
+/**
+ * Indicadores do mês. Vêm agregados do backend em vez de somados aqui porque a
+ * listagem tem limite — somar a página traria cards que mentem conforme a
+ * carteira cresce.
+ */
+export function fetchPayableSummary(month?: string): Promise<PayableSummary | null> {
+  return get<PayableSummary>(`/v1/payables${month ? `/summary?month=${month}` : "/summary"}`);
+}
+
+/**
+ * Relatório de repasses em PDF — devolve a `Response` CRUA, não JSON: quem chama
+ * é o route handler que repassa os bytes ao navegador. É a única rota do backend
+ * que responde arquivo em vez do envelope `{ data }`.
+ */
+export async function fetchPayoutReport(month: string): Promise<Response> {
+  return fetch(`${BACKEND_URL}/v1/payables/report?month=${encodeURIComponent(month)}`, {
+    headers: await authHeaders(),
+    cache: "no-store",
+  });
 }
 
 /** Um contrato pelo id. */

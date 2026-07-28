@@ -105,6 +105,9 @@ const statusMap: Record<string, { cls: string; label: string; dot?: boolean }> =
   inactive: { cls: "badge-slate", label: "Inativo" },
   // contas a receber (MOD-FIN)
   ABERTO: { cls: "badge-amber", label: "Em aberto" },
+  // Repasse (contas a pagar): a transferência PIX já saiu daqui, mas o banco
+  // ainda não confirmou. Não é "pago" — o dinheiro está em trânsito.
+  PROCESSANDO: { cls: "badge-cyan", label: "Processando" },
   PAGO: { cls: "badge-green", label: "Pago" },
   VENCIDO: { cls: "badge-red", label: "Vencido" },
   CANCELADO: { cls: "badge-slate", label: "Cancelado" },

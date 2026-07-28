@@ -6,11 +6,34 @@ import { env } from "./config/env.js";
 import { loggerOptions } from "./shared/logger.js";
 import { toErrorBody } from "./shared/errors.js";
 import { registerRoutes } from "./gateway/routes.js";
+import * as receivableService from "./modules/receivable/receivable.service.js";
+import * as payableService from "./modules/payable/payable.service.js";
+
+/**
+ * Liga os módulos que reagem a fatos de outro módulo.
+ *
+ * Aqui, e não dentro dos módulos, porque é o único ponto que pode conhecer os
+ * dois lados sem criar ciclo de import: `payable` já depende de `contract`, que
+ * depende de `receivable`. Ver `receivableService.onSettled`.
+ *
+ * O guard existe porque `buildApp` é chamado uma vez por teste de integração —
+ * sem ele, o repasse seria gerado uma vez por app construído no mesmo processo.
+ */
+let wired = false;
+function wireModules(): void {
+  if (wired) return;
+  wired = true;
+  // Aluguel baixado → credita o proprietário, já com a taxa de administração
+  // deduzida (que vira receita da imobiliária).
+  receivableService.onSettled(payableService.handleRentSettled);
+}
 
 /**
  * Constrói a instância Fastify (sem iniciar o listen — facilita testes).
  */
 export async function buildApp(): Promise<FastifyInstance> {
+  wireModules();
+
   const app = Fastify({
     logger: loggerOptions,
     genReqId: () => randomUUID(),

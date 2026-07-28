@@ -24,6 +24,15 @@ Regras de fronteira:
   tabelas de outros módulos, mas só com `SELECT` agregado, sem escrita e sem
   regra de negócio. Somar seis indicadores pelos services daria seis chamadas
   e as somas em JS. Qualquer coisa além de agregação vai para o módulo dono.
+  (`payable/` usa a mesma licença em `findPaidRentsWithoutPayout`, um SELECT em
+  `receivables` para achar o que reconciliar.)
+- Quando A precisa reagir a um fato de B **e** B já depende de A, não inverta a
+  seta com um import: B expõe um registro de listeners e o gancho é ligado em
+  `app.ts`. É o caso de `receivableService.onSettled` → `payable`, que sem isso
+  fecharia o ciclo contract → receivable → payable → contract. Evento do
+  RabbitMQ não serve aqui: `publish` é best-effort e engole a mensagem com o
+  broker fora do ar — aceitável para reindexar o RAG, não para creditar dinheiro
+  de terceiros.
 
 ## Desvio deliberado do SPEC: o grafo do MOD-AI
 
@@ -61,8 +70,9 @@ muda — e aí vale reavaliar.
 | `document/`          | document-service       | 1    | ⬜            |
 | `crm/`               | crm-service            | 2    | ⬜            |
 | `receivable/`        | financial-service      | 2    | 🟡 contas a receber: aluguéis gerados na assinatura + baixa manual |
+| `payable/`           | financial-service      | 2    | 🟡 contas a pagar: repasse ao proprietário na baixa do aluguel |
 | `payment/`           | financial-service      | 2    | ✅ Asaas: boleto/PIX sob demanda, webhook idempotente |
-| `financial/`         | financial-service      | 2    | ⬜ repasses, comissões, DRE |
+| `financial/`         | financial-service      | 2    | ⬜ comissões, DRE |
 | `rental/`            | rental-service         | 2    | ⬜            |
 | `maintenance/`       | maintenance-service    | 2    | ⬜            |
 | `portal/`            | portal-service         | 2    | ⬜            |

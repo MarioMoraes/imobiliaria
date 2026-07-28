@@ -64,3 +64,83 @@ export async function deleteBankAction(id: string): Promise<BankActionResult> {
   revalidatePath(PATH);
   return { ok: true };
 }
+
+/* ------------------------------ Repasse ao proprietário (contas a pagar) */
+
+/**
+ * As telas de repasse são subpáginas, e `revalidatePath` não alcança filhas: sem
+ * revalidar as duas explicitamente, dar baixa num repasse deixava o card do
+ * financeiro mostrando o número antigo.
+ */
+const PAYABLE_PATHS = ["/financeiro", "/financeiro/proprietarios", "/financeiro/gestao"];
+
+function revalidatePayables(): void {
+  for (const path of PAYABLE_PATHS) revalidatePath(path);
+}
+
+export interface PayableActionResult {
+  ok: boolean;
+  error?: string;
+}
+
+/** Baixa do repasse: o dinheiro saiu para o proprietário. */
+export async function settlePayableAction(
+  id: string,
+  paidAt?: string,
+): Promise<PayableActionResult> {
+  if (!id) return { ok: false, error: "ID inválido." };
+  const res = await postJson(`/v1/payables/${id}/settle`, paidAt ? { paidAt } : {});
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePayables();
+  return { ok: true };
+}
+
+export async function cancelPayableAction(id: string): Promise<PayableActionResult> {
+  if (!id) return { ok: false, error: "ID inválido." };
+  const res = await postJson(`/v1/payables/${id}/cancel`, {});
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePayables();
+  return { ok: true };
+}
+
+/**
+ * Envia o repasse por PIX pelo Asaas. A transferência é assíncrona: o repasse
+ * fica "Processando" e só vira "Pago" quando o banco confirma (webhook, ou o
+ * botão de sincronizar em desenvolvimento).
+ */
+export async function transferPayoutAction(id: string): Promise<PayableActionResult> {
+  if (!id) return { ok: false, error: "ID inválido." };
+  const res = await postJson(`/v1/payables/${id}/transfer`, {});
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePayables();
+  return { ok: true };
+}
+
+/** Consulta o Asaas e aplica o desfecho — o webhook não alcança o localhost. */
+export async function syncTransferAction(id: string): Promise<PayableActionResult> {
+  if (!id) return { ok: false, error: "ID inválido." };
+  const res = await postJson(`/v1/payables/${id}/sync-transfer`, {});
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePayables();
+  return { ok: true };
+}
+
+export interface GeneratePayoutsResult extends PayableActionResult {
+  /** Aluguéis pagos que estavam sem repasse. */
+  scanned?: number;
+  /** Repasses efetivamente criados. */
+  created?: number;
+}
+
+/**
+ * Reconciliação: gera os repasses de aluguéis já pagos que ficaram sem
+ * lançamento (proprietário cadastrado depois da baixa, aluguel quitado antes de
+ * o módulo existir). Seguro repetir — o backend não duplica.
+ */
+export async function generatePayoutsAction(): Promise<GeneratePayoutsResult> {
+  const res = await postJson("/v1/payables/generate", {});
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePayables();
+  const data = res.data as { scanned?: number; created?: number } | undefined;
+  return { ok: true, scanned: data?.scanned ?? 0, created: data?.created ?? 0 };
+}

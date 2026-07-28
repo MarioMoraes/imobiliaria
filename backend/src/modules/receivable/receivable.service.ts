@@ -21,6 +21,42 @@ import type {
  * contrato passa a VIGENTE. Assim a dependência fica em um sentido só.
  */
 
+/* ------------------------------------------ Reação à baixa (inversão) */
+
+/** Quem quer reagir a um pagamento recebido. Ver `onSettled`. */
+export type SettledListener = (tenantId: string, receivable: Receivable) => Promise<void>;
+
+const settledListeners: SettledListener[] = [];
+
+/**
+ * Registra um interessado na baixa de pagamento (hoje: o repasse ao
+ * proprietário, ligado em `app.ts`).
+ *
+ * É inversão de dependência, não cerimônia: o repasse precisa da taxa e do "Dia
+ * Prop" do contrato, então `payable` importa `contract` — que por sua vez já
+ * importa este módulo. Chamar `payableService` daqui fecharia o ciclo
+ * contract → receivable → payable → contract. Com o registro no bootstrap, este
+ * módulo segue sem conhecer nem contrato nem repasse.
+ *
+ * Não usamos o evento `payment.received` para isso porque `shared/events.ts`
+ * publica em best-effort: com o RabbitMQ fora do ar o evento é descartado em
+ * silêncio, e o proprietário simplesmente não seria creditado.
+ */
+export function onSettled(listener: SettledListener): void {
+  settledListeners.push(listener);
+}
+
+/** Os listeners são isolados: um que falhe não afeta os outros nem a baixa. */
+async function notifySettled(tenantId: string, receivable: Receivable): Promise<void> {
+  for (const listener of settledListeners) {
+    try {
+      await listener(tenantId, receivable);
+    } catch (err) {
+      logger.error({ err, receivableId: receivable.id }, "listener de baixa falhou");
+    }
+  }
+}
+
 export function list(
   tenantId: string,
   query: ListReceivablesQuery,
@@ -132,6 +168,10 @@ export async function settle(
       amountCents: updated.paidAmountCents,
     },
   });
+
+  // Depois do publish e fora de qualquer guarda: quem reage precisa do estado
+  // já persistido. Cobre a baixa manual e a do webhook, que passam as duas aqui.
+  await notifySettled(tenantId, updated);
   return updated;
 }
 
