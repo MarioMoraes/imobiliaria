@@ -1,5 +1,6 @@
 import { UserButton } from "@clerk/nextjs";
 import { currentUser } from "@clerk/nextjs/server";
+import { AppDialogs } from "../../components/AppDialogs";
 import { Sidebar } from "../../components/Sidebar";
 import { Topbar } from "../../components/Topbar";
 import { adminNav, adminFootNav } from "../../lib/nav";
@@ -44,25 +45,27 @@ export default async function AdminLayout({
   const userRole = primaryRole ? (ROLE_LABELS[primaryRole] ?? primaryRole) : undefined;
 
   return (
-    <div className="app-shell">
-      <Sidebar
-        variant="tenant"
-        brandName={brandName}
-        brandSub="Imobiliária"
-        brandLogo={tenant?.logoUrl ?? null}
-        groups={adminNav}
-        footItems={adminFootNav}
-      />
-      <div className="main">
-        <Topbar
-          brandLogo={tenant?.logoUrl ?? null}
+    <AppDialogs>
+      <div className="app-shell">
+        <Sidebar
+          variant="tenant"
           brandName={brandName}
-          userName={userName}
-          userRole={userRole}
-          accountSlot={<UserButton />}
+          brandSub="Imobiliária"
+          brandLogo={tenant?.logoUrl ?? null}
+          groups={adminNav}
+          footItems={adminFootNav}
         />
-        <div className="content">{children}</div>
+        <div className="main">
+          <Topbar
+            brandLogo={tenant?.logoUrl ?? null}
+            brandName={brandName}
+            userName={userName}
+            userRole={userRole}
+            accountSlot={<UserButton />}
+          />
+          <div className="content">{children}</div>
+        </div>
       </div>
-    </div>
+    </AppDialogs>
   );
 }

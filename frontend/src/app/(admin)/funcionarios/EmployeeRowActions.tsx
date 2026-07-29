@@ -4,6 +4,8 @@ import { useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "../../../components/Icon";
+import { useConfirm } from "../../../components/ConfirmDialog";
+import { useToast } from "../../../components/Toast";
 import {
   changeAccessAction,
   deleteEmployeeAction,
@@ -61,6 +63,8 @@ export function EmployeeRowActions({
   disabled?: boolean;
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
+  const toast = useToast();
   const [pending, startTransition] = useTransition();
   const [removing, startRemove] = useTransition();
   const [open, setOpen] = useState(false);
@@ -114,21 +118,22 @@ export function EmployeeRowActions({
     });
   }
 
-  function handleDelete() {
-    if (
-      !confirm(
-        `Excluir "${employee.name}"? O acesso ao painel é removido e esta ação não pode ser desfeita.`,
-      )
-    ) {
-      return;
-    }
+  async function handleDelete() {
+    const ok = await confirm({
+      eyebrow: "Exclusão",
+      title: `Excluir "${employee.name}"?`,
+      message: "O acesso ao painel é removido imediatamente. Esta ação não pode ser desfeita.",
+      confirmLabel: "Excluir",
+    });
+    if (!ok) return;
     setError(null);
     startRemove(async () => {
       const res = await deleteEmployeeAction(employee.id);
       if (!res.ok) {
-        alert(res.error ?? "Falha ao excluir o funcionário.");
+        toast.error(res.error ?? "Não foi possível excluir o funcionário.");
         return;
       }
+      toast.success("Funcionário excluído.");
       router.refresh();
     });
   }
@@ -255,7 +260,7 @@ export function EmployeeRowActions({
         className="icon-btn"
         style={{ width: 30, height: 30 }}
         type="button"
-        onClick={handleDelete}
+        onClick={() => void handleDelete()}
         disabled={disabled || removing}
         aria-label={`Excluir ${employee.name}`}
         title="Excluir"

@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "../../../components/Icon";
+import { useConfirm } from "../../../components/ConfirmDialog";
+import { useToast } from "../../../components/Toast";
 import { deleteContractAction } from "./actions";
 
-/** Botão de remoção com confirmação inline (padrão dos demais cadastros). */
+/** Botão de remoção com confirmação (padrão dos demais cadastros). */
 export function DeleteContractButton({
   id,
   label,
@@ -16,36 +18,39 @@ export function DeleteContractButton({
   disabled?: boolean;
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
+  const toast = useToast();
   const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
 
-  function handleDelete() {
-    if (!confirm(`Remover o contrato ${label}? Esta ação não pode ser desfeita.`)) {
-      return;
-    }
-    setError(null);
+  async function handleDelete() {
+    const ok = await confirm({
+      eyebrow: "Exclusão",
+      title: `Remover o contrato ${label}?`,
+      message: "Esta ação não pode ser desfeita.",
+      confirmLabel: "Remover",
+    });
+    if (!ok) return;
     startTransition(async () => {
       const res = await deleteContractAction(id);
       if (!res.ok) {
-        setError(res.error ?? "Falha ao remover.");
+        toast.error(res.error ?? "Não foi possível remover o contrato.");
         return;
       }
+      toast.success("Contrato removido.");
       router.refresh();
     });
   }
 
   return (
-    <span title={error ?? undefined}>
-      <button
-        className="icon-btn"
-        style={{ width: 30, height: 30 }}
-        type="button"
-        onClick={handleDelete}
-        disabled={disabled || pending}
-        aria-label={`Remover contrato ${label}`}
-      >
-        <Icon name={pending ? "loader" : "trash"} className={pending ? "spin" : undefined} size={15} />
-      </button>
-    </span>
+    <button
+      className="icon-btn"
+      style={{ width: 30, height: 30 }}
+      type="button"
+      onClick={() => void handleDelete()}
+      disabled={disabled || pending}
+      aria-label={`Remover contrato ${label}`}
+    >
+      <Icon name={pending ? "loader" : "trash"} className={pending ? "spin" : undefined} size={15} />
+    </button>
   );
 }

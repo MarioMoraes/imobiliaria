@@ -4,6 +4,8 @@ import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "../../../components/Icon";
+import { useConfirm } from "../../../components/ConfirmDialog";
+import { useToast } from "../../../components/Toast";
 import { FieldBlock, TabBar, initials } from "../../../components/ui";
 import type { Contract } from "../../../lib/api";
 import {
@@ -222,6 +224,8 @@ export function ContractFormButton({
 }: Props) {
   const isEdit = !!contract;
   const router = useRouter();
+  const confirm = useConfirm();
+  const toast = useToast();
   const [pending, startTransition] = useTransition();
   const [partyPending, startPartyTransition] = useTransition();
   const [open, setOpen] = useState(false);
@@ -245,26 +249,32 @@ export function ContractFormButton({
   const liveStatus = contract?.status ?? "RASCUNHO";
   const [terminating, setTerminating] = useState(false);
 
-  function terminate(status: "ENCERRADO" | "DISTRATADO") {
+  async function terminate(status: "ENCERRADO" | "DISTRATADO") {
     if (!contract) return;
-    const rotulo = status === "ENCERRADO" ? "Encerrar" : "Registrar distrato d";
-    if (
-      !window.confirm(
-        `${rotulo}o contrato ${contract.code != null ? `Nº ${contract.code}` : ""}?\n\n` +
-          "O imóvel volta para Disponível e as parcelas de aluguel em aberto são canceladas.",
-      )
-    ) {
-      return;
-    }
+    const encerrando = status === "ENCERRADO";
+    const numero = contract.code != null ? ` Nº ${contract.code}` : "";
+    const ok = await confirm({
+      eyebrow: encerrando ? "Encerramento" : "Distrato",
+      title: encerrando
+        ? `Encerrar o contrato${numero}?`
+        : `Registrar o distrato do contrato${numero}?`,
+      message:
+        "O imóvel volta para Disponível e as parcelas de aluguel em aberto são canceladas.",
+      confirmLabel: encerrando ? "Encerrar" : "Registrar distrato",
+    });
+    if (!ok) return;
     setError(null);
     setTerminating(true);
     startTransition(async () => {
       const res = await terminateContractAction(contract.id, status);
       setTerminating(false);
       if (!res.ok) {
-        setError(res.error ?? "Não foi possível encerrar o contrato.");
+        const msg = res.error ?? "Não foi possível encerrar o contrato.";
+        setError(msg);
+        toast.error(msg);
         return;
       }
+      toast.success(encerrando ? "Contrato encerrado." : "Distrato registrado.");
       setOpen(false);
       router.refresh();
     });
@@ -437,7 +447,7 @@ export function ContractFormButton({
                       <button
                         className="btn btn-ghost btn-sm"
                         type="button"
-                        onClick={() => terminate("ENCERRADO")}
+                        onClick={() => void terminate("ENCERRADO")}
                         disabled={terminating}
                       >
                         Encerrar
@@ -445,7 +455,7 @@ export function ContractFormButton({
                       <button
                         className="btn btn-ghost btn-sm"
                         type="button"
-                        onClick={() => terminate("DISTRATADO")}
+                        onClick={() => void terminate("DISTRATADO")}
                         disabled={terminating}
                       >
                         Registrar distrato

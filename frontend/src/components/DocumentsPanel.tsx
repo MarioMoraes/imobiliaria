@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "./Icon";
+import { useConfirm } from "./ConfirmDialog";
+import { useToast } from "./Toast";
 import { EmptyState } from "./ui";
 import { formatDay } from "../lib/format";
 import {
@@ -68,6 +70,8 @@ interface Props {
 }
 
 export function DocumentsPanel({ entityType, entityId }: Props) {
+  const confirm = useConfirm();
+  const toast = useToast();
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -170,22 +174,24 @@ export function DocumentsPanel({ entityType, entityId }: Props) {
   }
 
   async function onPurge(doc: DocumentRecord) {
-    if (
-      !confirm(
-        `Excluir "${doc.fileName ?? "documento"}"? O arquivo e todas as versões ` +
-          "anteriores são apagados definitivamente.",
-      )
-    ) {
-      return;
-    }
+    const ok = await confirm({
+      eyebrow: "Expurgo LGPD",
+      title: `Excluir "${doc.fileName ?? "documento"}"?`,
+      message: "O arquivo e todas as versões anteriores são apagados definitivamente.",
+      confirmLabel: "Excluir",
+    });
+    if (!ok) return;
     setError(null);
     setBusy(true);
     try {
       const res = await purgeDocumentAction(doc.id);
       if (!res.ok) {
-        setError(res.error ?? "Falha ao excluir.");
+        const msg = res.error ?? "Não foi possível excluir o documento.";
+        setError(msg);
+        toast.error(msg);
         return;
       }
+      toast.success("Documento excluído.");
       await refresh();
     } finally {
       setBusy(false);

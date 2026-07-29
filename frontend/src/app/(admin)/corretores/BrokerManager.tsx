@@ -3,6 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "../../../components/Icon";
+import { useConfirm } from "../../../components/ConfirmDialog";
+import { useToast } from "../../../components/Toast";
 import type { Broker } from "../../../lib/api";
 import { formatPhone } from "../../../lib/br-doc";
 import { deleteBrokerAction } from "./actions";
@@ -20,24 +22,31 @@ function pct(n: number): string {
  */
 export function BrokerManager({ brokers, live }: { brokers: Broker[]; live: boolean }) {
   const router = useRouter();
+  const confirm = useConfirm();
+  const toast = useToast();
   const [, startRemove] = useTransition();
   const [removingId, setRemovingId] = useState<string | null>(null);
-  const [removeError, setRemoveError] = useState<string | null>(null);
 
-  function handleDelete(id: string, name: string) {
-    if (!confirm(`Remover o corretor "${name}"? Esta ação não pode ser desfeita.`)) return;
-    setRemoveError(null);
+  async function handleDelete(id: string, name: string) {
+    const ok = await confirm({
+      eyebrow: "Exclusão",
+      title: `Remover o corretor "${name}"?`,
+      message: "Esta ação não pode ser desfeita.",
+      confirmLabel: "Remover",
+    });
+    if (!ok) return;
     setRemovingId(id);
     startRemove(async () => {
       try {
         const res = await deleteBrokerAction(id);
         if (!res.ok) {
-          setRemoveError(res.error ?? "Falha ao remover.");
+          toast.error(res.error ?? "Não foi possível remover o corretor.");
           return;
         }
+        toast.success("Corretor removido.");
         router.refresh();
       } catch (e) {
-        setRemoveError(e instanceof Error ? e.message : "Falha ao remover.");
+        toast.error(e instanceof Error ? e.message : "Não foi possível remover o corretor.");
       } finally {
         setRemovingId(null);
       }
@@ -78,7 +87,7 @@ export function BrokerManager({ brokers, live }: { brokers: Broker[]; live: bool
                       className="icon-btn"
                       style={{ width: 30, height: 30 }}
                       type="button"
-                      onClick={() => handleDelete(b.id, b.name)}
+                      onClick={() => void handleDelete(b.id, b.name)}
                       disabled={!live || removingId !== null}
                       aria-label={`Remover ${b.name}`}
                     >
@@ -105,7 +114,6 @@ export function BrokerManager({ brokers, live }: { brokers: Broker[]; live: bool
           Backend offline — suba <code>npm run dev</code> para gravar.
         </span>
       )}
-      {removeError && <span className="badge badge-red">{removeError}</span>}
     </div>
   );
 }
