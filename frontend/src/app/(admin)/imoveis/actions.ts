@@ -65,7 +65,9 @@ export interface PropertyFormInput {
   // Identificação
   title: string;
   purpose: string; // finalidade: rent | sale | season
+  /** Situação — LEITURA (vem do backend); o que o operador muda é `reserved`. */
   status: string;
+  reserved: boolean;
   propertyTypeId: string;
   condominiumId: string;
   contractNumber: string;
@@ -208,7 +210,11 @@ function toPayload(input: PropertyFormInput, isEdit: boolean) {
     title: input.title.trim(),
     kind: purpose, // legado: mantém `kind` alinhado à finalidade
     purpose,
-    status: input.status || "available",
+    // A Situação NÃO vai no payload: é ciclo de vida, movida pelo contrato ao
+    // entrar em vigência. Reenviá-la faria um cadastro aberto ANTES da
+    // assinatura devolver o imóvel alugado à vitrine ao salvar. O operador mexe
+    // nela pelo "Reservado", que o backend traduz (disponível ⇄ reservado).
+    reserved: input.reserved,
     propertyTypeId: opt(toText(input.propertyTypeId)),
     condominiumId: opt(toText(input.condominiumId)),
     contractNumber: opt(toText(input.contractNumber)),

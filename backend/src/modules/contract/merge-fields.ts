@@ -311,6 +311,27 @@ const CONTRACT_FIELDS = [
 
 type ContractSuffix = (typeof CONTRACT_FIELDS)[number]["suffix"];
 
+/* ---------------------------------------------------- Testemunhas */
+
+/**
+ * Testemunhas não saem de cadastro nenhum: são digitadas na hora de emitir o
+ * documento (o popup do contrato de administração). Por isso o valor vem do
+ * contexto, e não de uma entidade — num documento gerado sem elas o campo sai
+ * como qualquer outro campo em branco.
+ */
+const WITNESS_FIELDS = [
+  { key: "testemunha1.nome", label: "Nome da 1ª testemunha", example: "Ana Souza" },
+  { key: "testemunha2.nome", label: "Nome da 2ª testemunha", example: "Carlos Lima" },
+] as const;
+
+type WitnessKey = (typeof WITNESS_FIELDS)[number]["key"];
+
+/** Nomes das duas testemunhas informados na emissão. */
+export interface WitnessNames {
+  first: string;
+  second: string;
+}
+
 /* --------------------------------------------- Campos agregados (listas) */
 
 /** Papéis com várias pessoas: lista de nomes separada por ";". */
@@ -324,7 +345,13 @@ type ListKey = (typeof LIST_FIELDS)[number]["key"];
 
 /* ------------------------------------------------------- Catálogo */
 
-export type MergeFieldGroup = "Locador" | "Locatário" | "Fiador" | "Imóvel" | "Contrato";
+export type MergeFieldGroup =
+  | "Locador"
+  | "Locatário"
+  | "Fiador"
+  | "Imóvel"
+  | "Contrato"
+  | "Testemunhas";
 
 export interface MergeField {
   /** Chave usada no template: `{{ chave }}`. */
@@ -346,7 +373,8 @@ export type MergeFieldKey =
   | `${PersonPrefix}.${PersonSuffix}`
   | `imovel.${PropertySuffix}`
   | `contrato.${ContractSuffix}`
-  | ListKey;
+  | ListKey
+  | WitnessKey;
 
 /** Catálogo achatado, na ordem em que o editor deve exibir. */
 export const MERGE_FIELDS: readonly MergeField[] = [
@@ -374,6 +402,12 @@ export const MERGE_FIELDS: readonly MergeField[] = [
     key: `contrato.${f.suffix}`,
     label: f.label,
     group: "Contrato" as MergeFieldGroup,
+    example: f.example,
+  })),
+  ...WITNESS_FIELDS.map((f) => ({
+    key: f.key as string,
+    label: f.label,
+    group: "Testemunhas" as MergeFieldGroup,
     example: f.example,
   })),
 ];
@@ -414,6 +448,8 @@ export interface MergeSources {
   persons: Record<PersonPrefix, Person | null>;
   /** Nomes de todas as pessoas de cada papel, já formatados. */
   names: Record<PersonPrefix, string>;
+  /** Testemunhas digitadas na emissão (ausentes = campo em branco). */
+  witnesses?: WitnessNames;
 }
 
 /**
@@ -441,6 +477,9 @@ export function buildMergeContext(src: MergeSources): Record<MergeFieldKey, stri
   for (const field of CONTRACT_FIELDS) {
     ctx[`contrato.${field.suffix}`] = field.value(src.contract, src.property);
   }
+
+  ctx["testemunha1.nome"] = text(src.witnesses?.first);
+  ctx["testemunha2.nome"] = text(src.witnesses?.second);
 
   return ctx as Record<MergeFieldKey, string>;
 }

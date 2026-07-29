@@ -4,6 +4,7 @@ import { AppError } from "../../shared/errors.js";
 import { requirePermission } from "../rbac/authorize.js";
 import {
   addPartySchema,
+  administrationWitnessesSchema,
   createContractSchema,
   createContractTemplateSchema,
   previewTemplateSchema,
@@ -101,6 +102,47 @@ export async function contractRoutes(app: FastifyInstance): Promise<void> {
     const { id } = req.params as { id: string };
     return { data: { url: await service.getPdfUrl(getTenantId(), id) } };
   });
+}
+
+/**
+ * Documentos de contrato emitidos a partir do IMÓVEL. Montadas sob
+ * /v1/properties (ver gateway/routes.ts), ao lado das rotas de imóvel e de
+ * vistoria — os paths não colidem. Ficam no módulo de contrato porque quem sabe
+ * montar um documento a partir de um modelo é ele; o módulo de imóvel não
+ * conhece contrato (e o inverso já é a direção da dependência).
+ */
+export async function propertyContractRoutes(app: FastifyInstance): Promise<void> {
+  /**
+   * Contrato de administração do imóvel em PDF. Responde os BYTES
+   * (application/pdf), como o laudo de vistoria — quem chama abre/imprime.
+   *
+   * GET com as testemunhas na query: assim o botão do popup é um
+   * `<a target="_blank">` comum, sem esbarrar no bloqueador de pop-up.
+   */
+  app.get<{ Params: { id: string }; Querystring: Record<string, string> }>(
+    "/:id/administration-contract",
+    { preHandler: requirePermission("contract:read") },
+    async (req, reply) => {
+      const parsed = administrationWitnessesSchema.safeParse(req.query);
+      if (!parsed.success) {
+        throw AppError.badRequest(
+          "Informe o nome das duas testemunhas.",
+          parsed.error.flatten(),
+        );
+      }
+
+      const { pdf, fileName } = await service.generateAdministrationDocument(
+        getTenantId(),
+        req.params.id,
+        { first: parsed.data.testemunha1, second: parsed.data.testemunha2 },
+      );
+
+      reply
+        .header("Content-Type", "application/pdf")
+        .header("Content-Disposition", `inline; filename="${fileName}"`);
+      return reply.send(pdf);
+    },
+  );
 }
 
 /**

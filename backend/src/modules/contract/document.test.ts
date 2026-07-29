@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { isHtmlDocument, toDocumentHtml } from "./document.js";
+import {
+  appendWitnessBlock,
+  hasWitnessPlaceholder,
+  isHtmlDocument,
+  toDocumentHtml,
+} from "./document.js";
 import { render } from "./merge-fields.js";
 
 /** Puro (sem infra): modelo em texto puro → documento HTML para o Gotenberg. */
@@ -103,6 +108,24 @@ test("marcador solto ou atravessando linhas não vira ênfase", () => {
   assert.ok(!out.includes("<strong>"), "o par não pode atravessar a quebra de linha");
   // Sublinhado no meio de uma palavra (nome de variável, e-mail) fica intacto.
   assert.ok(toDocumentHtml("campo_de_teste").includes("campo_de_teste"));
+});
+
+test("o bloco das testemunhas entra dentro do corpo do documento", () => {
+  const doc = toDocumentHtml("Modelo que termina em\n\nTestemunhas:");
+  const out = appendWitnessBlock(doc, "Ana Souza", "Carlos Lima");
+  assert.ok(out.includes("Ana Souza") && out.includes("Carlos Lima"));
+  assert.ok(out.endsWith("</body></html>"), "o bloco não pode sair depois do </body>");
+});
+
+test("o nome da testemunha é escapado (é texto digitado na hora)", () => {
+  const out = appendWitnessBlock("<body></body>", "<script>alert(1)</script>", "x");
+  assert.ok(!out.includes("<script>"));
+  assert.ok(out.includes("&lt;script&gt;"));
+});
+
+test("modelo que já usa {{testemunha}} manda no posicionamento", () => {
+  assert.ok(hasWitnessPlaceholder("Testemunhas: {{ testemunha1.nome }} e {{testemunha2.nome}}"));
+  assert.ok(!hasWitnessPlaceholder("E por estarem de acordo, assinam com duas testemunhas."));
 });
 
 test("dado do cadastro com ** NÃO formata o documento", () => {

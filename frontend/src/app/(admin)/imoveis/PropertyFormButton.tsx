@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Icon } from "../../../components/Icon";
 import { FieldBlock, TabBar, initials } from "../../../components/ui";
 import { formatCep } from "../../../lib/br-doc";
+import AdministrationContractModal from "./AdministrationContractModal";
 import InspectionModal from "./InspectionModal";
 import type { Property, PropertyPhoto } from "../../../lib/api";
 import {
@@ -66,6 +67,7 @@ const EMPTY: PropertyFormInput = {
   title: "",
   purpose: "rent",
   status: "available",
+  reserved: false,
   propertyTypeId: "",
   condominiumId: "",
   contractNumber: "",
@@ -146,6 +148,8 @@ function fromProperty(p: Property): PropertyFormInput {
     title: p.title,
     purpose: p.purpose ?? "rent",
     status: p.status,
+    // "Reservado" é a leitura da situação, não um campo próprio do imóvel.
+    reserved: p.status === "reserved",
     propertyTypeId: txt(p.propertyTypeId),
     condominiumId: txt(p.condominiumId),
     contractNumber: txt(p.contractNumber),
@@ -296,6 +300,8 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
   const [lightbox, setLightbox] = useState<number | null>(null);
   // Vistoria do imóvel (modal por cima deste, só no modo edição).
   const [inspectionOpen, setInspectionOpen] = useState(false);
+  // Popup das testemunhas do contrato de administração (idem).
+  const [adminContractOpen, setAdminContractOpen] = useState(false);
 
   useEffect(() => setMounted(true), []);
 
@@ -702,6 +708,27 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
                 </div>
               </div>
             </div>
+            {/* Reserva: é a Situação do imóvel vista pelo operador — marcar
+                deixa o imóvel Reservado, desmarcar devolve a Disponível. Num
+                imóvel ALUGADO quem manda é o contrato, então nem se mexe. */}
+            <div className="field">
+              <label>Reserva</label>
+              <div className="row" style={{ paddingTop: 6 }}>
+                <Check
+                  label="Reservado"
+                  checked={form.reserved}
+                  disabled={form.status === "rented"}
+                  onChange={(v) =>
+                    // A Situação (campo de leitura na aba Dados) acompanha na
+                    // hora; quem grava é o backend, a partir do `reserved`.
+                    set({ reserved: v, status: v ? "reserved" : "available" })
+                  }
+                />
+                {form.status === "rented" && (
+                  <span className="text-xs subtle">Imóvel alugado — a situação vem do contrato.</span>
+                )}
+              </div>
+            </div>
           </div>
           </FieldBlock>
         )}
@@ -934,17 +961,33 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
         {error && <span className="text-sm" style={{ color: "var(--danger, #dc2626)" }}>{error}</span>}
 
         <div className="row" style={{ justifyContent: "space-between", gap: 8, borderTop: "1px solid var(--border)", paddingTop: 12 }}>
-          {/* Vistoria é sub-recurso do imóvel: precisa de um imóvel salvo para
-              existir, como as abas Proprietários e Fotos. */}
-          <button
-            className="btn btn-outline btn-sm"
-            type="button"
-            onClick={() => setInspectionOpen(true)}
-            disabled={!isEdit || pending}
-            title={isEdit ? undefined : "Salve o imóvel primeiro"}
-          >
-            <Icon name="list" size={14} /> Vistoria
-          </button>
+          <div className="row" style={{ gap: 8 }}>
+            {/* Vistoria é sub-recurso do imóvel: precisa de um imóvel salvo para
+                existir, como as abas Proprietários e Fotos. */}
+            <button
+              className="btn btn-outline btn-sm"
+              type="button"
+              onClick={() => setInspectionOpen(true)}
+              disabled={!isEdit || pending}
+              title={isEdit ? undefined : "Salve o imóvel primeiro"}
+            >
+              <Icon name="list" size={14} /> Vistoria
+            </button>
+            {/* Contrato de administração: firmado com o PROPRIETÁRIO, não com o
+                inquilino — por isso nasce no cadastro do imóvel a alugar, e não
+                em Contratos. Só faz sentido na locação. */}
+            {!isSale && (
+              <button
+                className="btn btn-outline btn-sm"
+                type="button"
+                onClick={() => setAdminContractOpen(true)}
+                disabled={!isEdit || pending}
+                title={isEdit ? undefined : "Salve o imóvel primeiro"}
+              >
+                <Icon name="contract" size={14} /> Contrato de Administração
+              </button>
+            )}
+          </div>
           <div className="row" style={{ gap: 8 }}>
             <button className="btn btn-ghost btn-sm" type="button" onClick={close} disabled={pending}>
               Cancelar
@@ -1049,6 +1092,12 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
       {mounted && lightbox !== null && createPortal(lightboxEl, document.body)}
       {open && mounted && inspectionOpen && property && (
         <InspectionModal propertyId={property.id} onClose={() => setInspectionOpen(false)} />
+      )}
+      {open && mounted && adminContractOpen && property && (
+        <AdministrationContractModal
+          propertyId={property.id}
+          onClose={() => setAdminContractOpen(false)}
+        />
       )}
     </>
   );
@@ -1240,14 +1289,24 @@ function Check({
   label,
   checked,
   onChange,
+  disabled,
 }: {
   label: string;
   checked: boolean;
   onChange: (v: boolean) => void;
+  disabled?: boolean;
 }) {
   return (
-    <label className="row" style={{ gap: 8, cursor: "pointer", alignItems: "center" }}>
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+    <label
+      className="row"
+      style={{ gap: 8, cursor: disabled ? "default" : "pointer", alignItems: "center", opacity: disabled ? 0.6 : 1 }}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+      />
       <span className="text-sm">{label}</span>
     </label>
   );

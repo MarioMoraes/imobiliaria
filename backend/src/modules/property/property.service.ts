@@ -62,7 +62,10 @@ export async function create(
   tenantId: string,
   input: CreatePropertyInput,
 ): Promise<Property> {
-  const property = await repo.insertProperty(tenantId, input);
+  const property = await repo.insertProperty(
+    tenantId,
+    input.reserved === undefined ? input : { ...input, status: input.reserved ? "reserved" : "available" },
+  );
 
   // Evento de domínio consumido por publishing/ai-orchestrator/portal (SPEC 12).
   await publish({
@@ -76,12 +79,41 @@ export async function create(
   return property;
 }
 
+/**
+ * Traduz o "Reservado" do formulário em mudança de situação.
+ *
+ * Só age entre DISPONÍVEL e RESERVADO: um imóvel ALUGADO tem a situação
+ * governada pelo contrato (vigência ⇄ encerramento), e desmarcar a reserva num
+ * cadastro aberto antes da assinatura não pode devolvê-lo à vitrine. Por isso a
+ * marcação é ignorada — em vez de recusada — quando o imóvel está alugado: o
+ * formulário salva todo o resto normalmente.
+ */
+function statusFromReserved(
+  current: string,
+  reserved: boolean | undefined,
+): UpdatePropertyInput["status"] {
+  if (reserved === undefined) return undefined;
+  if (current !== "available" && current !== "reserved") return undefined;
+  return reserved ? "reserved" : "available";
+}
+
 export async function update(
   tenantId: string,
   id: string,
   input: UpdatePropertyInput,
 ): Promise<Property> {
-  const updated = await repo.updateProperty(tenantId, id, input);
+  // A situação é campo de ciclo de vida: o formulário não a reenvia, manda o
+  // "Reservado". Ler a atual aqui é o que impede um cadastro aberto antes da
+  // assinatura de sobrescrever o ALUGADO que o contrato acabou de gravar.
+  let patch = input;
+  if (input.reserved !== undefined) {
+    const current = await repo.findProperty(tenantId, id);
+    if (!current) throw AppError.notFound("Imóvel não encontrado");
+    const status = statusFromReserved(current.status, input.reserved);
+    patch = status === undefined ? input : { ...input, status };
+  }
+
+  const updated = await repo.updateProperty(tenantId, id, patch);
   if (!updated) throw AppError.notFound("Imóvel não encontrado");
 
   await publish({

@@ -43,6 +43,14 @@ const shortText = z.string().max(200);
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Data inválida (YYYY-MM-DD)");
 
 /**
+ * "Reservado" do cadastro — NÃO é coluna: é a forma de o operador mexer na
+ * `status`, que é campo de ciclo de vida (quem a move de verdade é o contrato,
+ * ao entrar em vigência). O service traduz a marcação em
+ * `available` ⇄ `reserved`; um imóvel ALUGADO não é afetado.
+ */
+const reservedFlag = z.boolean();
+
+/**
  * Núcleo de campos editáveis do cadastro "Imóveis a Alugar". Usado tanto no
  * create (com defaults) quanto, tornado parcial/nullable, no update. `code` é
  * atribuído pelo backend (sequencial por tenant) e é somente leitura.
@@ -144,6 +152,7 @@ export const createPropertySchema = z.object({
   propertyTypeId: propertyFields.propertyTypeId.optional(),
   isDevelopment: z.boolean().default(false),
   status: propertyStatus.default("available"),
+  reserved: reservedFlag.optional(),
   priceCents: cents.optional(),
 
   contractNumber: propertyFields.contractNumber.optional(),
@@ -232,6 +241,7 @@ export const updatePropertySchema = z
     propertyTypeId: propertyFields.propertyTypeId.nullable().optional(),
     isDevelopment: z.boolean().optional(),
     status: propertyStatus.optional(),
+    reserved: reservedFlag.optional(),
     priceCents: cents.nullable().optional(),
 
     contractNumber: propertyFields.contractNumber.nullable().optional(),

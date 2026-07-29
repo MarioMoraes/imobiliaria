@@ -90,6 +90,38 @@ export function sanitizeDocumentHtml(html: string): string {
     .replace(CSS_URL, "none");
 }
 
+/* ------------------------------------------------ Testemunhas */
+
+/** O modelo já posiciona as testemunhas por conta própria? */
+export function hasWitnessPlaceholder(content: string): boolean {
+  return /\{\{\s*testemunha[12]\.nome\s*\}\}/i.test(content);
+}
+
+/**
+ * Acrescenta ao fim do documento as duas linhas de assinatura das testemunhas.
+ *
+ * Existe porque os modelos herdados terminam em "Testemunhas:" e nada mais — o
+ * espaço era preenchido à mão no papel. Quem informa os nomes no popup espera
+ * vê-los no PDF, então, quando o modelo NÃO usa `{{testemunha1.nome}}`, o bloco
+ * é anexado aqui. Modelo que usa as variáveis manda no posicionamento e não
+ * recebe nada (senão os nomes sairiam duas vezes).
+ */
+export function appendWitnessBlock(html: string, first: string, second: string): string {
+  const cell = (n: number, name: string): string =>
+    `<td style="width:50%;padding-top:28px;vertical-align:top;">` +
+    `<div style="border-top:1px solid #111;padding-top:4px;">${n}ª testemunha<br>${escapeHtml(name)}</div>` +
+    `</td>`;
+
+  const block =
+    `<table style="width:100%;border-collapse:collapse;margin-top:24px;"><tr>` +
+    `${cell(1, first)}<td style="width:24px;"></td>${cell(2, second)}` +
+    `</tr></table>`;
+
+  // Documento completo: entra antes do fechamento do corpo. Sem `</body>`
+  // (fragmento), basta concatenar.
+  return html.includes("</body>") ? html.replace("</body>", `${block}</body>`) : html + block;
+}
+
 export function toDocumentHtml(content: string): string {
   if (isHtmlDocument(content)) return sanitizeDocumentHtml(content);
 

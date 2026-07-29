@@ -217,5 +217,28 @@ test("render substitui as variáveis e escapa HTML dos dados", () => {
 
 test("os grupos da paleta são exatamente os dropdowns da tela", () => {
   const groups = [...new Set(MERGE_FIELDS.map((f) => f.group))];
-  assert.deepEqual(groups, ["Locador", "Locatário", "Fiador", "Imóvel", "Contrato"]);
+  assert.deepEqual(groups, [
+    "Locador",
+    "Locatário",
+    "Fiador",
+    "Imóvel",
+    "Contrato",
+    "Testemunhas",
+  ]);
+});
+
+test("as testemunhas vêm da emissão, não do cadastro", () => {
+  const comTestemunhas = buildMergeContext({
+    contract,
+    property,
+    persons: { locador: person, locatario: null, fiador: null },
+    names: { locador: "João da Silva", locatario: "x", fiador: "x" },
+    witnesses: { first: "Ana <b>Souza</b>", second: "Carlos Lima" },
+  });
+  assert.equal(comTestemunhas["testemunha1.nome"], "Ana &lt;b&gt;Souza&lt;/b&gt;");
+  assert.equal(comTestemunhas["testemunha2.nome"], "Carlos Lima");
+
+  // Documento gerado sem testemunhas (o contrato de locação comum) não quebra:
+  // o campo sai como lacuna, como qualquer outro não preenchido.
+  assert.equal(ctx["testemunha1.nome"], "____________");
 });

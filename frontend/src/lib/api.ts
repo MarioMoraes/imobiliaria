@@ -754,6 +754,24 @@ export async function fetchInspectionReport(propertyId: string): Promise<Respons
   });
 }
 
+/**
+ * Contrato de administração do imóvel em PDF — `Response` crua, como o laudo de
+ * vistoria. As testemunhas são digitadas na emissão (popup) e vão na query.
+ */
+export async function fetchAdministrationContract(
+  propertyId: string,
+  witnesses: { first: string; second: string },
+): Promise<Response> {
+  const qs = new URLSearchParams({
+    testemunha1: witnesses.first,
+    testemunha2: witnesses.second,
+  });
+  return fetch(
+    `${BACKEND_URL}/v1/properties/${propertyId}/administration-contract?${qs}`,
+    { headers: await authHeaders(), cache: "no-store" },
+  );
+}
+
 /** Bairros (lookup) do tenant da sessão. */
 export function fetchDistricts(): Promise<District[] | null> {
   return get<District[]>("/v1/districts");

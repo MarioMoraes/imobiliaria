@@ -4,7 +4,11 @@ import { authRoutes } from "../modules/auth/auth.routes.js";
 import { propertyRoutes } from "../modules/property/property.routes.js";
 import { propertyTypeRoutes } from "../modules/property-type/property-type.routes.js";
 import { clauseRoutes } from "../modules/clause/clause.routes.js";
-import { contractRoutes, contractTemplateRoutes } from "../modules/contract/contract.routes.js";
+import {
+  contractRoutes,
+  contractTemplateRoutes,
+  propertyContractRoutes,
+} from "../modules/contract/contract.routes.js";
 import {
   signatureRoutes,
   signatureSettingsRoutes,
@@ -84,6 +88,9 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       // Vistoria: compartilha o prefixo com propertyRoutes — os paths não
       // colidem (tudo pende de /:id/inspection).
       await v1.register(inspectionRoutes, { prefix: "/properties" });
+      // Contrato de administração emitido do cadastro do imóvel — mesmo caso:
+      // compartilha o prefixo, pende de /:id/administration-contract.
+      await v1.register(propertyContractRoutes, { prefix: "/properties" });
       await v1.register(propertyTypeRoutes, { prefix: "/property-types" });
       // Tabelas auxiliares (lookups): cláusulas contratuais e itens de vistoria.
       await v1.register(clauseRoutes, { prefix: "/clauses" });

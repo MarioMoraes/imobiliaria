@@ -212,6 +212,16 @@ export const updateContractTemplateSchema = z
   .refine((d) => Object.keys(d).length > 0, { message: "Nada para atualizar" });
 export type UpdateContractTemplateInput = z.infer<typeof updateContractTemplateSchema>;
 
+/**
+ * Testemunhas do contrato de administração — informadas na emissão do PDF, não
+ * cadastradas: quem assina como testemunha é quem está na sala naquele dia.
+ */
+export const administrationWitnessesSchema = z.object({
+  testemunha1: z.string().trim().min(3).max(120),
+  testemunha2: z.string().trim().min(3).max(120),
+});
+export type AdministrationWitnessesInput = z.infer<typeof administrationWitnessesSchema>;
+
 /** Pré-visualização de um conteúdo ainda não salvo. */
 export const previewTemplateSchema = z.object({
   content: z.string().max(200_000),

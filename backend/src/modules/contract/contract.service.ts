@@ -15,8 +15,10 @@ import {
   render,
   unknownVariables,
   type MergeFieldKey,
+  type WitnessNames,
 } from "./merge-fields.js";
-import { toDocumentHtml } from "./document.js";
+import { appendWitnessBlock, hasWitnessPlaceholder, toDocumentHtml } from "./document.js";
+import type { Property } from "../property/property.schema.js";
 import type {
   Contract,
   ContractParty,
@@ -357,6 +359,7 @@ const esc = (s: string): string =>
 async function buildContext(
   tenantId: string,
   contract: Contract,
+  witnesses?: WitnessNames,
 ): Promise<Record<MergeFieldKey, string>> {
   const property = contract.propertyId
     ? await propertyService.getById(tenantId, contract.propertyId).catch(() => null)
@@ -391,6 +394,7 @@ async function buildContext(
       locatario: nameList(locatarios),
       fiador: nameList(fiadores),
     },
+    witnesses,
   });
 }
 
@@ -443,6 +447,127 @@ export async function generateDocument(
 ): Promise<{ url: string; version: number }> {
   const { url, version } = await generateAndStore(tenantId, contractId);
   return { url, version };
+}
+
+/* ------------------------------- Contrato de administração (imóvel) */
+
+/** Minúsculas sem acento — para casar o nome do modelo como o usuário digitou. */
+const fold = (s: string): string =>
+  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+/**
+ * Localiza o modelo do contrato de administração entre os modelos ATIVOS do
+ * tenant. O nome é escolhido por quem cadastra ("Administração Com Garantia",
+ * "Contrato de Administração de Imóvel"…), então a busca é por palavra-chave:
+ * primeiro o modelo COM garantia, e só na falta dele um de administração
+ * qualquer — melhor emitir o documento de administração disponível do que
+ * recusar por diferença de nome.
+ */
+async function findAdministrationTemplate(tenantId: string): Promise<ContractTemplate | null> {
+  const templates = await repo.listTemplates(tenantId);
+  const administration = templates.filter((t) => fold(t.name).includes("administra"));
+  return administration.find((t) => fold(t.name).includes("garantia")) ?? administration[0] ?? null;
+}
+
+/**
+ * Contrato "de papel" para o contrato de ADMINISTRAÇÃO: ele é firmado entre a
+ * imobiliária e o proprietário ANTES de existir locação, então não há registro
+ * em `contracts` para pendurar o documento — nem faria sentido criar um.
+ *
+ * Os campos que o modelo aproveita saem do cadastro do imóvel (aluguel, taxa de
+ * administração); o resto fica nulo e o catálogo renderiza o placeholder, do
+ * mesmo jeito que num contrato ainda incompleto.
+ */
+function administrationDraft(
+  tenantId: string,
+  property: Property,
+  templateId: string,
+): Contract {
+  const now = new Date().toISOString();
+  return {
+    id: "",
+    tenantId,
+    code: null,
+    propertyId: property.id,
+    templateId,
+    status: "RASCUNHO",
+
+    startsAt: null,
+    endsAt: null,
+    termMonths: null,
+    readjustIndex: "IPCA",
+    readjustPeriodMonths: null,
+    lastReadjustAt: null,
+    ownerPayDay: null,
+    tenantPayDay: null,
+    terminatedAt: null,
+
+    // O aluguel só existe como preço do cadastro quando o imóvel é de locação.
+    rentalValueCents:
+      property.purpose === "rent" || property.purpose === "season" ? property.priceCents : null,
+    interestPercent: null,
+    penaltyPercent: null,
+    adminFeePercent: property.adminFeePercent,
+    isAdministration: true,
+    incomeTaxDeclaration: false,
+    iptuChargedTo: null,
+    commissionType: null,
+    hasCommission: false,
+
+    guaranteeKind: null,
+    hasInsurance: false,
+    insuranceDescription: null,
+    insuranceValueCents: null,
+
+    isSettled: false,
+    hasEvictionOrder: false,
+    hasJudicialExecution: false,
+    processNumber: null,
+    court: null,
+
+    specialClauses: null,
+    guarantorPropertyInfo: null,
+
+    // Sem partes: o LOCADOR cai para os proprietários do imóvel (`buildContext`).
+    parties: [],
+    latestVersion: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+/**
+ * Contrato de administração do imóvel em PDF, emitido direto do cadastro do
+ * imóvel: responde os BYTES (como o laudo de vistoria) e **não** guarda versão —
+ * não há contrato ao qual versionar.
+ *
+ * As testemunhas vêm do popup, e não do banco: são quem estava na sala na
+ * assinatura.
+ */
+export async function generateAdministrationDocument(
+  tenantId: string,
+  propertyId: string,
+  witnesses: WitnessNames,
+): Promise<{ pdf: Buffer; fileName: string }> {
+  const property = await propertyService.getById(tenantId, propertyId);
+
+  const template = await findAdministrationTemplate(tenantId);
+  if (!template) {
+    throw AppError.badRequest(
+      'Nenhum modelo de contrato de administração ativo. Cadastre-o em Tabelas › Modelos de Contrato (com "administração" no nome).',
+    );
+  }
+
+  const draft = administrationDraft(tenantId, property, template.id);
+  const ctx = await buildContext(tenantId, draft, witnesses);
+
+  let html = render(toDocumentHtml(template.content), ctx);
+  if (!hasWitnessPlaceholder(template.content)) {
+    html = appendWitnessBlock(html, witnesses.first, witnesses.second);
+  }
+
+  const pdf = await htmlToPdf(html);
+  return { pdf, fileName: `contrato-administracao-${property.code ?? "imovel"}.pdf` };
 }
 
 /**
