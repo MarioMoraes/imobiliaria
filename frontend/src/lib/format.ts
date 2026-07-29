@@ -9,6 +9,17 @@
  * Components existentes continuam importando de onde já importavam.
  */
 
+/**
+ * Domínio da plataforma: o slug do tenant é o subdomínio dele
+ * (`<slug>.officestecnologia.com.br`). Só o slug é editável — o domínio é fixo.
+ */
+export const TENANT_DOMAIN = "officestecnologia.com.br";
+
+/** Slug do tenant → subdomínio completo. Sem slug, travessão. */
+export function tenantSubdomain(slug: string | null | undefined): string {
+  return slug ? `${slug}.${TENANT_DOMAIN}` : "—";
+}
+
 /** Centavos → "R$ 1.234,56". `null` vira travessão. Sempre 2 casas (padrão BRL). */
 export function formatPrice(cents: number | null): string {
   if (cents === null || cents === undefined) return "—";

@@ -2,6 +2,7 @@ import { PageHeader, StatCard, Section, StatusBadge } from "../../components/ui"
 import { Icon } from "../../components/Icon";
 import { fetchTenants } from "../../lib/api";
 import { sampleTenants, sampleHealth, sampleAudit } from "../../lib/sample";
+import { tenantSubdomain } from "../../lib/format";
 
 export default async function SuperadminHome() {
   const live = await fetchTenants();
@@ -38,7 +39,7 @@ export default async function SuperadminHome() {
                         <span className="avatar" style={{ width: 32, height: 32, fontSize: "0.7rem" }}>{t.name.slice(0, 2).toUpperCase()}</span>
                         <span>
                           <span className="strong" style={{ display: "block" }}>{t.name}</span>
-                          <span className="text-xs subtle">{t.slug}.officesai.com.br</span>
+                          <span className="text-xs subtle">{tenantSubdomain(t.slug)}</span>
                         </span>
                       </div>
                     </td>

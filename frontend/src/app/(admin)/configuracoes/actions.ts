@@ -69,7 +69,7 @@ export async function disconnectPaymentAction(): Promise<SettingsResult> {
 }
 
 /**
- * Cadastro da própria imobiliária (nome, CNPJ, CRECI e logo). Vai para
+ * Cadastro da própria imobiliária (nome, CNPJ, CRECI, subdomínio e logo). Vai para
  * `/v1/tenant`, que resolve o tenant pela sessão — não há id na URL, então um
  * admin não alcança o cadastro de outra imobiliária.
  *
@@ -80,6 +80,7 @@ export async function saveTenantProfileAction(input: {
   name: string;
   cnpj: string;
   creci: string;
+  slug: string;
   logoUrl?: string | null;
 }): Promise<SettingsResult> {
   const cnpj = input.cnpj.replace(/\D/g, "");
@@ -87,6 +88,8 @@ export async function saveTenantProfileAction(input: {
     name: input.name.trim(),
     cnpj: cnpj || null,
     creci: input.creci.trim() || null,
+    // Só o slug é editável; o domínio é fixo (ver TENANT_DOMAIN).
+    slug: input.slug,
     ...(input.logoUrl === undefined ? {} : { logoUrl: input.logoUrl }),
   });
   if (!res.ok) return { ok: false, error: res.error };

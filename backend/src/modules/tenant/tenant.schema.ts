@@ -40,14 +40,16 @@ const logoDataUrl = z
     "Logo inválido (esperado data URL de imagem em base64)",
   );
 
+/** slug vira subdomínio (<slug>.officestecnologia.com.br). Único global. */
+const tenantSlug = z
+  .string()
+  .min(2)
+  .max(60)
+  .regex(/^[a-z0-9-]+$/, "Use apenas minúsculas, números e hífen");
+
 export const createTenantSchema = z.object({
   name: z.string().min(2).max(200),
-  // slug vira subdomínio (<slug>.officesai.com.br): apenas minúsculas, números e hífen.
-  slug: z
-    .string()
-    .min(2)
-    .max(60)
-    .regex(/^[a-z0-9-]+$/, "Use apenas minúsculas, números e hífen"),
+  slug: tenantSlug,
   domain: z.string().max(255).optional(),
   logoUrl: logoDataUrl.optional(),
   plan: z.string().max(40).default("free"),
@@ -56,6 +58,7 @@ export const createTenantSchema = z.object({
 export const updateTenantSchema = z
   .object({
     name: z.string().min(2).max(200).optional(),
+    slug: tenantSlug.optional(),
     // Só dígitos (a máscara é da UI). `null` limpa o campo.
     cnpj: z
       .string()

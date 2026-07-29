@@ -37,7 +37,7 @@ GRANT USAGE ON SCHEMA public TO app_user;
 CREATE TABLE IF NOT EXISTS tenants (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name         TEXT NOT NULL,
-  slug         TEXT NOT NULL UNIQUE,        -- subdomínio: <slug>.officesai.com.br
+  slug         TEXT NOT NULL UNIQUE,        -- subdomínio: <slug>.officestecnologia.com.br
   cnpj         TEXT UNIQUE,                 -- CNPJ da imobiliária (único global). TODO: cifrar em repouso (AES-256-GCM, PRD §4/9)
   creci        TEXT,                        -- registro CRECI da imobiliária
   clerk_org_id TEXT UNIQUE,                 -- Organização Clerk correspondente (org = tenant); nulo no dev-mode

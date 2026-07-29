@@ -56,18 +56,28 @@ export async function create(input: CreateTenantInput): Promise<Tenant> {
 
 /** Edição pela plataforma (Super Admin): qualquer tenant, inclusive status/plano. */
 export function updateAsPlatform(id: string, patch: UpdateTenantInput): Promise<Tenant> {
-  return applyUpdate(id, () => repo.updateTenantAsPlatform(id, patch));
+  return applyUpdate(id, patch, () => repo.updateTenantAsPlatform(id, patch));
 }
 
 /** Edição pela própria imobiliária (Configurações). */
 export function update(id: string, patch: UpdateTenantInput): Promise<Tenant> {
-  return applyUpdate(id, () => repo.updateCurrentTenant(id, patch));
+  return applyUpdate(id, patch, () => repo.updateCurrentTenant(id, patch));
 }
 
 async function applyUpdate(
   id: string,
+  patch: UpdateTenantInput,
   run: () => Promise<Tenant | null>,
 ): Promise<Tenant> {
+  // O slug é o subdomínio: único global. Sem esta checagem o UNIQUE do banco
+  // estouraria como erro interno em vez de 409.
+  if (patch.slug !== undefined) {
+    const owner = await repo.findTenantBySlug(patch.slug);
+    if (owner && owner.id !== id) {
+      throw new AppError("CONFLICT", 409, `Slug '${patch.slug}' já está em uso`);
+    }
+  }
+
   const tenant = await run();
   if (!tenant) throw AppError.notFound("Tenant não encontrado");
 

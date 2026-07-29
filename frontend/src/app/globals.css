@@ -994,6 +994,30 @@ select.input {
   cursor: pointer;
 }
 
+/* Campo com sufixo fixo — o usuário digita só a parte editável
+   (ex.: subdomínio = slug + ".officestecnologia.com.br"). */
+.input-group {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+}
+.input-group > .input {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.input-suffix {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-left: 0;
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
 /* -------------------------------------------------------------- Utilities */
 .grid {
   display: grid;

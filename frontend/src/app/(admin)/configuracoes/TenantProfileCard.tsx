@@ -4,7 +4,23 @@ import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "../../../components/Icon";
 import type { Tenant } from "../../../lib/api";
+import { TENANT_DOMAIN } from "../../../lib/format";
 import { saveTenantProfileAction } from "./actions";
+
+/**
+ * O usuário só escolhe o slug — o domínio é fixo. Normaliza enquanto digita
+ * para o mesmo alfabeto que o backend aceita (minúsculas, números e hífen),
+ * assim ele não descobre o formato só no erro do salvamento.
+ */
+function normalizeSlug(v: string): string {
+  return v
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "") // acentos: "imóvel" → "imovel", não "im-vel"
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/-{2,}/g, "-")
+    .slice(0, 60);
+}
 
 /** "12345678000199" → "12.345.678/0001-99" (parcial enquanto digita). */
 function maskCnpj(v: string): string {
@@ -48,6 +64,7 @@ export function TenantProfileCard({ tenant }: { tenant: Tenant | null }) {
   const [name, setName] = useState(tenant?.name ?? "");
   const [cnpj, setCnpj] = useState(maskCnpj(tenant?.cnpj ?? ""));
   const [creci, setCreci] = useState(tenant?.creci ?? "");
+  const [slug, setSlug] = useState(tenant?.slug ?? "");
   /** `undefined` = não mexeu no logo; `null` = remover; string = novo. */
   const [logo, setLogo] = useState<string | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
@@ -79,13 +96,27 @@ export function TenantProfileCard({ tenant }: { tenant: Tenant | null }) {
       setError("CNPJ deve ter 14 dígitos.");
       return;
     }
+    // Hífen nas pontas passa no `normalizeSlug` (é digitável no meio da palavra),
+    // mas não vira subdomínio válido — barra aqui, antes de ir ao backend.
+    const cleanSlug = slug.replace(/^-+|-+$/g, "");
+    if (cleanSlug.length < 2) {
+      setError("Informe o subdomínio (mínimo 2 caracteres).");
+      return;
+    }
     startTransition(async () => {
-      const res = await saveTenantProfileAction({ name, cnpj, creci, logoUrl: logo });
+      const res = await saveTenantProfileAction({
+        name,
+        cnpj,
+        creci,
+        slug: cleanSlug,
+        logoUrl: logo,
+      });
       if (!res.ok) {
         setError(res.error ?? "Não foi possível salvar.");
         return;
       }
       setLogo(undefined); // passa a refletir o valor que veio do servidor
+      setSlug(cleanSlug);
       setSaved(true);
       router.refresh();
     });
@@ -160,7 +191,16 @@ export function TenantProfileCard({ tenant }: { tenant: Tenant | null }) {
 
       <div className="field">
         <label>Subdomínio</label>
-        <input className="input" readOnly disabled value={tenant?.slug ? `${tenant.slug}.officesai.com.br` : "—"} />
+        <div className="input-group">
+          <input
+            className="input"
+            value={slug}
+            onChange={(e) => setSlug(normalizeSlug(e.target.value))}
+            placeholder="minha-imobiliaria"
+            disabled={offline}
+          />
+          <span className="input-suffix">.{TENANT_DOMAIN}</span>
+        </div>
       </div>
 
       {error && <span className="badge badge-red">{error}</span>}

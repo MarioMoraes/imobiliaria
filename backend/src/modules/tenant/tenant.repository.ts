@@ -156,6 +156,10 @@ function buildUpdate(patch: UpdateTenantInput): { sql: string; values: unknown[]
     sets.push(`name = $${i++}`);
     values.push(patch.name);
   }
+  if (patch.slug !== undefined) {
+    sets.push(`slug = $${i++}`);
+    values.push(patch.slug);
+  }
   if (patch.cnpj !== undefined) {
     sets.push(`cnpj = $${i++}`);
     values.push(patch.cnpj);

@@ -17,7 +17,7 @@ export const onboardingSchema = z.object({
     name: z.string().min(2).max(200),
     cnpj: z.string().regex(/^\d{14}$/, "CNPJ deve ter 14 dígitos"),
     creci: z.string().max(40).optional(),
-    // slug vira subdomínio (<slug>.officesai.com.br): minúsculas, números e hífen.
+    // slug vira subdomínio (<slug>.officestecnologia.com.br): minúsculas, números e hífen.
     slug: z
       .string()
       .regex(/^[a-z0-9][a-z0-9-]{2,59}$/, "Use minúsculas, números e hífen (3–60)"),

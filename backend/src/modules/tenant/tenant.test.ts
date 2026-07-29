@@ -30,6 +30,38 @@ test("slug duplicado gera conflito (409)", async () => {
   );
 });
 
+test("a imobiliária troca o próprio slug (subdomínio)", async () => {
+  const tenant = await create({
+    name: "Renomeia",
+    slug: `t-${randomUUID().slice(0, 8)}`,
+    plan: "free",
+  });
+
+  const novo = `t-${randomUUID().slice(0, 8)}`;
+  const updated = await update(tenant.id, { slug: novo });
+  assert.equal(updated.slug, novo);
+});
+
+test("trocar o slug para um já usado gera conflito (409)", async () => {
+  const ocupado = `t-${randomUUID().slice(0, 8)}`;
+  await create({ name: "Dona do slug", slug: ocupado, plan: "free" });
+  const outra = await create({
+    name: "Outra",
+    slug: `t-${randomUUID().slice(0, 8)}`,
+    plan: "free",
+  });
+
+  await assert.rejects(() => update(outra.id, { slug: ocupado }), /já está em uso/);
+});
+
+test("salvar o mesmo slug do próprio tenant não é conflito", async () => {
+  const slug = `t-${randomUUID().slice(0, 8)}`;
+  const tenant = await create({ name: "Sem mudança", slug, plan: "free" });
+
+  const updated = await update(tenant.id, { slug, name: "Sem mudança II" });
+  assert.equal(updated.slug, slug);
+});
+
 test("assertActive permite tenant ativo e bloqueia tenant suspenso", async () => {
   const slug = `t-${randomUUID().slice(0, 8)}`;
   const tenant = await create({ name: "Ativa", slug, plan: "free" });

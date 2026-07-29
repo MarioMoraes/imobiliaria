@@ -1,5 +1,6 @@
 import { PageHeader, StatCard, Section } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
+import { tenantSubdomain } from "../../../lib/format";
 
 const blocks = [
   { name: "Hero", desc: "Título, chamada e busca", icon: "sparkles", on: true },
@@ -52,7 +53,7 @@ export default function LandingPage() {
         <Section title="Domínio & branding" pad>
           <div className="field mb-4">
             <label>Subdomínio</label>
-            <input className="input" defaultValue="demo.officesai.com.br" readOnly />
+            <input className="input" defaultValue={tenantSubdomain("demo")} readOnly />
           </div>
           <div className="field mb-4">
             <label>Domínio próprio</label>

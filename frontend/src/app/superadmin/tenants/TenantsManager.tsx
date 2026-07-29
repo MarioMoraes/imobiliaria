@@ -6,7 +6,7 @@ import { Icon } from "../../../components/Icon";
 import { StatusBadge } from "../../../components/ui";
 // De lib/format (não de lib/api): este é um Client Component, e api.ts importa
 // o Clerk server (`server-only`).
-import { formatDate } from "../../../lib/format";
+import { formatDate, tenantSubdomain } from "../../../lib/format";
 import { saveTenantAction, type TenantInput } from "./actions";
 
 export interface TenantRow {
@@ -258,7 +258,7 @@ export function TenantsManager({ tenants }: { tenants: TenantRow[] }) {
                     </span>
                     <span>
                       <span className="strong" style={{ display: "block" }}>{t.name}</span>
-                      <span className="text-xs subtle">{t.slug}.officesai.com.br</span>
+                      <span className="text-xs subtle">{tenantSubdomain(t.slug)}</span>
                     </span>
                   </div>
                 </td>
