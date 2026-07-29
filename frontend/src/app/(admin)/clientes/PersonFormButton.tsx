@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "../../../components/Icon";
 import { FieldBlock, TabBar } from "../../../components/ui";
+import { DocumentsPanel } from "../../../components/DocumentsPanel";
 import { AddressBlock } from "./AddressBlock";
 import { formatCpf, formatCpfCnpj, validateCpfCnpj } from "../../../lib/br-doc";
 import type { Person } from "../../../lib/api";
@@ -23,15 +24,29 @@ const ROLES: { value: PersonRole; label: string }[] = [
   { value: "FIADOR", label: "Fiador" },
 ];
 
-type TabKey = "pessoais" | "bancarios" | "residenciais" | "comerciais" | "observacoes";
+type TabKey =
+  | "pessoais"
+  | "bancarios"
+  | "residenciais"
+  | "comerciais"
+  | "observacoes"
+  | "documentos";
 
-/** Cada aba com a cor do seu tópico (escala compartilhada, globals.css). */
+/**
+ * Cada aba com a cor do seu tópico (escala compartilhada, globals.css).
+ *
+ * Os rótulos perderam o prefixo "Dados" quando a aba Documentos entrou: repetido
+ * em quatro abas, ele só empurrava a barra para fora da largura do modal. O
+ * título do bloco dentro de cada aba ("Endereço residencial", "Conta para
+ * repasse"…) já diz o resto.
+ */
 const TABS: { id: TabKey; label: string; tone: string }[] = [
-  { id: "pessoais", label: "Dados Pessoais", tone: "tone-azul" },
-  { id: "bancarios", label: "Dados Bancários", tone: "tone-esmeralda" },
-  { id: "residenciais", label: "Dados Residenciais", tone: "tone-ciano" },
-  { id: "comerciais", label: "Dados Comerciais", tone: "tone-teal" },
+  { id: "pessoais", label: "Pessoais", tone: "tone-azul" },
+  { id: "bancarios", label: "Bancários", tone: "tone-esmeralda" },
+  { id: "residenciais", label: "Residencial", tone: "tone-ciano" },
+  { id: "comerciais", label: "Comercial", tone: "tone-teal" },
   { id: "observacoes", label: "Observações", tone: "tone-ardosia" },
+  { id: "documentos", label: "Documentos", tone: "tone-violeta" },
 ];
 
 function makeEmpty(defaultRoles: PersonRole[]): NewPersonInput {
@@ -177,6 +192,8 @@ export function PersonFormButton({
   const [tab, setTab] = useState<TabKey>("pessoais");
   const [loading, setLoading] = useState(false);
   const isEdit = Boolean(person);
+  // Anexar documento exige a pessoa já gravada (o vínculo é pelo id).
+  const visibleTabs = isEdit ? TABS : TABS.filter((t) => t.id !== "documentos");
 
   useEffect(() => setMounted(true), []);
 
@@ -293,7 +310,7 @@ export function PersonFormButton({
         {/* Abas — cada grupo de campos numa aba (evita rolar a tela). Os painéis
             ficam sempre montados (display:none) para preservar estado local do
             AddressBlock (trava do CEP) ao alternar. */}
-        <TabBar tabs={TABS} active={tab} onSelect={setTab} />
+        <TabBar tabs={visibleTabs} active={tab} onSelect={setTab} />
 
         <div className="modal-scroll">
 
@@ -530,6 +547,16 @@ export function PersonFormButton({
           )}
           </FieldBlock>
         </div>
+
+        {/* Documentos só existem depois que a pessoa existe (precisam do id), e
+            o painel é montado sob demanda: ele busca a lista ao montar. */}
+        {isEdit && person && tab === "documentos" && (
+          <div className="stack" style={{ gap: 12 }}>
+            <FieldBlock tone="tone-violeta" icon="folder" title="Documentos da pessoa">
+              <DocumentsPanel entityType="PERSON" entityId={person.id} />
+            </FieldBlock>
+          </div>
+        )}
 
         </div>
 

@@ -26,7 +26,10 @@ const accessLabel: Record<EmployeeAccessStatus, { status: string; label: string 
 
 /** Papéis do backend restritos aos atribuíveis na UI (os demais só se exibem). */
 const editableRoles = (roles: string[]): EmployeeRole[] =>
-  roles.filter((r): r is EmployeeRole => r === "ADMIN" || r === "GESTOR" || r === "FINANCEIRO");
+  roles.filter(
+    (r): r is EmployeeRole =>
+      r === "ADMIN" || r === "GESTOR" || r === "FINANCEIRO" || r === "AUXILIAR",
+  );
 
 export default async function FuncionariosPage() {
   const live = await fetchEmployees();

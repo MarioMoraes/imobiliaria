@@ -109,7 +109,7 @@
 | users | full_name | String | ✓ | Nome |
 | users | status | Enum | ✓ | INVITED, ACTIVE, DISABLED |
 | user_roles | user_id | String | ✓ | FK users |
-| user_roles | role | Enum | ✓ | SUPER_ADMIN, ADMIN, GESTOR, CORRETOR, FINANCEIRO, PROPRIETARIO, CLIENTE, AI_AGENT |
+| user_roles | role | Enum | ✓ | SUPER_ADMIN, ADMIN, GESTOR, CORRETOR, FINANCEIRO, AUXILIAR, PROPRIETARIO, CLIENTE, AI_AGENT |
 | tenant_config | tenant_id | String | ✓ | 1:1 com tenant |
 | tenant_config | branding_json | JSONB | — | Logo, cores, favicon |
 | tenant_config | integrations_json | JSONB (criptografado) | — | Chaves Asaas/Stripe/WhatsApp do tenant |
@@ -182,7 +182,7 @@ export const TenantOnboardingSchema = z.object({
   planId: z.string().optional(),
   invites: z.array(z.object({
     email: z.string().email(),
-    role: z.enum(['ADMIN','GESTOR','CORRETOR','FINANCEIRO']),
+    role: z.enum(['ADMIN','GESTOR','CORRETOR','FINANCEIRO','AUXILIAR']),
   })).optional(),
 })
 export type TenantOnboardingInput = z.infer<typeof TenantOnboardingSchema>
@@ -190,7 +190,7 @@ export type TenantOnboardingInput = z.infer<typeof TenantOnboardingSchema>
 export const InviteUserSchema = z.object({
   email: z.string().email(),
   fullName: z.string().min(2),
-  role: z.enum(['ADMIN','GESTOR','CORRETOR','FINANCEIRO']),
+  role: z.enum(['ADMIN','GESTOR','CORRETOR','FINANCEIRO','AUXILIAR']),
 })
 
 export const UserResponseSchema = z.object({

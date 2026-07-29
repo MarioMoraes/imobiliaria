@@ -67,7 +67,7 @@ muda — e aí vale reavaliar.
 | `scheduling/`        | scheduling-service     | 1    | ⬜            |
 | `contract/`          | contract-service       | 1    | ✅ CRUD + partes + templates + PDF |
 | `signature/`         | (parte do contract)    | 2    | ✅ ZapSign: envio, webhook, sync |
-| `document/`          | document-service       | 1    | ⬜            |
+| `document/`          | document-service       | 1    | 🟡 upload/versão/expurgo LGPD; sem OCR nem retenção automática |
 | `crm/`               | crm-service            | 2    | ⬜            |
 | `receivable/`        | financial-service      | 2    | 🟡 contas a receber: aluguéis gerados na assinatura + baixa manual |
 | `payable/`           | financial-service      | 2    | 🟡 contas a pagar: repasse ao proprietário na baixa do aluguel |

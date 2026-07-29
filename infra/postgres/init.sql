@@ -89,7 +89,8 @@ CREATE TABLE IF NOT EXISTS user_roles (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  -- SUPER_ADMIN | ADMIN | GESTOR | CORRETOR | FINANCEIRO | PROPRIETARIO | CLIENTE | AI_AGENT
+  -- SUPER_ADMIN | ADMIN | GESTOR | CORRETOR | FINANCEIRO | AUXILIAR
+  --             | PROPRIETARIO | CLIENTE | AI_AGENT
   role        TEXT NOT NULL,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -1532,3 +1533,72 @@ ALTER TABLE payables ADD COLUMN IF NOT EXISTS transfer_status        TEXT;
 ALTER TABLE payables ADD COLUMN IF NOT EXISTS transfer_failed_reason TEXT;
 CREATE INDEX IF NOT EXISTS idx_payables_transfer ON payables (asaas_transfer_id)
   WHERE asaas_transfer_id IS NOT NULL;
+
+-- ═════════════════════════════════════════════════════════════════
+-- MOD-DOC (documental_09) — repositório documental com vínculo polimórfico
+-- e versionamento. O binário mora no bucket (mesma infraestrutura das fotos de
+-- imóvel); aqui ficam só os metadados e a chave do objeto.
+--
+-- `entity_type` NÃO segue a lista do PRD (PROPERTY/OWNER/CUSTOMER/CONTRACT):
+-- aqui locador, locatário e fiador são a MESMA entidade (`persons` com
+-- `roles[]`), então são um único PERSON. Ver o cabeçalho de MOD-PESSOA acima.
+--
+-- `status` guarda só ATIVO|EXPURGADO. "Expirado" é DERIVADO de `expires_at` na
+-- leitura, não gravado: sem agendador no backend, um status persistido ficaria
+-- mentindo até alguém rodar uma rotina.
+-- ═════════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS documents (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id       UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  entity_type     TEXT NOT NULL
+                    CHECK (entity_type IN ('PROPERTY','PERSON','CONTRACT')),
+  entity_id       UUID NOT NULL,                  -- FK lógica (polimórfica)
+  kind            TEXT NOT NULL DEFAULT 'OUTRO'
+                    CHECK (kind IN ('RG','CPF','RENDA','MATRICULA','CONTRATO','OUTRO')),
+  file_name       TEXT,                           -- nulo depois do expurgo
+  mime            TEXT,                           -- idem
+  size_bytes      BIGINT,
+  expires_at      DATE,                           -- validade (opcional)
+  status          TEXT NOT NULL DEFAULT 'ATIVO'
+                    CHECK (status IN ('ATIVO','EXPURGADO')),
+  current_version INT  NOT NULL DEFAULT 1,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_documents_tenant  ON documents (tenant_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_documents_entity  ON documents (tenant_id, entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_documents_expires ON documents (tenant_id, expires_at)
+  WHERE status = 'ATIVO' AND expires_at IS NOT NULL;
+
+ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE documents FORCE  ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON documents;
+CREATE POLICY tenant_isolation ON documents
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON documents TO app_user;
+
+-- Versões (append-only): substituir um documento nunca apaga o anterior — a
+-- versão antiga é a prova do que valia antes. Só o expurgo LGPD remove binário.
+CREATE TABLE IF NOT EXISTS document_versions (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  version     INT  NOT NULL,
+  storage_key TEXT,                               -- nulo depois do expurgo
+  mime        TEXT,
+  size_bytes  BIGINT,
+  uploaded_by UUID,                               -- FK lógica → users
+  uploaded_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_doc_versions_uniq
+  ON document_versions (document_id, version);
+CREATE INDEX IF NOT EXISTS idx_doc_versions ON document_versions (document_id, version DESC);
+
+ALTER TABLE document_versions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE document_versions FORCE  ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON document_versions;
+CREATE POLICY tenant_isolation ON document_versions
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON document_versions TO app_user;

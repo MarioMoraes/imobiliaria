@@ -11,6 +11,7 @@ const ROLES: { value: EmployeeRole; label: string }[] = [
   { value: "ADMIN", label: "Administrador" },
   { value: "GESTOR", label: "Gestor" },
   { value: "FINANCEIRO", label: "Financeiro" },
+  { value: "AUXILIAR", label: "Auxiliar Administrativo" },
 ];
 
 function makeEmpty(): NewEmployeeInput {

@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Icon } from "../../../components/Icon";
 import { FieldBlock, TabBar, initials } from "../../../components/ui";
+import { DocumentsPanel } from "../../../components/DocumentsPanel";
 import { formatCep } from "../../../lib/br-doc";
 import AdministrationContractModal from "./AdministrationContractModal";
 import InspectionModal from "./InspectionModal";
@@ -228,10 +229,17 @@ type TabId =
   | "venda"
   | "captacao"
   | "proprietarios"
-  | "fotos";
+  | "fotos"
+  | "documentos";
 
-/** Abas do modal — a 5ª muda de "Locação & Comissão" (rent) para "Venda &
- * Documentação" (sale); o resto é comum às duas finalidades. */
+/**
+ * Abas do modal — a 5ª muda de "Locação" (rent) para "Venda" (sale); o resto é
+ * comum às duas finalidades.
+ *
+ * Os rótulos são de uma palavra: com nove abas, "Locação & Comissão" e
+ * "Captação & Obs" empurravam a barra para além da largura do modal. O título
+ * do bloco dentro da aba já diz o resto.
+ */
 function tabsFor(mode: "rent" | "sale"): { id: TabId; label: string; tone: string }[] {
   return [
     { id: "dados", label: "Dados", tone: "tone-azul" },
@@ -239,11 +247,12 @@ function tabsFor(mode: "rent" | "sale"): { id: TabId; label: string; tone: strin
     { id: "caracteristicas", label: "Características", tone: "tone-teal" },
     { id: "valores", label: "Valores", tone: "tone-esmeralda" },
     mode === "sale"
-      ? { id: "venda", label: "Venda & Documentação", tone: "tone-ambar" }
-      : { id: "locacao", label: "Locação & Comissão", tone: "tone-ambar" },
-    { id: "captacao", label: "Captação & Obs", tone: "tone-ardosia" },
+      ? { id: "venda", label: "Venda", tone: "tone-ambar" }
+      : { id: "locacao", label: "Locação", tone: "tone-ambar" },
+    { id: "captacao", label: "Captação", tone: "tone-ardosia" },
     { id: "proprietarios", label: "Proprietários", tone: "tone-indigo" },
     { id: "fotos", label: "Fotos", tone: "tone-ciano" },
+    { id: "documentos", label: "Documentos", tone: "tone-violeta" },
   ];
 }
 
@@ -952,6 +961,19 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
 
                 {photoError && <span className="text-xs" style={{ color: "var(--danger, #dc2626)" }}>{photoError}</span>}
               </>
+            )}
+          </div>
+        )}
+
+        {/* ── Aba: Documentos (matrícula, IPTU, laudos) ───────────── */}
+        {tab === "documentos" && (
+          <div className="stack" style={{ gap: 12 }}>
+            {!isEdit || !property ? (
+              <p className="text-sm subtle" style={{ padding: "8px 0" }}>
+                <Icon name="upload" size={14} /> Salve o imóvel primeiro para anexar documentos.
+              </p>
+            ) : (
+              <DocumentsPanel entityType="PROPERTY" entityId={property.id} />
             )}
           </div>
         )}

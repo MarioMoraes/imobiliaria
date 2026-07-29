@@ -5,7 +5,7 @@ import { deleteJson, patchJson, postJson } from "../../../lib/api";
 import { isValidCpf, onlyDigits } from "../../../lib/br-doc";
 
 /** Papéis internos atribuíveis a um funcionário (subconjunto do RBAC). */
-export type EmployeeRole = "ADMIN" | "GESTOR" | "FINANCEIRO";
+export type EmployeeRole = "ADMIN" | "GESTOR" | "FINANCEIRO" | "AUXILIAR";
 
 export interface NewEmployeeInput {
   fullName: string;

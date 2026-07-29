@@ -10,7 +10,7 @@ import { z } from "zod";
  * campo `admin` deixa de ser necessário.
  */
 
-const onboardingRoles = z.enum(["ADMIN", "GESTOR", "CORRETOR", "FINANCEIRO"]);
+const onboardingRoles = z.enum(["ADMIN", "GESTOR", "CORRETOR", "FINANCEIRO", "AUXILIAR"]);
 
 export const onboardingSchema = z.object({
   studio: z.object({

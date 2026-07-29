@@ -100,12 +100,7 @@ export const sampleMaintenance = [
   { id: "MN-302", prop: "Casa Alphaville", cat: "Estrutural", who: "Interno", status: "paid", cost: "R$ 4.900" },
 ];
 
-export const sampleDocuments = [
-  { name: "RG · Ana Lima.pdf", entity: "Cliente", kind: "RG", expires: "—", status: "active" },
-  { name: "Contrato CT-2041.pdf", entity: "Contrato", kind: "Contrato", expires: "12 mar 2026", status: "active" },
-  { name: "Comprovante renda · P. Nogueira.pdf", entity: "Cliente", kind: "Renda", expires: "15 ago 2025", status: "overdue" },
-  { name: "Matrícula · Apto Tatuapé.pdf", entity: "Imóvel", kind: "Matrícula", expires: "—", status: "active" },
-];
+// `sampleDocuments` saiu em 2026-07-29: /documentos passou a ler o MOD-DOC.
 
 export const samplePortals = [
   { name: "Viva Real", listings: 42, status: "ok", sync: "há 3 min" },

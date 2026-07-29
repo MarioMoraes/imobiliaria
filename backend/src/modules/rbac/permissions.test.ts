@@ -30,6 +30,42 @@ test("gestão de usuários é restrita a SUPER_ADMIN/ADMIN", () => {
   assert.equal(can(["GESTOR"], "users:read"), true); // leitura permitida ao gestor
 });
 
+test("AUXILIAR escreve o operacional inteiro", () => {
+  for (const op of [
+    "property:write",
+    "person:write",
+    "contract:write",
+    "crm:write",
+    "condominium:write",
+    "document:write",
+  ] as const) {
+    assert.equal(can(["AUXILIAR"], op), true, `AUXILIAR deveria poder ${op}`);
+  }
+  assert.equal(can(["AUXILIAR"], "finance:read"), true, "consulta o que está em aberto");
+  assert.equal(can(["AUXILIAR"], "ai:use"), true);
+});
+
+test("AUXILIAR não apaga NADA, e não mexe em usuário, configuração nem dinheiro", () => {
+  // A regra que define o papel: quem alimenta o cadastro o dia inteiro é quem
+  // mais erra por pressa, e nenhum destes tem desfazer.
+  for (const op of [
+    "property:delete",
+    "person:delete",
+    "contract:delete",
+    "condominium:delete",
+    "broker:delete",
+    "document:delete",
+  ] as const) {
+    assert.equal(can(["AUXILIAR"], op), false, `AUXILIAR não pode ${op}`);
+  }
+  assert.equal(can(["AUXILIAR"], "finance:write"), false, "baixa e repasse não são dele");
+  assert.equal(can(["AUXILIAR"], "users:read"), false);
+  assert.equal(can(["AUXILIAR"], "users:manage"), false);
+  assert.equal(can(["AUXILIAR"], "tenant:config:read"), false);
+  assert.equal(can(["AUXILIAR"], "broker:write"), false);
+  assert.equal(can(["AUXILIAR"], "ai:read"), false, "histórico de conversa é auditoria");
+});
+
 test("múltiplos papéis: basta um autorizar", () => {
   assert.equal(can(["CORRETOR", "FINANCEIRO"], "finance:read"), true);
 });

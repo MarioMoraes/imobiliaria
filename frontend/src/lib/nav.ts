@@ -42,20 +42,20 @@ export const adminNav: NavGroup[] = [
       { label: "Condomínios", href: "/condominios", icon: "home", tone: "tone-azul" },
     ],
   },
-  // Grupo "Operação" (CRM, Agenda, Aluguel, Manutenção, Documentos) retirado do
-  // menu em 2026-07-21 — volta quando esses módulos forem implementados. As
-  // rotas continuam existindo em app/(admin), só não são mais navegáveis pela
-  // barra lateral; para reativar, basta descomentar.
-  // {
-  //   label: "Operação",
-  //   items: [
-  //     { label: "CRM", href: "/crm", icon: "kanban", tone: "tone-indigo" },
-  //     { label: "Agenda", href: "/agenda", icon: "calendar", tone: "tone-ciano" },
-  //     { label: "Aluguel", href: "/aluguel", icon: "key", tone: "tone-ambar" },
-  //     { label: "Manutenção", href: "/manutencao", icon: "wrench", tone: "tone-ardosia" },
-  //     { label: "Documentos", href: "/documentos", icon: "folder", tone: "tone-teal" },
-  //   ],
-  // },
+  // Grupo "Operação" retirado do menu em 2026-07-21 — cada item volta quando o
+  // módulo por trás dele existir. Documentos voltou em 2026-07-29 (MOD-DOC). Os
+  // demais continuam sendo maquete: as rotas existem em app/(admin), mas não
+  // são navegáveis pela barra lateral. Para reativar, basta descomentar a linha.
+  {
+    label: "Operação",
+    items: [
+      // { label: "CRM", href: "/crm", icon: "kanban", tone: "tone-indigo" },
+      // { label: "Agenda", href: "/agenda", icon: "calendar", tone: "tone-ciano" },
+      // { label: "Aluguel", href: "/aluguel", icon: "key", tone: "tone-ambar" },
+      // { label: "Manutenção", href: "/manutencao", icon: "wrench", tone: "tone-ardosia" },
+      { label: "Documentos", href: "/documentos", icon: "folder", tone: "tone-teal" },
+    ],
+  },
   {
     label: "Financeiro",
     items: [{ label: "Financeiro", href: "/financeiro", icon: "wallet", tone: "tone-esmeralda" }],

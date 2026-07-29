@@ -1380,7 +1380,9 @@ select.input {
 .tabbar {
   display: flex;
   gap: 4px;
-  overflow-x: auto;
+  /* Quebra em duas linhas em vez de rolar na horizontal: numa barra que rola, a
+     aba que sobra fica invisível — ninguém procura o que não aparece. */
+  flex-wrap: wrap;
   border-bottom: 1px solid var(--border);
   margin-bottom: 4px;
   /* Dentro do modal (flex column com altura máxima) a barra é um item flexível:

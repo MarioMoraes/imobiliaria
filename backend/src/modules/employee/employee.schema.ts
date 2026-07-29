@@ -10,7 +10,7 @@ import { z } from "zod";
  */
 
 /** Papéis atribuíveis a um funcionário interno. */
-export const employeeRole = z.enum(["ADMIN", "GESTOR", "FINANCEIRO"]);
+export const employeeRole = z.enum(["ADMIN", "GESTOR", "FINANCEIRO", "AUXILIAR"]);
 export type EmployeeRole = z.infer<typeof employeeRole>;
 
 export const employeeAccessStatus = z.enum(["ATIVO", "SUSPENSO", "REVOGADO"]);

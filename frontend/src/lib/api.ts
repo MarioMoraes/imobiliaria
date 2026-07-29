@@ -1027,6 +1027,54 @@ export function fetchPropertyPhotos(propertyId: string): Promise<PropertyPhoto[]
   return get<PropertyPhoto[]>(`/v1/properties/${propertyId}/photos`);
 }
 
+/* ---------------------------------------------------------- Documentos */
+
+/** A que um documento se prende (MOD-DOC). */
+export type DocumentEntityType = "PROPERTY" | "PERSON" | "CONTRACT";
+
+export interface DocumentRecord {
+  id: string;
+  entityType: string;
+  entityId: string;
+  kind: string;
+  fileName: string | null;
+  mime: string | null;
+  sizeBytes: number | null;
+  expiresAt: string | null;
+  status: string;
+  currentVersion: number;
+  /** Derivado da validade pelo backend — nenhuma rotina precisa ter rodado. */
+  expired: boolean;
+  /** Presignada e curta; nula depois do expurgo. */
+  url: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DocumentCounts {
+  total: number;
+  expiring30: number;
+  expired: number;
+}
+
+/** Documentos do tenant, opcionalmente filtrados por entidade/natureza. */
+export function fetchDocuments(filters: {
+  entityType?: DocumentEntityType;
+  entityId?: string;
+  kind?: string;
+} = {}): Promise<DocumentRecord[] | null> {
+  const qs = new URLSearchParams(
+    Object.entries(filters).filter(([, v]) => !!v) as [string, string][],
+  );
+  const suffix = qs.size ? `?${qs}` : "";
+  return get<DocumentRecord[]>(`/v1/documents${suffix}`);
+}
+
+/** Contadores da biblioteca (total, a vencer em 30 dias, vencidos). */
+export function fetchDocumentCounts(): Promise<DocumentCounts | null> {
+  return get<DocumentCounts>("/v1/documents/summary");
+}
+
 type JsonResult = { ok: true; data: unknown } | { ok: false; error: string };
 
 /**

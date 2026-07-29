@@ -85,7 +85,7 @@ export const CreateEmployeeSchema = z.object({
   cpf: z.string().refine(isValidCpf, 'CPF inválido'),
   email: z.string().email(),
   position: z.string().min(2),
-  roles: z.array(z.enum(['ADMIN','GESTOR','FINANCEIRO'])).min(1),
+  roles: z.array(z.enum(['ADMIN','GESTOR','FINANCEIRO','AUXILIAR'])).min(1),
 })
 ```
 
