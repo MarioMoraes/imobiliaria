@@ -84,6 +84,8 @@ const paths: Record<string, string> = {
   creci: "M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM9 22V12h6v10",
   link: "M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7",
   refresh: "M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5",
+  // Logotipos de marca (Instagram, WhatsApp) não moram aqui: são glifos
+  // preenchidos e vivem em `BrandIcon.tsx`.
 };
 
 interface IconProps extends SVGProps<SVGSVGElement> {

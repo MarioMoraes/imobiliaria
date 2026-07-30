@@ -597,3 +597,22 @@
   font-size: 0.82rem;
   color: var(--muted);
 }
+.lp-foot-social {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+}
+.lp-foot-social a {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.lp-foot-social a:hover {
+  color: var(--primary);
+}
+.lp-foot-social a svg {
+  flex-shrink: 0;
+}

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
+import { BrandIcon } from "@/components/BrandIcon";
 import { Icon } from "@/components/Icon";
 import { CriarContaButton, EntrarButton } from "./LandingCta";
 import "./landing.css";
@@ -94,16 +95,22 @@ function Hero() {
             Software como Serviço para Imobiliárias
           </p>
 
+          {/*
+            Só a palavra "Imobiliária" leva o destaque do gradiente da marca; o
+            resto da frase fica neutro (com dois destaques a linha perde o ponto
+            focal). A inicial maiúscula é intencional — trata a palavra como o
+            nome do público, sem gritar em caixa alta.
+          */}
           <h1 className="lp-h1">
-            A imobiliária inteira em uma tela —{" "}
-            <em>e uma IA cuidando do resto</em>
+            A plataforma que administra a sua <em>Imobiliária</em> de ponta a
+            ponta
           </h1>
 
           <p className="lp-lead">
-            Cadastro de imóveis, pessoas, contratos, aluguel, financeiro e
-            condomínios em uma plataforma só. Enquanto isso, os agentes de IA
-            atendem no WhatsApp, qualificam leads, escrevem anúncios e leem
-            documentos por você.
+            Imóveis, pessoas, contratos, cobrança, condomínios e financeiro em um
+            sistema só, feito para o dia a dia da imobiliária. O contrato
+            assinado já muda o imóvel de status, gera as parcelas e alimenta o
+            financeiro — você lança uma vez e o resto acontece.
           </p>
 
           <div className="lp-cta">
@@ -121,16 +128,16 @@ function Hero() {
 
           <div className="lp-proof">
             <div>
-              <strong>1 plataforma</strong>
-              <span>no lugar de 5 planilhas</span>
+              <strong>20+</strong>
+              <span>recursos disponíveis hoje</span>
             </div>
             <div>
               <strong>24/7</strong>
-              <span>atendimento sem fila</span>
+              <span>copiloto de IA à disposição</span>
             </div>
             <div>
               <strong>Multi-tenant</strong>
-              <span>dados isolados por imobiliária</span>
+              <span>isolamento aplicado no banco</span>
             </div>
           </div>
         </div>
@@ -181,15 +188,22 @@ function MockPainel() {
           <span className="stat-icon accent">
             <Icon name="bot" size={16} />
           </span>
-          <b>Agente qualificou 3 leads</b>
+          <b>Copiloto respondeu sobre 3 imóveis</b>
           <em>agora</em>
         </div>
         <div className="lp-mock-row">
           <span className="stat-icon">
             <Icon name="contract" size={16} />
           </span>
-          <b>Contrato #1042 assinado</b>
+          <b>Contrato #1042 assinado eletronicamente</b>
           <em>há 12 min</em>
+        </div>
+        <div className="lp-mock-row">
+          <span className="stat-icon">
+            <Icon name="receipt" size={16} />
+          </span>
+          <b>Repasse ao proprietário gerado</b>
+          <em>há 1 h</em>
         </div>
       </div>
     </div>
@@ -296,7 +310,9 @@ function ComoFunciona() {
       <div className="lp-wrap">
         <div className="lp-section-head lp-center">
           <span className="eyebrow">Como funciona</span>
-          <h2 className="lp-h2">Do cadastro ao repasse, sem retrabalho</h2>
+          <h2 className="lp-h2">
+            Do Cadastro do Imóvel ao Repasse para o Proprietário
+          </h2>
         </div>
 
         <div className="lp-steps">
@@ -443,12 +459,14 @@ function Seguranca() {
           </div>
           <div>
             <span className="stat-icon accent">
-              <Icon name="key" />
+              <Icon name="refresh" />
             </span>
-            <h3>Autenticação gerenciada</h3>
+            <h3>Backup automático</h3>
             <p>
-              Login, senha, Google e MFA pelo Clerk. Papéis e permissões por
-              usuário dentro da sua imobiliária.
+              Cópias diárias e criptografadas em outro servidor, retidas por
+              tempo suficiente para voltar no dia certo. Nem incêndio na sede,
+              nem computador roubado, nem exclusão por engano tiram a sua
+              imobiliária do ar.
             </p>
           </div>
           <div>
@@ -512,6 +530,27 @@ function Rodape() {
           </span>
           Offices AI Imobiliária
         </span>
+
+        <div className="lp-foot-social">
+          <a
+            href="https://instagram.com/offices_aplicativos"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <BrandIcon name="instagram" size={16} />
+            @offices_aplicativos
+          </a>
+          {/* wa.me exige o número em E.164 sem símbolos: 55 (BR) + 35 (DDD). */}
+          <a
+            href="https://wa.me/5535992527113"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <BrandIcon name="whatsapp" size={16} />
+            (35) 99252-7113
+          </a>
+        </div>
+
         <span>
           © {new Date().getFullYear()} Offices AI · Plataforma de gestão
           imobiliária com agentes de IA
