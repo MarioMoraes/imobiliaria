@@ -147,10 +147,5 @@ export const sampleFlags = [
   { flag: "instagram_channel", label: "Canal Instagram", scope: "Add-on", enabled: false },
 ];
 
-export const sampleAudit = [
-  { actor: "Super Admin · Offices AI", action: "tenant.suspended", target: "Litoral Sul Locações", when: "há 2 h" },
-  { actor: "Otávio Dias · Vera Cruz", action: "contract.signed", target: "CT-2041", when: "há 4 h" },
-  { actor: "Sistema · billing", action: "subscription.past_due", target: "Alpha Negócios", when: "há 6 h" },
-  { actor: "Renata Campos · Demo", action: "transfer.executed", target: "Repasse #8841", when: "ontem" },
-  { actor: "AI Agent · Demo", action: "lead.created", target: "Ana Lima", when: "ontem" },
-];
+/* A auditoria saiu daqui: /superadmin/auditoria e o painel da plataforma leem
+   a trilha real em /admin/audit (MOD-SADMIN-04). */

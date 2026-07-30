@@ -4,6 +4,7 @@ import { AppError } from "../../shared/errors.js";
 import { logger } from "../../shared/logger.js";
 import { isUuid } from "../../shared/uuid.js";
 import { requirePermission } from "../rbac/authorize.js";
+import { record } from "../audit/audit.service.js";
 import {
   savePaymentSettingsSchema,
   webhookPayloadSchema,
@@ -127,6 +128,18 @@ export async function paymentWebhookRoutes(app: FastifyInstance): Promise<void> 
         // existência do tenant para quem estiver sondando).
         throw new AppError("UNAUTHORIZED", 401, "Token do webhook inválido");
       }
+
+      // Auditoria explícita (PRD 11): o webhook chega fora de /v1, sem sessão —
+      // a captura automática do gateway não o enxerga. O ator é o provedor.
+      await record({
+        tenantId: req.params.tenantId,
+        action: "webhook.processed",
+        entity: parsed.data.transfer ? "payable" : "receivable",
+        entityId: parsed.data.payment?.id ?? parsed.data.transfer?.id ?? null,
+        actorLabel: "Asaas (webhook)",
+        payload: { event: parsed.data.event },
+        ipAddress: req.ip,
+      });
 
       return { data: { received: true } };
     },

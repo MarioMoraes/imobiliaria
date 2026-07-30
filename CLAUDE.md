@@ -127,3 +127,9 @@ tenant demo `00000000-0000-0000-0000-000000000001` com imóveis de exemplo.
   `gateway/routes.ts` e adicione as tabelas (com `tenant_id` + RLS ativado). O
   schema hoje vive em `infra/postgres/init.sql`; escolher uma ferramenta de
   migração (ex.: node-pg-migrate/Drizzle) é um TODO de Fundação (SPEC seção 17).
+- **Auditoria é automática** (MOD-AUTH-07): toda mutação de `/v1` vira linha em
+  `audit_logs` pelo hook do gateway (`gateway/audit.hook.ts`) — módulo novo já
+  nasce auditado, sem escrever nada. Ajuste o nome da ação em
+  `modules/audit/audit.actions.ts` quando o derivado da rota não descrever o
+  fato; use `record()` só para o que não é mutação HTTP (download, webhook). A
+  tabela não aceita UPDATE: a trilha é imutável por privilégio do banco.

@@ -26,6 +26,12 @@ Regras de fronteira:
   e as somas em JS. Qualquer coisa além de agregação vai para o módulo dono.
   (`payable/` usa a mesma licença em `findPaidRentsWithoutPayout`, um SELECT em
   `receivables` para achar o que reconciliar.)
+- `audit/` é transversal: qualquer módulo pode importar o `record()` do service
+  dele. Mas quase nunca precisa — a trilha nasce sozinha no gateway
+  (`gateway/audit.hook.ts`), que registra toda mutação de `/v1`. Chame
+  `record()` só quando a ação não é uma mutação HTTP (download, webhook) ou
+  quando o nome derivado da rota não descreve o que aconteceu; nesse segundo
+  caso, prefira uma linha em `audit/audit.actions.ts`.
 - Quando A precisa reagir a um fato de B **e** B já depende de A, não inverta a
   seta com um import: B expõe um registro de listeners e o gancho é ligado em
   `app.ts`. É o caso de `receivableService.onSettled` → `payable`, que sem isso
@@ -81,4 +87,5 @@ muda — e aí vale reavaliar.
 | `billing/`           | billing-service        | 0/2  | ⬜            |
 | `ai/`                | ai-orchestrator-service| 4    | 🟡 copiloto interno: RAG (pgvector) + tools + créditos |
 | `admin/`             | admin-service          | 0/2  | ⬜            |
+| `audit/`             | (transversal)          | 0    | ✅ trilha imutável: captura no gateway + visão global |
 | `dashboard/`         | (leitura agregada)     | 1    | ✅ resumo do painel (só SELECT) |

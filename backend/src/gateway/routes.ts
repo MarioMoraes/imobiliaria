@@ -37,7 +37,9 @@ import { eventRoutes } from "../modules/event/event.routes.js";
 import { bankRoutes } from "../modules/bank/bank.routes.js";
 import { dashboardRoutes } from "../modules/dashboard/dashboard.routes.js";
 import { aiRoutes } from "../modules/ai/ai.routes.js";
+import { adminAuditRoutes, auditRoutes } from "../modules/audit/audit.routes.js";
 import { authContextHook } from "./auth-context.hook.js";
+import { auditCaptureHook, auditRecordHook } from "./audit.hook.js";
 import { platformAdminHook } from "./platform-admin.hook.js";
 
 /**
@@ -70,6 +72,8 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     async (admin) => {
       admin.addHook("onRequest", platformAdminHook);
       await admin.register(tenantRoutes, { prefix: "/tenants" });
+      // Auditoria global cross-tenant (MOD-SADMIN-04 / SPEC 9.4).
+      await admin.register(adminAuditRoutes, { prefix: "/audit" });
     },
     { prefix: "/admin" },
   );
@@ -85,6 +89,10 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       // Resolve identidade (Clerk/dev) + tenant ativo + papéis, e entra no
       // AsyncLocalStorage. As rotas usam `requirePermission(...)` para o RBAC.
       v1.addHook("onRequest", authContextHook);
+      // Trilha de auditoria (MOD-AUTH-07): toda mutação de /v1 é registrada, sem
+      // que cada módulo precise lembrar. Ver gateway/audit.hook.ts.
+      v1.addHook("onSend", auditCaptureHook);
+      v1.addHook("onResponse", auditRecordHook);
       await v1.register(propertyRoutes, { prefix: "/properties" });
       // Vistoria: compartilha o prefixo com propertyRoutes — os paths não
       // colidem (tudo pende de /:id/inspection).
@@ -105,6 +113,8 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       // Copiloto de IA (MOD-AI): conversa, histórico, créditos e o índice do RAG.
       await v1.register(aiRoutes, { prefix: "/ai" });
       await v1.register(userRoutes, { prefix: "/users" });
+      // Trilha do próprio tenant (só leitura — ver audit.routes.ts).
+      await v1.register(auditRoutes, { prefix: "/audit" });
       // Busca global da barra do topo (compõe imóveis + pessoas + contratos).
       await v1.register(searchRoutes, { prefix: "/search" });
       // Cadastro da própria imobiliária (nome, CNPJ, CRECI, logo).

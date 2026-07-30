@@ -1602,3 +1602,73 @@ CREATE POLICY tenant_isolation ON document_versions
   USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
   WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
 GRANT SELECT, INSERT, UPDATE, DELETE ON document_versions TO app_user;
+
+-- ═════════════════════════════════════════════════════════════════
+-- MOD-AUTH-07 / MOD-SADMIN-04 — Trilha de auditoria (SPEC 9.4)
+-- ═════════════════════════════════════════════════════════════════
+-- Registro IMUTÁVEL de quem fez o quê, quando e de onde. A imutabilidade não é
+-- uma promessa do código: `app_user` recebe SELECT e INSERT, e **nenhum**
+-- UPDATE. Nem um bug nem uma rota nova conseguem reescrever a trilha.
+--
+-- A policy aceita duas condições, como a de `tenants`: o próprio tenant
+-- (Admin vendo a própria trilha) ou `app.platform = 'on'` (Super Admin vendo
+-- todas — SPEC 9.4). O NULLIF é obrigatório pelo mesmo motivo de lá: ao fim de
+-- uma transação o `app.tenant_id` local reverte para string VAZIA, e ''::uuid
+-- explodiria numa conexão reciclada do pool.
+--
+-- `actor_label` guarda o nome/e-mail de quem agiu NO MOMENTO da ação: se o
+-- usuário for anonimizado por pedido LGPD depois, a trilha ainda diz quem era.
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  user_id     UUID REFERENCES users(id) ON DELETE SET NULL,  -- nulo p/ ator não-humano (webhook)
+  actor_label TEXT,
+  action      TEXT NOT NULL,                      -- entidade.acao (ex.: contract.signed)
+  entity      TEXT NOT NULL,                      -- property | contract | receivable | ...
+  entity_id   TEXT,                               -- id do alvo (texto: nem todo alvo é uuid)
+  payload     JSONB,                              -- corpo REDIGIDO (ver audit.redact.ts)
+  ip_address  INET,
+  request_id  TEXT,
+  status      TEXT NOT NULL DEFAULT 'OK'
+                CHECK (status IN ('OK','DENIED')),
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_audit_tenant_created
+  ON audit_logs (tenant_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_tenant_action
+  ON audit_logs (tenant_id, action, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_entity
+  ON audit_logs (tenant_id, entity, entity_id);
+-- Visão global do Super Admin: ordena por data atravessando tenants.
+CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs (created_at DESC);
+
+ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_logs FORCE  ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS audit_select ON audit_logs;
+CREATE POLICY audit_select ON audit_logs FOR SELECT
+  USING (
+    current_setting('app.platform', true) = 'on'
+    OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid
+  );
+
+DROP POLICY IF EXISTS audit_insert ON audit_logs;
+CREATE POLICY audit_insert ON audit_logs FOR INSERT
+  WITH CHECK (
+    current_setting('app.platform', true) = 'on'
+    OR tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid
+  );
+
+-- Única remoção permitida: o expurgo de retenção (LGPD, PRD 01 seção 9 — o IP
+-- é retido por 12 meses). Escopo de plataforma E linha vencida; uma linha
+-- recente é indeletável mesmo para o Super Admin. Sem agendador no projeto, o
+-- expurgo é disparado à mão por POST /admin/audit/purge.
+DROP POLICY IF EXISTS audit_purge ON audit_logs;
+CREATE POLICY audit_purge ON audit_logs FOR DELETE
+  USING (
+    current_setting('app.platform', true) = 'on'
+    AND created_at < now() - interval '12 months'
+  );
+
+-- Sem UPDATE: nem no GRANT, nem em policy. A trilha só cresce.
+GRANT SELECT, INSERT, DELETE ON audit_logs TO app_user;

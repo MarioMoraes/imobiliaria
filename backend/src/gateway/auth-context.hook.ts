@@ -8,6 +8,7 @@ import {
 import { assertActive, assertOrgMatches } from "../modules/tenant/tenant.service.js";
 import { claimInvitedMembership, loadForClerkUser } from "../modules/rbac/rbac.service.js";
 import { getClerkUserEmail, isClerkConfigured } from "../shared/clerk.js";
+import { record } from "../modules/audit/audit.service.js";
 import { logger } from "../shared/logger.js";
 
 /**
@@ -52,12 +53,23 @@ async function buildContext(req: FastifyRequest): Promise<TenantContext> {
       if (claimed) {
         userId = claimed.userId;
         roles = claimed.roles;
+        // INVITED → ACTIVE é transição auditada (PRD 01 seção 6). Acontece
+        // antes do AsyncLocalStorage abrir, por isso o contexto vai à mão.
+        await record({
+          tenantId: auth.tenantId,
+          userId: claimed.userId,
+          action: "user.activated",
+          entity: "user",
+          entityId: claimed.userId,
+          payload: { roles: claimed.roles },
+          ipAddress: req.ip,
+        });
       }
     }
   }
 
   const requestId = (req.id as string) ?? randomUUID();
-  return { tenantId: auth.tenantId, userId, roles, requestId };
+  return { tenantId: auth.tenantId, userId, roles, requestId, ip: req.ip };
 }
 
 /**

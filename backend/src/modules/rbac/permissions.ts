@@ -51,7 +51,8 @@ export type Operation =
   | "document:delete"
   | "ai:use"
   | "ai:read"
-  | "ai:admin";
+  | "ai:admin"
+  | "audit:read";
 
 /**
  * Nota sobre `AUXILIAR` (Auxiliar Administrativo): ele aparece em toda leitura
@@ -111,6 +112,10 @@ const MATRIX: Record<Operation, Role[]> = {
   "ai:read": ["SUPER_ADMIN", "ADMIN", "GESTOR"],
   // Reindexação completa do RAG — operação cara, varre o inventário inteiro.
   "ai:admin": ["SUPER_ADMIN", "ADMIN"],
+  // Trilha de auditoria (MOD-AUTH-07): mostra o que TODO mundo do tenant fez,
+  // com IP. Fica com quem responde pelo tenant — o mesmo argumento de `ai:read`.
+  // GESTOR de fora: supervisionar a equipe não exige ler o rastro de cada clique.
+  "audit:read": ["SUPER_ADMIN", "ADMIN"],
 };
 
 /** Papéis que podem executar `op`. */

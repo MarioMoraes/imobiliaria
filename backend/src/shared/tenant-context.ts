@@ -25,6 +25,12 @@ export interface TenantContext {
   /** papéis efetivos do usuário (RBAC). */
   roles: string[];
   requestId: string;
+  /**
+   * IP de origem do request (`req.ip`). Existe para a trilha de auditoria
+   * (MOD-AUTH-07 exige `ip_address`): assim um `record()` chamado no fundo de
+   * um service não precisa receber a request como parâmetro.
+   */
+  ip?: string;
 }
 
 const storage = new AsyncLocalStorage<TenantContext>();

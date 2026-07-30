@@ -1,11 +1,15 @@
 import { PageHeader, StatCard, Section, StatusBadge } from "../../components/ui";
 import { Icon } from "../../components/Icon";
-import { fetchTenants } from "../../lib/api";
-import { sampleTenants, sampleHealth, sampleAudit } from "../../lib/sample";
+import { fetchGlobalAuditLogs, fetchTenants } from "../../lib/api";
+import { sampleTenants, sampleHealth } from "../../lib/sample";
 import { tenantSubdomain } from "../../lib/format";
+import { actionLabel, describePayload, formatMoment } from "../../lib/audit";
 
 export default async function SuperadminHome() {
-  const live = await fetchTenants();
+  const [live, audit] = await Promise.all([
+    fetchTenants(),
+    fetchGlobalAuditLogs({ limit: 4 }),
+  ]);
   const tenants = live ?? sampleTenants;
   const active = tenants.filter((t) => t.status === "active").length;
 
@@ -70,10 +74,17 @@ export default async function SuperadminHome() {
 
           <Section title="Auditoria global" action={<a href="/superadmin/auditoria" className="btn btn-ghost btn-sm">Tudo</a>}>
             <div className="card-pad timeline">
-              {sampleAudit.slice(0, 4).map((a, i) => (
-                <div className="timeline-item" key={i}>
-                  <div className="text-sm strong">{a.action}</div>
-                  <div className="text-xs subtle">{a.actor} · {a.target} · {a.when}</div>
+              {(audit?.items ?? []).length === 0 && (
+                <div className="text-sm subtle">Nenhuma ação registrada ainda.</div>
+              )}
+              {(audit?.items ?? []).map((log) => (
+                <div className="timeline-item" key={log.id}>
+                  <div className="text-sm strong">{actionLabel(log.action)}</div>
+                  <div className="text-xs subtle">
+                    {log.actorLabel ?? "—"} · {log.tenantName ?? "—"}
+                    {describePayload(log) && ` · ${describePayload(log)}`} ·{" "}
+                    {formatMoment(log.createdAt)}
+                  </div>
                 </div>
               ))}
             </div>

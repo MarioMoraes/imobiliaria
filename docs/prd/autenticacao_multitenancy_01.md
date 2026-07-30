@@ -7,7 +7,7 @@
 **Serviço Backend:** auth-service + tenant-service (no monólito modular: `backend/src/modules/{auth,tenant}`, porta 3001)
 **Tabelas Principais:** tenants, users, roles, user_roles, tenant_config, feature_flags, audit_logs, sessions
 **Data:** 2026-07-10
-**Status:** Em implementação — MOD-AUTH-01, 02, 03 e 04 concluídos (2026-07-11); MOD-AUTH-05 (Clerk) implementado, pendente de validação com chaves Clerk; demais pendentes
+**Status:** Em implementação — MOD-AUTH-01, 02, 03 e 04 concluídos (2026-07-11); MOD-AUTH-05 (Clerk) implementado, pendente de validação com chaves Clerk; MOD-AUTH-07 (audit log) concluído (2026-07-30); demais pendentes
 
 > **Nota de arquitetura:** o SPEC descreve `auth-service`/`tenant-service` como microserviços. Este repositório os implementa como módulos de um **monólito modular** (`backend/src/modules/`), promovíveis a serviço depois. Onde este PRD diz "serviço X", leia "módulo X". A resolução de tenant hoje (Fase 0) usa o header `x-tenant-id`; a migração para Clerk altera apenas `resolveTenantId` em `shared/tenant-context.ts`.
 
@@ -31,7 +31,7 @@
 | MOD-AUTH-04 | Onboarding wizard (5 etapas) | Fluxo self-service de criação de tenant e primeiro admin | Must Have ✅ (Fase 0: submissão em 1 passo; retomada de rascunho/AC-03 = TODO) |
 | MOD-AUTH-05 | Ciclo de vida de JWT | Access 15min + refresh 30d com rotação a cada refresh | Must Have ✅ (via Clerk; refresh/rotação geridos pelo Clerk — pendente validação com chaves) |
 | MOD-AUTH-06 | Convite de membros | Admin convida usuários por e-mail com papel pré-definido | Must Have |
-| MOD-AUTH-07 | Audit log | Registro imutável de login, mudança de papel, criação/suspensão de usuário | Must Have |
+| MOD-AUTH-07 | Audit log | Registro imutável de login, mudança de papel, criação/suspensão de usuário | Must Have ✅ (captura automática de toda mutação /v1 no gateway; sem UPDATE no banco) |
 | MOD-AUTH-08 | MFA | TOTP/SMS via Clerk para usuários internos | Should Have |
 | MOD-AUTH-09 | Papéis customizados por tenant | Definição de papéis próprios além dos padrão | Nice to Have |
 

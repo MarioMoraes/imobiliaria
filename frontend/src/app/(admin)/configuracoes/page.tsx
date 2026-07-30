@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { PageHeader, Section } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
 import { fetchCurrentTenant, fetchPaymentSettings, fetchSignatureSettings } from "../../../lib/api";
@@ -23,6 +24,28 @@ export default async function ConfiguracoesPage() {
   return (
     <>
       <PageHeader title="Configurações" />
+
+      {/* Card de navegação: a trilha é uma tela própria (lista longa, filtros),
+          não cabe como bloco no meio das configurações. */}
+      <div className="grid grid-3 mb-4">
+        <Link href="/configuracoes/auditoria" className="lookup-card reveal">
+          <span className="stat-icon accent">
+            <Icon name="shield" />
+          </span>
+          <div className="stack" style={{ gap: 4 }}>
+            <span className="lookup-card-title">Trilha de auditoria</span>
+            <span className="subtle text-sm">
+              Quem fez o quê no sistema, com autor, IP e horário. Registro imutável.
+            </span>
+          </div>
+          <div className="lookup-card-foot">
+            <span className="badge badge-slate">Somente administradores</span>
+            <span className="row gap-8 text-sm strong">
+              Abrir <Icon name="arrowRight" size={15} />
+            </span>
+          </div>
+        </Link>
+      </div>
 
       <div className="grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
         <Section title="Dados da imobiliária" pad>

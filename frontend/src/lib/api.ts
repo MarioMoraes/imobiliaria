@@ -1075,6 +1075,77 @@ export function fetchDocumentCounts(): Promise<DocumentCounts | null> {
   return get<DocumentCounts>("/v1/documents/summary");
 }
 
+/* ---------------------------------------------------------- Auditoria */
+
+/** Uma linha da trilha (MOD-AUTH-07). Espelha backend/modules/audit/schema. */
+export interface AuditLog {
+  id: string;
+  tenantId: string;
+  /** Só na visão global do Super Admin. */
+  tenantName?: string;
+  userId: string | null;
+  actorLabel: string | null;
+  action: string;
+  entity: string;
+  entityId: string | null;
+  payload: unknown;
+  ipAddress: string | null;
+  requestId: string | null;
+  status: "OK" | "DENIED";
+  createdAt: string;
+}
+
+export interface AuditPage {
+  items: AuditLog[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface AuditSummary {
+  last24h: number;
+  sensitive24h: number;
+  ai24h: number;
+  denied24h: number;
+}
+
+export interface AuditFilters {
+  action?: string;
+  entity?: string;
+  entityId?: string;
+  status?: "OK" | "DENIED";
+  q?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  limit?: number;
+  /** Só na visão global. */
+  tenantId?: string;
+}
+
+function auditQueryString(filters: AuditFilters): string {
+  const qs = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value !== undefined && value !== "") qs.set(key, String(value));
+  }
+  return qs.size ? `?${qs}` : "";
+}
+
+/** Trilha do próprio tenant (exige `audit:read` — ADMIN). */
+export function fetchAuditLogs(filters: AuditFilters = {}): Promise<AuditPage | null> {
+  return get<AuditPage>(`/v1/audit${auditQueryString(filters)}`);
+}
+
+/** Trilha global cross-tenant (Super Admin — MOD-SADMIN-04). */
+export function fetchGlobalAuditLogs(filters: AuditFilters = {}): Promise<AuditPage | null> {
+  return get<AuditPage>(`/admin/audit${auditQueryString(filters)}`);
+}
+
+/** Contadores das últimas 24h para os cartões do painel da plataforma. */
+export function fetchAuditSummary(): Promise<AuditSummary | null> {
+  return get<AuditSummary>("/admin/audit/summary");
+}
+
 type JsonResult = { ok: true; data: unknown } | { ok: false; error: string };
 
 /**

@@ -4,6 +4,7 @@ import { AppError } from "../../shared/errors.js";
 import { logger } from "../../shared/logger.js";
 import { isUuid } from "../../shared/uuid.js";
 import { requirePermission } from "../rbac/authorize.js";
+import { record } from "../audit/audit.service.js";
 import {
   saveSettingsSchema,
   webhookPayloadSchema,
@@ -104,6 +105,18 @@ export async function signatureWebhookRoutes(app: FastifyInstance): Promise<void
         // a existência do tenant para quem estiver sondando).
         throw new AppError("UNAUTHORIZED", 401, "Assinatura do webhook inválida");
       }
+
+      // Auditoria explícita: o callback chega fora de /v1, sem sessão. A
+      // assinatura tem valor legal (PRD 08), então o registro é do provedor.
+      await record({
+        tenantId: req.params.tenantId,
+        action: "webhook.processed",
+        entity: "contract",
+        entityId: parsed.data.external_id ?? null,
+        actorLabel: "ZapSign (webhook)",
+        payload: { event: parsed.data.event_type, status: parsed.data.status },
+        ipAddress: req.ip,
+      });
 
       return { data: { received: true } };
     },

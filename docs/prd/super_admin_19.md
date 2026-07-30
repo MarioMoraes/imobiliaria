@@ -7,7 +7,7 @@
 **Serviço Backend:** admin-service (`backend/src/modules/admin`, monólito porta 3001)
 **Tabelas Principais:** platform_config, tenant_quotas, feature_flags, service_health, cron_executions, job_logs, global_audit
 **Data:** 2026-07-10
-**Status:** Draft
+**Status:** Em implementação — MOD-SADMIN-04 (auditoria global) concluído (2026-07-30); demais pendentes
 
 ---
 
@@ -26,7 +26,7 @@
 | MOD-SADMIN-01 | Gestão de tenants | Criar/suspender/reativar/cancelar tenants | Must Have |
 | MOD-SADMIN-02 | Monitoramento uso/saúde | Métricas por tenant + consolidado | Must Have |
 | MOD-SADMIN-03 | Feature flags | Flags por tenant/plano | Must Have |
-| MOD-SADMIN-04 | Auditoria global | Visão cross-tenant de audit logs | Must Have |
+| MOD-SADMIN-04 | Auditoria global | Visão cross-tenant de audit logs | Must Have ✅ (GET /admin/audit + /summary; expurgo de retenção manual em /purge) |
 | MOD-SADMIN-05 | Health checks | Agrega `/health` de Postgres/Redis/RabbitMQ (timeout 3s) | Must Have |
 | MOD-SADMIN-06 | Dashboard de jobs/crons | Última/próxima execução, duração, taxa de sucesso | Must Have |
 | MOD-SADMIN-07 | Ferramentas LGPD | Exportação, anonimização, exclusão completa | Must Have |
@@ -86,6 +86,12 @@ Todas exigem papel **SUPER_ADMIN** (cross-tenant, auditado).
 | POST | /v1/admin/lgpd/anonymize | Anonimizar titular |
 | POST | /v1/admin/lgpd/delete-tenant | Exclusão completa (checklist) |
 | GET | /v1/admin/audit | Auditoria global |
+
+> Implementado sob `/admin/audit` (sem o prefixo `/v1`): a área de plataforma
+> não é escopada por tenant, então fica fora do escopo `/v1` — mesmo caminho já
+> usado por `/admin/tenants`. Além do `GET /admin/audit` (filtros + paginação),
+> existem `GET /admin/audit/summary` (cartões de 24h) e `POST /admin/audit/purge`
+> (expurgo de retenção, manual — não há agendador).
 
 ```typescript
 export const LgpdActionSchema = z.object({

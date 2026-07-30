@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { getTenantId } from "../../shared/tenant-context.js";
 import { AppError } from "../../shared/errors.js";
 import { requirePermission } from "../rbac/authorize.js";
+import { record } from "../audit/audit.service.js";
 import {
   addVersionSchema,
   createDocumentSchema,
@@ -28,10 +29,24 @@ export async function documentRoutes(app: FastifyInstance): Promise<void> {
     return { data: await service.counts(getTenantId()) };
   });
 
+  /**
+   * Abrir um documento devolve uma URL assinada — na prática, é o download. Por
+   * ser GET, a captura automática do gateway não o pega, e o PRD 09 exige
+   * `userId` + `ip` no acesso a dado sensível: daí o registro explícito.
+   */
   app.get<{ Params: { id: string } }>(
     "/:id",
     { preHandler: requirePermission("document:read") },
-    async (req) => ({ data: await service.getById(getTenantId(), req.params.id) }),
+    async (req) => {
+      const document = await service.getById(getTenantId(), req.params.id);
+      await record({
+        action: "document.downloaded",
+        entity: "document",
+        entityId: document.id,
+        payload: { kind: document.kind, fileName: document.fileName },
+      });
+      return { data: document };
+    },
   );
 
   app.get<{ Params: { id: string } }>(
