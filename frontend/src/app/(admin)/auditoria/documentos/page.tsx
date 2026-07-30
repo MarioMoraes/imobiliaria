@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { PageHeader, StatCard, Section, EmptyState, FilterNotice } from "../../../components/ui";
-import { Icon } from "../../../components/Icon";
+import { PageHeader, StatCard, Section, EmptyState, FilterNotice } from "../../../../components/ui";
+import { Icon } from "../../../../components/Icon";
 import {
   fetchContracts,
   fetchDocumentCounts,
@@ -8,9 +8,9 @@ import {
   fetchPersons,
   fetchProperties,
   type DocumentRecord,
-} from "../../../lib/api";
-import { formatDay } from "../../../lib/format";
-import { matches, readQuery } from "../../../lib/filter";
+} from "../../../../lib/api";
+import { formatDay } from "../../../../lib/format";
+import { matches, readQuery } from "../../../../lib/filter";
 
 /**
  * Biblioteca documental (MOD-DOC) — todos os documentos do tenant num lugar só.
@@ -78,9 +78,9 @@ export default async function DocumentosPage({
 
   return (
     <>
-      <PageHeader title="Documentos" />
+      <PageHeader title="Documentos" backHref="/auditoria" />
 
-      <FilterNotice term={q} count={documents.length} clearHref="/documentos" />
+      <FilterNotice term={q} count={documents.length} clearHref="/auditoria/documentos" />
 
       <div className="grid grid-3 mb-4">
         <StatCard

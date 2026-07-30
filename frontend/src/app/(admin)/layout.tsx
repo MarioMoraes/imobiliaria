@@ -3,7 +3,7 @@ import { currentUser } from "@clerk/nextjs/server";
 import { AppDialogs } from "../../components/AppDialogs";
 import { Sidebar } from "../../components/Sidebar";
 import { Topbar } from "../../components/Topbar";
-import { adminNav, adminFootNav } from "../../lib/nav";
+import { adminNav, visibleNav } from "../../lib/nav";
 import { fetchCurrentTenant, fetchCurrentUser } from "../../lib/api";
 import { requireSession } from "../../lib/auth-guard";
 
@@ -52,8 +52,7 @@ export default async function AdminLayout({
           brandName={brandName}
           brandSub="Imobiliária"
           brandLogo={tenant?.logoUrl ?? null}
-          groups={adminNav}
-          footItems={adminFootNav}
+          groups={visibleNav(adminNav, me?.roles ?? [])}
         />
         <div className="main">
           <Topbar
@@ -61,6 +60,7 @@ export default async function AdminLayout({
             brandName={brandName}
             userName={userName}
             userRole={userRole}
+            settingsHref="/configuracoes"
             accountSlot={<UserButton />}
           />
           <div className="content">{children}</div>

@@ -1,6 +1,6 @@
 /**
  * Apresentação da trilha de auditoria — puro, compartilhado pela tela do tenant
- * (`/configuracoes/auditoria`) e pela global do Super Admin
+ * (`/auditoria`, restrita ao SUPER_ADMIN) e pela global da plataforma
  * (`/superadmin/auditoria`).
  *
  * O backend grava a ação no formato técnico (`entidade.acao`, ver
@@ -8,6 +8,14 @@
  * ação sem tradução aparece como está: é melhor mostrar `condominium.expense_created`
  * do que esconder o registro.
  */
+
+/**
+ * Papéis que enxergam a trilha — espelha `audit:read` da matriz do backend
+ * (`modules/rbac/permissions.ts`). Mora aqui para que o item do menu
+ * (`lib/nav.ts`) e a guarda da página usem a MESMA lista: três cópias soltas
+ * viram três respostas diferentes na primeira vez que a regra mudar.
+ */
+export const AUDIT_ROLES = ["SUPER_ADMIN", "ADMIN"];
 
 interface AuditLike {
   action: string;

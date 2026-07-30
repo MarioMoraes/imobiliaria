@@ -301,13 +301,8 @@ a {
   color: color-mix(in srgb, var(--tone, var(--primary)) 70%, #fff);
 }
 
-.sidebar-foot {
-  padding: 12px;
-  border-top: 1px solid var(--border);
-}
-.sidebar--platform .sidebar-foot {
-  border-top-color: rgba(255, 255, 255, 0.08);
-}
+/* `.sidebar-foot` saiu com o rodapé da barra lateral (2026-07-30): Configurações
+   virou ícone na topbar. */
 
 /* Content column */
 .main {

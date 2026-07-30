@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { PageHeader, Section, EmptyState, FilterNotice } from "../../../../components/ui";
-import { fetchAuditLogs, type AuditLog } from "../../../../lib/api";
+import { fetchAuditLogs, fetchCurrentUser, type AuditLog } from "../../../../lib/api";
 import {
   actionLabel,
   actionTone,
+  AUDIT_ROLES,
   describePayload,
   ENTITY_LABEL,
   formatMoment,
@@ -12,7 +14,12 @@ import {
 /**
  * Trilha de auditoria do tenant (MOD-AUTH-07). Só leitura: o registro é
  * imutável, e quem escreve nele é o próprio sistema (gateway + `record()`).
- * Exige `audit:read` no backend — sem o papel, a lista volta vazia.
+ *
+ * Restrita a quem responde pelo tenant (`AUDIT_ROLES`). São três barreiras, de
+ * propósito: o card some da landing `/auditoria`, esta página devolve 404 para
+ * quem digitar a URL, e o backend recusa `audit:read` de qualquer outro papel.
+ * Só a última é o controle de acesso — as duas primeiras existem para ninguém
+ * esbarrar numa porta fechada.
  */
 
 const PAGE_SIZE = 30;
@@ -37,7 +44,7 @@ function hrefWith(current: Params, patch: Partial<Params>): string {
   for (const [key, value] of Object.entries(merged)) {
     if (value) qs.set(key, String(value));
   }
-  return qs.size ? `/configuracoes/auditoria?${qs}` : "/configuracoes/auditoria";
+  return qs.size ? `/auditoria/trilha?${qs}` : "/auditoria/trilha";
 }
 
 interface Params {
@@ -56,6 +63,10 @@ export default async function AuditoriaTenantPage({
 }: {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  // Quem não pode ler a trilha não precisa saber que a tela existe.
+  const me = await fetchCurrentUser();
+  if (!me?.roles.some((role) => AUDIT_ROLES.includes(role))) notFound();
+
   const raw = (await searchParams) ?? {};
   const params: Params = {
     q: first(raw["q"]),
@@ -82,7 +93,7 @@ export default async function AuditoriaTenantPage({
 
   return (
     <>
-      <PageHeader title="Trilha de auditoria" backHref="/configuracoes" />
+      <PageHeader title="Trilha de auditoria" backHref="/auditoria" />
 
       <FilterNotice
         term={params.q ?? ""}

@@ -113,8 +113,11 @@ const MATRIX: Record<Operation, Role[]> = {
   // Reindexação completa do RAG — operação cara, varre o inventário inteiro.
   "ai:admin": ["SUPER_ADMIN", "ADMIN"],
   // Trilha de auditoria (MOD-AUTH-07): mostra o que TODO mundo do tenant fez,
-  // com IP. Fica com quem responde pelo tenant — o mesmo argumento de `ai:read`.
-  // GESTOR de fora: supervisionar a equipe não exige ler o rastro de cada clique.
+  // com IP. Fica com quem responde pelo tenant. Chegou a ser só SUPER_ADMIN,
+  // mas esse papel não é concedível de dentro do tenant (a rota de troca de
+  // papel o recusa, para fechar um caminho de escalada) — na prática, ninguém
+  // teria acesso. GESTOR fica de fora: supervisionar a equipe não exige ler o
+  // rastro de cada clique, e a trilha carrega dado pessoal (IP).
   "audit:read": ["SUPER_ADMIN", "ADMIN"],
 };
 

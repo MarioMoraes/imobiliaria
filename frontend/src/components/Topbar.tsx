@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Icon } from "./Icon";
 import { GlobalSearch } from "./GlobalSearch";
 
@@ -13,6 +14,11 @@ interface TopbarProps {
   userRole?: string;
   /** Menu de conta (ex.: <UserButton/> do Clerk). Renderizado à direita. */
   accountSlot?: React.ReactNode;
+  /**
+   * Destino do ícone de configurações, ao lado das notificações. Ausente → o
+   * ícone não aparece (a área de plataforma não tem configurações de tenant).
+   */
+  settingsHref?: string;
 }
 
 export function Topbar({
@@ -22,6 +28,7 @@ export function Topbar({
   userName,
   userRole,
   accountSlot,
+  settingsHref,
 }: TopbarProps) {
   return (
     <header className="topbar">
@@ -40,6 +47,19 @@ export function Topbar({
       <GlobalSearch placeholder={searchPlaceholder} />
 
       <div className="right row gap-8">
+        {/* Mesma moldura das notificações (`icon-btn`): são os dois utilitários
+            da barra, e um botão com borda ao lado de um sem borda leria como
+            estados diferentes do mesmo controle. */}
+        {settingsHref && (
+          <Link
+            href={settingsHref}
+            className="icon-btn"
+            aria-label="Configurações"
+            title="Configurações"
+          >
+            <Icon name="settings" />
+          </Link>
+        )}
         <button className="icon-btn" aria-label="Notificações">
           <Icon name="bell" />
           <span className="dot-notify" />

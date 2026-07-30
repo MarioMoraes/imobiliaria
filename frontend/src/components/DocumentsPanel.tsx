@@ -11,7 +11,7 @@ import {
   listDocumentsAction,
   purgeDocumentAction,
   uploadDocumentAction,
-} from "../app/(admin)/documentos/actions";
+} from "../app/(admin)/auditoria/documentos/actions";
 import type { DocumentEntityType, DocumentRecord } from "../lib/api";
 
 /**

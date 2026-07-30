@@ -66,9 +66,9 @@ test("AUXILIAR não apaga NADA, e não mexe em usuário, configuração nem dinh
   assert.equal(can(["AUXILIAR"], "ai:read"), false, "histórico de conversa é auditoria");
 });
 
-test("a trilha de auditoria é só de quem responde pelo tenant", () => {
-  assert.equal(can(["ADMIN"], "audit:read"), true);
+test("a trilha de auditoria é de quem responde pelo tenant", () => {
   assert.equal(can(["SUPER_ADMIN"], "audit:read"), true);
+  assert.equal(can(["ADMIN"], "audit:read"), true);
   for (const role of ["GESTOR", "FINANCEIRO", "CORRETOR", "AUXILIAR", "AI_AGENT"] as const) {
     assert.equal(can([role], "audit:read"), false, `${role} não lê a trilha`);
   }

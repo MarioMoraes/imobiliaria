@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "./Icon";
-import type { NavGroup, NavItem } from "../lib/nav";
+import type { NavGroup } from "../lib/nav";
 
 interface SidebarProps {
   variant?: "tenant" | "platform";
@@ -12,7 +12,6 @@ interface SidebarProps {
   /** Logo do tenant (data URL / URL). Quando ausente, mostra o ícone padrão. */
   brandLogo?: string | null;
   groups: NavGroup[];
-  footItems?: NavItem[];
 }
 
 export function Sidebar({
@@ -21,7 +20,6 @@ export function Sidebar({
   brandSub,
   brandLogo,
   groups,
-  footItems = [],
 }: SidebarProps) {
   const pathname = usePathname();
 
@@ -67,20 +65,6 @@ export function Sidebar({
         ))}
       </nav>
 
-      {footItems.length > 0 && (
-        <div className="sidebar-foot">
-          {footItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`nav-item ${item.tone ?? "tone-ardosia"}${isActive(item.href) ? " active" : ""}`}
-            >
-              <Icon name={item.icon} />
-              <span>{item.label}</span>
-            </Link>
-          ))}
-        </div>
-      )}
     </aside>
   );
 }

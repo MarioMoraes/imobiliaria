@@ -1,5 +1,6 @@
 /** Configuração de navegação — painel do tenant (admin) e plataforma (superadmin). */
 
+
 export interface NavItem {
   label: string;
   href: string;
@@ -11,6 +12,13 @@ export interface NavItem {
    * neutro, para a lista não virar um arco-íris.
    */
   tone?: string;
+  /**
+   * Papéis que enxergam o item. Ausente = todos veem. O filtro roda no
+   * **servidor** (`visibleNav`, chamado no layout): esconder no cliente deixaria
+   * o destino no bundle e a rota alcançável na barra de endereços. Esconder,
+   * aliás, nunca é o controle de acesso — a página e o backend também barram.
+   */
+  roles?: string[];
 }
 export interface NavGroup {
   label: string;
@@ -43,9 +51,10 @@ export const adminNav: NavGroup[] = [
     ],
   },
   // Grupo "Operação" retirado do menu em 2026-07-21 — cada item volta quando o
-  // módulo por trás dele existir. Documentos voltou em 2026-07-29 (MOD-DOC). Os
-  // demais continuam sendo maquete: as rotas existem em app/(admin), mas não
-  // são navegáveis pela barra lateral. Para reativar, basta descomentar a linha.
+  // módulo por trás dele existir. Os itens abaixo continuam sendo maquete: as
+  // rotas existem em app/(admin), mas não são navegáveis pela barra lateral.
+  // Para reativar, basta descomentar a linha. (Documentos esteve aqui até
+  // 2026-07-30, quando virou card dentro de Auditoria.)
   {
     label: "Operação",
     items: [
@@ -53,7 +62,6 @@ export const adminNav: NavGroup[] = [
       // { label: "Agenda", href: "/agenda", icon: "calendar", tone: "tone-ciano" },
       // { label: "Aluguel", href: "/aluguel", icon: "key", tone: "tone-ambar" },
       // { label: "Manutenção", href: "/manutencao", icon: "wrench", tone: "tone-ardosia" },
-      { label: "Documentos", href: "/documentos", icon: "folder", tone: "tone-teal" },
     ],
   },
   {
@@ -73,11 +81,35 @@ export const adminNav: NavGroup[] = [
     label: "Inteligência",
     items: [{ label: "Agentes de IA", href: "/agentes", icon: "bot", tone: "tone-violeta" }],
   },
+  // Auditoria é uma landing de cards (trilha + documentos). O item NÃO leva
+  // `roles`: os documentos são de todo mundo que opera (`document:read`), e só a
+  // trilha é restrita — quem recorta é a própria página, card a card. Gatear o
+  // item inteiro em `AUDIT_ROLES` tiraria o acervo documental de gestor,
+  // financeiro, corretor e auxiliar.
+  {
+    label: "Auditoria",
+    items: [{ label: "Auditoria", href: "/auditoria", icon: "list", tone: "tone-indigo" }],
+  },
 ];
 
-export const adminFootNav: NavItem[] = [
-  { label: "Configurações", href: "/configuracoes", icon: "settings", tone: "tone-ardosia" },
-];
+/**
+ * Recorta o menu para os papéis do usuário: tira os itens restritos e os grupos
+ * que ficaram vazios (um rótulo de grupo sozinho é ruído). Chamar no layout
+ * (Server Component), nunca na barra lateral — ver a nota em `NavItem.roles`.
+ */
+export function visibleNav(groups: NavGroup[], roles: readonly string[]): NavGroup[] {
+  return groups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(
+        (item) => !item.roles || item.roles.some((role) => roles.includes(role)),
+      ),
+    }))
+    .filter((group) => group.items.length > 0);
+}
+
+/* Configurações saiu do rodapé da barra lateral em 2026-07-30: virou ícone na
+   topbar, ao lado das notificações (ver `Topbar.settingsHref`). */
 
 export const superadminNav: NavGroup[] = [
   {

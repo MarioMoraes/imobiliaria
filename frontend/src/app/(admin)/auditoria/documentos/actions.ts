@@ -7,7 +7,7 @@ import {
   postJson,
   type DocumentEntityType,
   type DocumentRecord,
-} from "../../../lib/api";
+} from "../../../../lib/api";
 
 /**
  * Server actions do repositório documental (MOD-DOC). Ficam num arquivo só
@@ -57,7 +57,7 @@ export async function uploadDocumentAction(input: {
     expiresAt: input.expiresAt || undefined,
   });
   if (!res.ok) return { ok: false, error: res.error };
-  revalidatePath("/documentos");
+  revalidatePath("/auditoria/documentos");
   return { ok: true };
 }
 
@@ -73,7 +73,7 @@ export async function addDocumentVersionAction(
     expiresAt: input.expiresAt || undefined,
   });
   if (!res.ok) return { ok: false, error: res.error };
-  revalidatePath("/documentos");
+  revalidatePath("/auditoria/documentos");
   return { ok: true };
 }
 
@@ -87,6 +87,6 @@ export async function purgeDocumentAction(
   if (!documentId) return { ok: false, error: "ID inválido." };
   const res = await deleteJson(`/v1/documents/${documentId}`);
   if (!res.ok) return { ok: false, error: res.error };
-  revalidatePath("/documentos");
+  revalidatePath("/auditoria/documentos");
   return { ok: true };
 }
