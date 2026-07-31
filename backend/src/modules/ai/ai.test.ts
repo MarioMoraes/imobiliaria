@@ -35,7 +35,12 @@ import {
  *   node --import tsx --test backend/src/modules/ai/ai.test.ts
  */
 
-const DEMO_TENANT = "00000000-0000-0000-0000-000000000001";
+import { createTestTenant } from "../../testing/tenants.js";
+
+// Tenant próprio deste arquivo, descartado no `after` do fixture. Usar o
+// tenant demo fazia cada execução da suíte deixar linhas na imobiliária de
+// desenvolvimento — apareciam no painel misturadas ao dado real.
+const TENANT = (await createTestTenant("ai")).id;
 const OTHER_TENANT = "00000000-0000-0000-0000-0000000000ff";
 
 /* ------------------------------------------------------------- duplos */
@@ -93,7 +98,7 @@ function stubLlm(options: StubLlmOptions = {}): StubLlm {
  *
  * O índice HNSW é global — o grafo ANN não conhece tenant. Quem separa é a
  * policy de RLS, aplicada sobre as linhas que o índice devolve. Este teste é o
- * que prova que essa separação funciona: indexa no tenant demo e busca pelo
+ * que prova que essa separação funciona: indexa num tenant e busca pelo
  * MESMO vetor no outro tenant, onde a distância seria zero se vazasse.
  */
 test("RAG: chunk indexado num tenant não é encontrado por outro", async () => {
@@ -101,7 +106,7 @@ test("RAG: chunk indexado num tenant não é encontrado por outro", async () => 
   const embedding = fakeEmbedding(42);
 
   await ragRepo.replaceChunks(
-    DEMO_TENANT,
+    TENANT,
     "property",
     entityId,
     [
@@ -116,7 +121,7 @@ test("RAG: chunk indexado num tenant não é encontrado por outro", async () => 
     "hash-de-teste",
   );
 
-  const mine = await ragRepo.searchSimilar(DEMO_TENANT, embedding, 10);
+  const mine = await ragRepo.searchSimilar(TENANT, embedding, 10);
   assert.ok(
     mine.some((c) => c.entityId === entityId),
     "o tenant dono deve encontrar o próprio chunk",
@@ -128,13 +133,13 @@ test("RAG: chunk indexado num tenant não é encontrado por outro", async () => 
     "TENANT LEAKAGE: outro tenant não pode encontrar o chunk pela busca vetorial",
   );
 
-  await ragRepo.removeEntity(DEMO_TENANT, "property", entityId);
+  await ragRepo.removeEntity(TENANT, "property", entityId);
 });
 
 test("RAG: metadados de indexação também não vazam entre tenants", async () => {
   const entityId = randomUUID();
   await ragRepo.replaceChunks(
-    DEMO_TENANT,
+    TENANT,
     "property",
     entityId,
     [
@@ -149,33 +154,33 @@ test("RAG: metadados de indexação também não vazam entre tenants", async () 
     "hash-abc",
   );
 
-  assert.equal(await ragRepo.getIndexedHash(DEMO_TENANT, "property", entityId), "hash-abc");
+  assert.equal(await ragRepo.getIndexedHash(TENANT, "property", entityId), "hash-abc");
   assert.equal(
     await ragRepo.getIndexedHash(OTHER_TENANT, "property", entityId),
     null,
     "TENANT LEAKAGE: o hash de indexação de outro tenant ficou visível",
   );
 
-  await ragRepo.removeEntity(DEMO_TENANT, "property", entityId);
+  await ragRepo.removeEntity(TENANT, "property", entityId);
 });
 
 /* ----------------------------------------------------- 2. créditos */
 
 test("créditos: reserva falha sem saldo disponível", async () => {
-  const before = await credits.getCredits(DEMO_TENANT);
-  const ok = await credits.reserve(DEMO_TENANT, before.available + 1000);
+  const before = await credits.getCredits(TENANT);
+  const ok = await credits.reserve(TENANT, before.available + 1000);
   assert.equal(ok, false, "não deveria reservar mais que o disponível");
 
-  const after = await credits.getCredits(DEMO_TENANT);
+  const after = await credits.getCredits(TENANT);
   assert.equal(after.reserved, before.reserved, "uma reserva recusada não pode empenhar nada");
 });
 
 test("créditos: reserva → commit debita o consumo real", async () => {
-  await credits.grant(DEMO_TENANT, 500);
-  const before = await credits.getCredits(DEMO_TENANT);
+  await credits.grant(TENANT, 500);
+  const before = await credits.getCredits(TENANT);
 
-  assert.equal(await credits.reserve(DEMO_TENANT, 100), true);
-  const reserved = await credits.getCredits(DEMO_TENANT);
+  assert.equal(await credits.reserve(TENANT, 100), true);
+  const reserved = await credits.getCredits(TENANT);
   assert.equal(reserved.reserved, before.reserved + 100);
   assert.equal(
     reserved.available,
@@ -185,21 +190,21 @@ test("créditos: reserva → commit debita o consumo real", async () => {
 
   // Consumo real (30) menor que a reserva (100): é o caso comum, já que a
   // reserva estima pelo teto de max_tokens.
-  await credits.commit(DEMO_TENANT, 100, 30);
-  const after = await credits.getCredits(DEMO_TENANT);
+  await credits.commit(TENANT, 100, 30);
+  const after = await credits.getCredits(TENANT);
   assert.equal(after.reserved, before.reserved, "a reserva tem que ser liberada");
   assert.equal(after.balance, before.balance - 30, "só o consumo real debita o saldo");
   assert.equal(after.used, before.used + 30);
 });
 
 test("créditos: estorno devolve a reserva sem cobrar", async () => {
-  await credits.grant(DEMO_TENANT, 500);
-  const before = await credits.getCredits(DEMO_TENANT);
+  await credits.grant(TENANT, 500);
+  const before = await credits.getCredits(TENANT);
 
-  assert.equal(await credits.reserve(DEMO_TENANT, 200), true);
-  await credits.refund(DEMO_TENANT, 200);
+  assert.equal(await credits.reserve(TENANT, 200), true);
+  await credits.refund(TENANT, 200);
 
-  const after = await credits.getCredits(DEMO_TENANT);
+  const after = await credits.getCredits(TENANT);
   assert.equal(after.balance, before.balance, "uma pergunta que falhou não pode custar nada");
   assert.equal(after.reserved, before.reserved);
   assert.equal(after.used, before.used);
@@ -208,14 +213,14 @@ test("créditos: estorno devolve a reserva sem cobrar", async () => {
 /* -------------------------------------------------------- 3. grafo */
 
 test("grafo: a conversa e a chamada de ferramenta ficam auditadas", async () => {
-  await credits.grant(DEMO_TENANT, 1000);
+  await credits.grant(TENANT, 1000);
   const llm = stubLlm({
     callTools: [{ name: "buscar_imoveis", input: { termo: "Centro" } }],
     answer: "Encontrei alguns imóveis no Centro.",
   });
 
   const result = await chat(
-    DEMO_TENANT,
+    TENANT,
     { message: "Tem imóvel no Centro?", roles: ["ADMIN"] },
     { llm, embeddings: stubEmbeddings() },
   );
@@ -223,7 +228,7 @@ test("grafo: a conversa e a chamada de ferramenta ficam auditadas", async () => 
   assert.equal(result.answer, "Encontrei alguns imóveis no Centro.");
   assert.ok(result.creditsUsed > 0, "a resposta tem que debitar crédito");
 
-  const detail = await aiRepo.findConversationDetail(DEMO_TENANT, result.conversationId);
+  const detail = await aiRepo.findConversationDetail(TENANT, result.conversationId);
   assert.ok(detail);
   assert.deepEqual(
     detail.messages.map((m) => m.role),
@@ -244,14 +249,14 @@ test("grafo: a conversa e a chamada de ferramenta ficam auditadas", async () => 
  * modelo como texto, não estourar a requisição.
  */
 test("grafo: ferramenta sem permissão é negada, e a conversa continua", async () => {
-  await credits.grant(DEMO_TENANT, 1000);
+  await credits.grant(TENANT, 1000);
   const llm = stubLlm({
     callTools: [{ name: "buscar_pessoas", input: { termo: "Maria" } }],
     answer: "Não tenho acesso a esses dados.",
   });
 
   const result = await chat(
-    DEMO_TENANT,
+    TENANT,
     { message: "Quem é a inquilina do 101?", roles: ["FINANCEIRO"] },
     { llm, embeddings: stubEmbeddings() },
   );
@@ -263,7 +268,7 @@ test("grafo: ferramenta sem permissão é negada, e a conversa continua", async 
   );
   assert.ok(result.answer, "a requisição não pode falhar por causa da recusa");
 
-  const detail = await aiRepo.findConversationDetail(DEMO_TENANT, result.conversationId);
+  const detail = await aiRepo.findConversationDetail(TENANT, result.conversationId);
   const call = detail!.toolCalls.find((t) => t.tool === "buscar_pessoas");
   assert.equal(call?.status, "DENIED", "a recusa tem que aparecer na auditoria");
 });
@@ -279,10 +284,10 @@ test("grafo: ferramenta sem permissão é negada, e a conversa continua", async 
  * errar um byte seria um bug esperando a hora.
  */
 test("grafo: a ferramenta de fotos anexa as imagens à resposta", async () => {
-  await credits.grant(DEMO_TENANT, 1000);
+  await credits.grant(TENANT, 1000);
 
   const property = await insertProperty(
-    DEMO_TENANT,
+    TENANT,
     createPropertySchema.parse({
       title: "Apartamento com fotos",
       kind: "rent",
@@ -294,11 +299,11 @@ test("grafo: a ferramenta de fotos anexa as imagens à resposta", async () => {
   // INSERT direto: `propertyService.addPhoto` sobe o binário para o bucket, e a
   // suíte não depende de object storage. A URL é presignada em memória (só
   // assinatura, sem rede), então `listPhotos` funciona sem bucket de pé.
-  await withTenant(DEMO_TENANT, async (client) => {
+  await withTenant(TENANT, async (client) => {
     await client.query(
       `INSERT INTO property_photos (tenant_id, property_id, storage_key, content_type, size_bytes, caption, position)
        VALUES ($1, $2, $3, 'image/jpeg', 1024, 'Sala de estar', 0)`,
-      [DEMO_TENANT, property.id, `${DEMO_TENANT}/properties/${property.id}/teste.jpg`],
+      [TENANT, property.id, `${TENANT}/properties/${property.id}/teste.jpg`],
     );
   });
 
@@ -308,7 +313,7 @@ test("grafo: a ferramenta de fotos anexa as imagens à resposta", async () => {
   });
 
   const result = await chat(
-    DEMO_TENANT,
+    TENANT,
     { message: "Me mostra as fotos desse imóvel", roles: ["ADMIN"] },
     { llm, embeddings: stubEmbeddings() },
   );
@@ -332,13 +337,13 @@ test("grafo: a ferramenta de fotos anexa as imagens à resposta", async () => {
  * passaria pelo motivo errado, escondendo a regressão real.
  */
 test("ferramentas: o imóvel não entrega o proprietário, nem para ADMIN", async () => {
-  await credits.grant(DEMO_TENANT, 1000);
+  await credits.grant(TENANT, 1000);
 
   // E-mail único por execução: o banco de teste não é recriado entre rodadas e
   // `person.create` recusa contato repetido (ERR_PESSOA_004).
   const email = `fulano.dono.${randomUUID()}@example.com`;
   const owner = await personService.create(
-    DEMO_TENANT,
+    TENANT,
     // Pelo schema, e não por objeto literal: `personType` e `nationality` têm
     // default no zod e NOT NULL no banco — um literal cru quebra no INSERT.
     createPersonSchema.parse({
@@ -349,7 +354,7 @@ test("ferramentas: o imóvel não entrega o proprietário, nem para ADMIN", asyn
   );
 
   const property = await insertProperty(
-    DEMO_TENANT,
+    TENANT,
     createPropertySchema.parse({
       title: "Imóvel com dono cadastrado",
       kind: "rent",
@@ -357,7 +362,7 @@ test("ferramentas: o imóvel não entrega o proprietário, nem para ADMIN", asyn
       status: "available",
     }),
   );
-  await propertyService.addOwner(DEMO_TENANT, property.id, owner.id, 100);
+  await propertyService.addOwner(TENANT, property.id, owner.id, 100);
 
   const llm = stubLlm({
     callTools: [{ name: "detalhar_imovel", input: { id: property.id } }],
@@ -365,7 +370,7 @@ test("ferramentas: o imóvel não entrega o proprietário, nem para ADMIN", asyn
   });
 
   await chat(
-    DEMO_TENANT,
+    TENANT,
     { message: "Quem é o dono desse imóvel?", roles: ["ADMIN"] },
     { llm, embeddings: stubEmbeddings() },
   );
@@ -388,30 +393,30 @@ test("ferramentas: o imóvel não entrega o proprietário, nem para ADMIN", asyn
  * seguinte como texto que ele pode repetir.
  */
 test("resposta: o id interno não chega ao usuário nem ao histórico", async () => {
-  await credits.grant(DEMO_TENANT, 1000);
+  await credits.grant(TENANT, 1000);
   const id = "8bb63ba6-43fd-4d59-ba94-1eb5cd665856";
 
   const llm = stubLlm({ answer: `Encontrei a casa no Centro [id: ${id}], disponível.` });
 
   const result = await chat(
-    DEMO_TENANT,
+    TENANT,
     { message: "Tem casa no Centro?", roles: ["ADMIN"] },
     { llm, embeddings: stubEmbeddings() },
   );
 
   assert.equal(result.answer, "Encontrei a casa no Centro, disponível.");
 
-  const detail = await aiRepo.findConversationDetail(DEMO_TENANT, result.conversationId);
+  const detail = await aiRepo.findConversationDetail(TENANT, result.conversationId);
   const gravada = detail!.messages.find((m) => m.role === "assistant");
   assert.doesNotMatch(gravada!.content, /8bb63ba6/, "o id não pode ficar gravado na conversa");
 });
 
 /** O outro lado: sem foto, a ferramenta diz isso explicitamente. */
 test("grafo: imóvel sem foto devolve a ausência em vez de silêncio", async () => {
-  await credits.grant(DEMO_TENANT, 1000);
+  await credits.grant(TENANT, 1000);
 
   const property = await insertProperty(
-    DEMO_TENANT,
+    TENANT,
     createPropertySchema.parse({
       title: "Imóvel sem foto",
       kind: "sale",
@@ -426,7 +431,7 @@ test("grafo: imóvel sem foto devolve a ausência em vez de silêncio", async ()
   });
 
   const result = await chat(
-    DEMO_TENANT,
+    TENANT,
     { message: "Tem foto desse imóvel?", roles: ["ADMIN"] },
     { llm, embeddings: stubEmbeddings() },
   );
@@ -436,8 +441,8 @@ test("grafo: imóvel sem foto devolve a ausência em vez de silêncio", async ()
 });
 
 test("grafo: falha do provedor estorna a reserva", async () => {
-  await credits.grant(DEMO_TENANT, 1000);
-  const before = await credits.getCredits(DEMO_TENANT);
+  await credits.grant(TENANT, 1000);
+  const before = await credits.getCredits(TENANT);
 
   const failing: LlmClient = {
     isConfigured: () => true,
@@ -449,26 +454,26 @@ test("grafo: falha do provedor estorna a reserva", async () => {
 
   await assert.rejects(
     chat(
-      DEMO_TENANT,
+      TENANT,
       { message: "Alguma coisa?", roles: ["ADMIN"] },
       { llm: failing, embeddings: stubEmbeddings() },
     ),
   );
 
-  const after = await credits.getCredits(DEMO_TENANT);
+  const after = await credits.getCredits(TENANT);
   assert.equal(after.available, before.available, "a falha não pode consumir crédito");
   assert.equal(after.reserved, before.reserved, "a reserva tem que ser estornada");
 });
 
 test("chat: sem créditos responde 402 ERR_AI_006", async () => {
-  // Zera o disponível empenhando tudo, sem mexer no saldo real do tenant demo.
-  const current = await credits.getCredits(DEMO_TENANT);
-  await credits.reserve(DEMO_TENANT, current.available);
+  // Zera o disponível empenhando tudo, sem depender do saldo inicial.
+  const current = await credits.getCredits(TENANT);
+  await credits.reserve(TENANT, current.available);
 
   try {
     await assert.rejects(
       chat(
-        DEMO_TENANT,
+        TENANT,
         { message: "Tem imóvel disponível?", roles: ["ADMIN"] },
         { llm: stubLlm(), embeddings: stubEmbeddings() },
       ),
@@ -476,20 +481,20 @@ test("chat: sem créditos responde 402 ERR_AI_006", async () => {
         err.code === "ERR_AI_006" && err.statusCode === 402,
     );
   } finally {
-    await credits.refund(DEMO_TENANT, current.available);
+    await credits.refund(TENANT, current.available);
   }
 });
 
 /* ---------------------------------------- 4. isolamento da conversa */
 
 test("conversas: uma conversa não é visível por outro tenant", async () => {
-  const conversation = await aiRepo.createConversation(DEMO_TENANT, { channel: "WEB" });
-  await aiRepo.insertMessage(DEMO_TENANT, conversation.id, {
+  const conversation = await aiRepo.createConversation(TENANT, { channel: "WEB" });
+  await aiRepo.insertMessage(TENANT, conversation.id, {
     role: "user",
     content: "pergunta confidencial",
   });
 
-  assert.ok(await aiRepo.findConversation(DEMO_TENANT, conversation.id));
+  assert.ok(await aiRepo.findConversation(TENANT, conversation.id));
   assert.equal(
     await aiRepo.findConversation(OTHER_TENANT, conversation.id),
     null,
@@ -498,12 +503,12 @@ test("conversas: uma conversa não é visível por outro tenant", async () => {
 });
 
 test("mensagens ficam cifradas em repouso", async () => {
-  const conversation = await aiRepo.createConversation(DEMO_TENANT, { channel: "WEB" });
+  const conversation = await aiRepo.createConversation(TENANT, { channel: "WEB" });
   const segredo = `segredo-${randomUUID()}`;
-  await aiRepo.insertMessage(DEMO_TENANT, conversation.id, { role: "user", content: segredo });
+  await aiRepo.insertMessage(TENANT, conversation.id, { role: "user", content: segredo });
 
   // Lê a coluna crua: o texto em claro não pode estar lá.
-  const raw = await withTenant(DEMO_TENANT, async (client) => {
+  const raw = await withTenant(TENANT, async (client) => {
     const { rows } = await client.query<{ content_enc: string }>(
       "SELECT content_enc FROM agent_messages WHERE conversation_id = $1",
       [conversation.id],
@@ -514,7 +519,7 @@ test("mensagens ficam cifradas em repouso", async () => {
   assert.ok(!raw.includes(segredo), "o conteúdo não pode ficar em claro no banco");
   assert.ok(raw.startsWith("v1."), "deve usar o formato versionado de shared/crypto");
 
-  const messages = await aiRepo.listMessages(DEMO_TENANT, conversation.id);
+  const messages = await aiRepo.listMessages(TENANT, conversation.id);
   assert.equal(messages[0]!.content, segredo, "a leitura tem que decifrar de volta");
 });
 
@@ -538,7 +543,7 @@ after(async () => {
 });
 
 function headers(roles: string) {
-  return { "x-tenant-id": DEMO_TENANT, "x-dev-roles": roles };
+  return { "x-tenant-id": TENANT, "x-dev-roles": roles };
 }
 
 test("rotas: sem ai:use, POST /v1/ai/chat responde 403", async () => {

@@ -18,7 +18,12 @@ import * as brokerRepo from "../modules/broker/broker.repository.js";
  *
  * Depende da infra de pé (`npm run infra:up`).
  */
-const DEMO_TENANT = "00000000-0000-0000-0000-000000000001";
+import { createTestTenant } from "../testing/tenants.js";
+
+// Tenant próprio deste arquivo, descartado no `after` do fixture. Usar o
+// tenant demo fazia cada execução da suíte deixar linhas na imobiliária de
+// desenvolvimento — apareciam no painel misturadas ao dado real.
+const TENANT = (await createTestTenant("sequence")).id;
 // Segundo tenant do teste. Diferente dos testes de LEITURA (que usam um id
 // inexistente de propósito), aqui há INSERT: `brokers.tenant_id` tem FK para
 // `tenants`, então a linha precisa existir de verdade.
@@ -39,7 +44,7 @@ before(async () => {
 });
 
 after(async () => {
-  await withTenant(DEMO_TENANT, (client) =>
+  await withTenant(TENANT, (client) =>
     client.query("DELETE FROM brokers WHERE id = ANY($1::uuid[])", [criados]),
   );
   await withPlatform((client) => client.query("DELETE FROM tenants WHERE id = $1", [OTHER_TENANT]));
@@ -52,7 +57,7 @@ test("inserções concorrentes recebem códigos DISTINTOS", async () => {
   // transações se sobrepõem no tempo — é o cenário que produzia a duplicata.
   const criadosAgora = await Promise.all(
     Array.from({ length: 8 }, (_, i) =>
-      brokerRepo.insertBroker(DEMO_TENANT, { name: `${marca} ${i}`, commissionPercent: 0 }),
+      brokerRepo.insertBroker(TENANT, { name: `${marca} ${i}`, commissionPercent: 0 }),
     ),
   );
   criadosAgora.forEach((b) => criados.push(b.id));
@@ -66,7 +71,7 @@ test("inserções concorrentes recebem códigos DISTINTOS", async () => {
 });
 
 test("o índice único é a rede de segurança (código repetido é recusado pelo banco)", async () => {
-  const existente = await brokerRepo.insertBroker(DEMO_TENANT, {
+  const existente = await brokerRepo.insertBroker(TENANT, {
     name: `Corretor Único ${Date.now()}`,
     commissionPercent: 0,
   });
@@ -76,10 +81,10 @@ test("o índice único é a rede de segurança (código repetido é recusado pel
   // escapasse do lock produziria.
   await assert.rejects(
     () =>
-      withTenant(DEMO_TENANT, (client) =>
+      withTenant(TENANT, (client) =>
         client.query(
           "INSERT INTO brokers (tenant_id, code, name, commission_percent) VALUES ($1, $2, $3, 0)",
-          [DEMO_TENANT, existente.code, "Duplicata"],
+          [TENANT, existente.code, "Duplicata"],
         ),
       ),
     (err: { code?: string }) => err.code === "23505",
@@ -88,7 +93,7 @@ test("o índice único é a rede de segurança (código repetido é recusado pel
 });
 
 test("o mesmo código PODE existir em tenants diferentes (o único é por tenant)", async () => {
-  const a = await brokerRepo.insertBroker(DEMO_TENANT, {
+  const a = await brokerRepo.insertBroker(TENANT, {
     name: `A ${Date.now()}`,
     commissionPercent: 0,
   });

@@ -16,9 +16,14 @@ import { WEBHOOK_TOKEN_HEADER } from "./payment.schema.js";
  *
  * Depende da infra de pé (`npm run infra:up`).
  */
-const DEMO_TENANT = "00000000-0000-0000-0000-000000000001";
+import { createTestTenant } from "../../testing/tenants.js";
+
+// Tenant próprio deste arquivo, descartado no `after` do fixture. Usar o
+// tenant demo fazia cada execução da suíte deixar linhas na imobiliária de
+// desenvolvimento — apareciam no painel misturadas ao dado real.
+const TENANT = (await createTestTenant("payment.webhook")).id;
 const OTHER_TENANT = "00000000-0000-0000-0000-0000000000ff";
-const URL = `/webhooks/asaas/${DEMO_TENANT}`;
+const URL = `/webhooks/asaas/${TENANT}`;
 
 let app: FastifyInstance;
 let token: string;
@@ -27,15 +32,15 @@ let saved: Awaited<ReturnType<typeof repo.findSettings>> = null;
 
 before(async () => {
   app = await buildApp();
-  saved = await repo.findSettings(DEMO_TENANT);
-  await repo.upsertSettings(DEMO_TENANT, {
+  saved = await repo.findSettings(TENANT);
+  await repo.upsertSettings(TENANT, {
     apiKeyEnc: "v1.fake.fake.fake",
     apiKeyHint: "9999",
     sandbox: true,
     billingType: "UNDEFINED",
     webhookToken: `webhook-${randomUUID()}`,
   });
-  token = (await repo.findSettings(DEMO_TENANT))!.webhookToken!;
+  token = (await repo.findSettings(TENANT))!.webhookToken!;
 });
 
 /**
@@ -44,9 +49,9 @@ before(async () => {
  * "Emitir boleto" quebraria ao tentar decifrar a credencial de teste.
  */
 after(async () => {
-  await withTenant(DEMO_TENANT, async (client) => {
+  await withTenant(TENANT, async (client) => {
     if (!saved) {
-      await client.query("DELETE FROM tenant_payment_settings WHERE tenant_id = $1", [DEMO_TENANT]);
+      await client.query("DELETE FROM tenant_payment_settings WHERE tenant_id = $1", [TENANT]);
       return;
     }
     await client.query(
@@ -55,7 +60,7 @@ after(async () => {
               billing_type = $5, webhook_token = $6
         WHERE tenant_id = $1`,
       [
-        DEMO_TENANT,
+        TENANT,
         saved.apiKeyEnc,
         saved.apiKeyHint,
         saved.sandbox,
@@ -76,23 +81,23 @@ const paymentEvent = (chargeId: string, eventId: string) => ({
   payment: { id: chargeId, status: "RECEIVED", value: 2500, paymentDate: "2026-08-09" },
 });
 
-/** Parcela real do tenant demo, já vinculada a uma cobrança do Asaas. */
+/** Parcela deste tenant, já vinculada a uma cobrança do Asaas. */
 async function receivableWithCharge(chargeId: string): Promise<{ id: string; contractId: string }> {
-  const contractId = await withTenant(DEMO_TENANT, async (client) => {
+  const contractId = await withTenant(TENANT, async (client) => {
     const { rows } = await client.query<{ id: string }>(
       "INSERT INTO contracts (tenant_id, status) VALUES ($1, 'VIGENTE') RETURNING id",
-      [DEMO_TENANT],
+      [TENANT],
     );
     return rows[0]!.id;
   });
 
-  const receivable = await receivableRepo.insertReceivable(DEMO_TENANT, {
+  const receivable = await receivableRepo.insertReceivable(TENANT, {
     contractId,
     kind: "ALUGUEL",
     amountCents: 250_000,
     dueDate: "2026-08-10",
   });
-  await receivableRepo.attachCharge(DEMO_TENANT, receivable.id, {
+  await receivableRepo.attachCharge(TENANT, receivable.id, {
     asaasChargeId: chargeId,
     boletoUrl: null,
     invoiceUrl: "https://sandbox.asaas.com/i/fake",
@@ -101,7 +106,7 @@ async function receivableWithCharge(chargeId: string): Promise<{ id: string; con
 }
 
 async function dropContract(id: string): Promise<void> {
-  await withTenant(DEMO_TENANT, async (client) => {
+  await withTenant(TENANT, async (client) => {
     await client.query("DELETE FROM contracts WHERE id = $1", [id]);
   });
 }
@@ -152,7 +157,7 @@ test("PAYMENT_RECEIVED dá baixa na parcela, e a reentrega não duplica nada", a
     const res = await post({ [WEBHOOK_TOKEN_HEADER]: token }, paymentEvent(chargeId, eventId));
     assert.equal(res.statusCode, 200);
 
-    const pago = await receivableRepo.findReceivable(DEMO_TENANT, id);
+    const pago = await receivableRepo.findReceivable(TENANT, id);
     assert.equal(pago?.status, "PAGO");
     assert.equal(pago?.paidAt, "2026-08-09");
     assert.equal(pago?.paidAmountCents, 250_000);
@@ -160,7 +165,7 @@ test("PAYMENT_RECEIVED dá baixa na parcela, e a reentrega não duplica nada", a
     // Reentrega do MESMO evento (o Asaas repete até receber 200).
     const again = await post({ [WEBHOOK_TOKEN_HEADER]: token }, paymentEvent(chargeId, eventId));
     assert.equal(again.statusCode, 200);
-    const depois = await receivableRepo.findReceivable(DEMO_TENANT, id);
+    const depois = await receivableRepo.findReceivable(TENANT, id);
     assert.equal(depois?.status, "PAGO");
     assert.equal(depois?.paidAt, "2026-08-09", "a data do pagamento não pode ser reescrita");
   } finally {
@@ -182,7 +187,7 @@ test("o webhook não alcança a parcela de outro tenant pelo id da cobrança", a
     });
     assert.equal(res.statusCode, 401, "TENANT LEAKAGE: cobrança alcançada por outro tenant");
 
-    const intacta = await receivableRepo.findReceivable(DEMO_TENANT, id);
+    const intacta = await receivableRepo.findReceivable(TENANT, id);
     assert.equal(intacta?.status, "ABERTO", "a parcela não pode ter sido baixada");
   } finally {
     await dropContract(contractId);

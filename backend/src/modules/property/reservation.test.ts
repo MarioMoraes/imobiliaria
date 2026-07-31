@@ -6,9 +6,14 @@ import { createPropertySchema } from "./property.schema.js";
 
 /**
  * "Reservado" do cadastro → Situação do imóvel. Depende da infra de pé
- * (`npm run infra:up`); usa o tenant demo do seed.
+ * (`npm run infra:up`).
  */
-const DEMO_TENANT = "00000000-0000-0000-0000-000000000001";
+import { createTestTenant } from "../../testing/tenants.js";
+
+// Tenant próprio deste arquivo, descartado no `after` do fixture. Usar o
+// tenant demo fazia cada execução da suíte deixar linhas na imobiliária de
+// desenvolvimento — apareciam no painel misturadas ao dado real.
+const TENANT = (await createTestTenant("reservation")).id;
 
 const draft = () =>
   createPropertySchema.parse({
@@ -18,44 +23,44 @@ const draft = () =>
   });
 
 test("marcar Reservado deixa o imóvel reservado; desmarcar devolve a disponível", async () => {
-  const created = await service.create(DEMO_TENANT, { ...draft(), reserved: true });
+  const created = await service.create(TENANT, { ...draft(), reserved: true });
 
   try {
     assert.equal(created.status, "reserved", "nasce reservado quando a marcação vem no cadastro");
 
-    const unreserved = await service.update(DEMO_TENANT, created.id, { reserved: false });
+    const unreserved = await service.update(TENANT, created.id, { reserved: false });
     assert.equal(unreserved.status, "available");
 
-    const again = await service.update(DEMO_TENANT, created.id, { reserved: true });
+    const again = await service.update(TENANT, created.id, { reserved: true });
     assert.equal(again.status, "reserved");
 
     // Salvar o formulário sem tocar na marcação não mexe na situação.
-    const renamed = await service.update(DEMO_TENANT, created.id, { title: "Outro título" });
+    const renamed = await service.update(TENANT, created.id, { title: "Outro título" });
     assert.equal(renamed.status, "reserved");
   } finally {
-    await deleteProperty(DEMO_TENANT, created.id);
+    await deleteProperty(TENANT, created.id);
   }
 });
 
 test("imóvel ALUGADO não é afetado pela marcação (quem manda é o contrato)", async () => {
-  const created = await service.create(DEMO_TENANT, draft());
+  const created = await service.create(TENANT, draft());
 
   try {
     // Simula o efeito da entrada em vigência do contrato.
-    await updateProperty(DEMO_TENANT, created.id, { status: "rented" });
+    await updateProperty(TENANT, created.id, { status: "rented" });
 
     // Um cadastro aberto ANTES da assinatura salva com "Reservado" desmarcado;
     // isso não pode devolver o imóvel à vitrine — nem impedir o resto de salvar.
-    const saved = await service.update(DEMO_TENANT, created.id, {
+    const saved = await service.update(TENANT, created.id, {
       reserved: false,
       title: "Título editado com o imóvel já alugado",
     });
     assert.equal(saved.status, "rented");
     assert.equal(saved.title, "Título editado com o imóvel já alugado");
 
-    const reserved = await service.update(DEMO_TENANT, created.id, { reserved: true });
+    const reserved = await service.update(TENANT, created.id, { reserved: true });
     assert.equal(reserved.status, "rented");
   } finally {
-    await deleteProperty(DEMO_TENANT, created.id);
+    await deleteProperty(TENANT, created.id);
   }
 });

@@ -6,16 +6,21 @@ import { insertBank, listBanks } from "./bank.repository.js";
  * Teste de ISOLAMENTO MULTI-TENANT (SPEC seções 3.1 e 14) — obrigatório no CI.
  * Um banco de um tenant nunca pode ser visto por outro.
  */
-const DEMO_TENANT = "00000000-0000-0000-0000-000000000001";
+import { createTestTenant } from "../../testing/tenants.js";
+
+// Tenant próprio deste arquivo, descartado no `after` do fixture. Usar o
+// tenant demo fazia cada execução da suíte deixar linhas na imobiliária de
+// desenvolvimento — apareciam no painel misturadas ao dado real.
+const TENANT = (await createTestTenant("bank")).id;
 const OTHER_TENANT = "00000000-0000-0000-0000-0000000000ff";
 
-test("um banco criado no tenant demo não é visível por outro tenant", async () => {
-  const created = await insertBank(DEMO_TENANT, {
+test("um banco criado num tenant não é visível por outro tenant", async () => {
+  const created = await insertBank(TENANT, {
     name: `Banco Isolamento ${Date.now()}`,
     favorite: false,
   });
 
-  const visibleToDemo = await listBanks(DEMO_TENANT);
+  const visibleToDemo = await listBanks(TENANT);
   assert.ok(
     visibleToDemo.some((b) => b.id === created.id),
     "o tenant dono deve enxergar o próprio banco",

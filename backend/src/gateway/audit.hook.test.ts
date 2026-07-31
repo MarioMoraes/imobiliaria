@@ -12,7 +12,12 @@ import { auditQuery, type AuditLog } from "../modules/audit/audit.schema.js";
  *
  * Depende da infra de pé (`npm run infra:up`).
  */
-const DEMO_TENANT = "00000000-0000-0000-0000-000000000001";
+import { createTestTenant } from "../testing/tenants.js";
+
+// Tenant próprio deste arquivo, descartado no `after` do fixture. Usar o
+// tenant demo fazia cada execução da suíte deixar linhas na imobiliária de
+// desenvolvimento — apareciam no painel misturadas ao dado real.
+const TENANT = (await createTestTenant("audit.hook")).id;
 
 let app: FastifyInstance;
 
@@ -30,7 +35,7 @@ after(async () => {
  */
 async function waitForLog(entityId: string): Promise<AuditLog | undefined> {
   for (let attempt = 0; attempt < 20; attempt++) {
-    const page = await listAuditLogs(DEMO_TENANT, auditQuery.parse({ entityId, limit: 5 }));
+    const page = await listAuditLogs(TENANT, auditQuery.parse({ entityId, limit: 5 }));
     if (page.items[0]) return page.items[0];
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
@@ -42,7 +47,7 @@ test("criar um banco entra na trilha sem o módulo saber da auditoria", async ()
     method: "POST",
     url: "/v1/banks",
     payload: { name: `Banco Auditado ${Date.now()}` },
-    headers: { "x-tenant-id": DEMO_TENANT, "x-dev-roles": "ADMIN" },
+    headers: { "x-tenant-id": TENANT, "x-dev-roles": "ADMIN" },
   });
   assert.equal(created.statusCode, 201);
   const id = created.json().data.id as string;
@@ -62,13 +67,13 @@ test("criar um banco entra na trilha sem o módulo saber da auditoria", async ()
   const removed = await app.inject({
     method: "DELETE",
     url: `/v1/banks/${id}`,
-    headers: { "x-tenant-id": DEMO_TENANT, "x-dev-roles": "ADMIN" },
+    headers: { "x-tenant-id": TENANT, "x-dev-roles": "ADMIN" },
   });
   assert.equal(removed.statusCode, 200);
 
   // A exclusão gera a SEGUNDA linha — e a primeira continua lá (append-only).
   for (let attempt = 0; attempt < 20; attempt++) {
-    const page = await listAuditLogs(DEMO_TENANT, auditQuery.parse({ entityId: id, limit: 5 }));
+    const page = await listAuditLogs(TENANT, auditQuery.parse({ entityId: id, limit: 5 }));
     if (page.total >= 2) {
       assert.deepEqual(
         page.items.map((l) => l.action).sort(),
@@ -88,13 +93,13 @@ test("tentativa barrada pelo papel entra como DENIED", async () => {
     url: "/v1/banks",
     payload: { name: "Banco que o corretor não cria" },
     // CORRETOR não tem finance:write.
-    headers: { "x-tenant-id": DEMO_TENANT, "x-dev-roles": "CORRETOR" },
+    headers: { "x-tenant-id": TENANT, "x-dev-roles": "CORRETOR" },
   });
   assert.equal(denied.statusCode, 403);
 
   for (let attempt = 0; attempt < 20; attempt++) {
     const page = await listAuditLogs(
-      DEMO_TENANT,
+      TENANT,
       auditQuery.parse({ action: "bank.created", status: "DENIED", limit: 1 }),
     );
     if (page.items[0]) {
@@ -107,14 +112,14 @@ test("tentativa barrada pelo papel entra como DENIED", async () => {
 });
 
 test("leitura não polui a trilha", async () => {
-  const before = await listAuditLogs(DEMO_TENANT, auditQuery.parse({ limit: 1 }));
+  const before = await listAuditLogs(TENANT, auditQuery.parse({ limit: 1 }));
   const res = await app.inject({
     method: "GET",
     url: "/v1/banks",
-    headers: { "x-tenant-id": DEMO_TENANT, "x-dev-roles": "ADMIN" },
+    headers: { "x-tenant-id": TENANT, "x-dev-roles": "ADMIN" },
   });
   assert.equal(res.statusCode, 200);
   await new Promise((resolve) => setTimeout(resolve, 200));
-  const after = await listAuditLogs(DEMO_TENANT, auditQuery.parse({ limit: 1 }));
+  const after = await listAuditLogs(TENANT, auditQuery.parse({ limit: 1 }));
   assert.equal(after.total, before.total, "um GET não gera registro");
 });

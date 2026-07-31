@@ -21,14 +21,19 @@ import { generateRentSchedule, settle } from "./receivable.service.js";
  *
  * Depende do banco containerizado (`npm run infra:up`) e do seed em init.sql.
  */
-const DEMO_TENANT = "00000000-0000-0000-0000-000000000001";
+import { createTestTenant } from "../../testing/tenants.js";
+
+// Tenant próprio deste arquivo, descartado no `after` do fixture. Usar o
+// tenant demo fazia cada execução da suíte deixar linhas na imobiliária de
+// desenvolvimento — apareciam no painel misturadas ao dado real.
+const TENANT = (await createTestTenant("receivable")).id;
 const OTHER_TENANT = "00000000-0000-0000-0000-0000000000ff"; // inexistente / sem dados
 
 const QUERY = { limit: 500 } as const;
 
 async function dropContract(id: string): Promise<void> {
   // ON DELETE CASCADE leva as parcelas junto.
-  await withTenant(DEMO_TENANT, async (client) => {
+  await withTenant(TENANT, async (client) => {
     await client.query("DELETE FROM contracts WHERE id = $1", [id]);
   });
 }
@@ -36,7 +41,7 @@ async function dropContract(id: string): Promise<void> {
 /** Contrato de locação completo o bastante para gerar parcelas. */
 async function rentedContract(): Promise<string> {
   const contract = await insertContract(
-    DEMO_TENANT,
+    TENANT,
     createContractSchema.parse({
       startsAt: "2026-08-01",
       endsAt: "2027-07-31",
@@ -51,7 +56,7 @@ async function rentedContract(): Promise<string> {
 test("uma conta a receber de um tenant não é visível por outro", async () => {
   const contractId = await rentedContract();
   try {
-    await generateRentSchedule(DEMO_TENANT, {
+    await generateRentSchedule(TENANT, {
       contractId,
       propertyId: null,
       payerPersonId: null,
@@ -62,7 +67,7 @@ test("uma conta a receber de um tenant não é visível por outro", async () => 
       rentalValueCents: 250_000,
     });
 
-    const doDono = await listReceivables(DEMO_TENANT, { ...QUERY, contractId });
+    const doDono = await listReceivables(TENANT, { ...QUERY, contractId });
     assert.equal(doDono.length, 12, "o tenant dono deve enxergar as próprias parcelas");
 
     const doOutro = await listReceivables(OTHER_TENANT, { ...QUERY, contractId });
@@ -75,9 +80,9 @@ test("uma conta a receber de um tenant não é visível por outro", async () => 
 test("contrato que passa a VIGENTE gera os aluguéis do período", async () => {
   const contractId = await rentedContract();
   try {
-    await updateContract(DEMO_TENANT, contractId, { status: "VIGENTE" });
+    await updateContract(TENANT, contractId, { status: "VIGENTE" });
 
-    const parcelas = await listReceivables(DEMO_TENANT, { ...QUERY, contractId });
+    const parcelas = await listReceivables(TENANT, { ...QUERY, contractId });
     assert.equal(parcelas.length, 12);
     assert.ok(parcelas.every((p) => p.kind === "ALUGUEL" && p.status === "ABERTO"));
     assert.ok(parcelas.every((p) => p.amountCents === 250_000));
@@ -91,12 +96,12 @@ test("contrato que passa a VIGENTE gera os aluguéis do período", async () => {
 test("reprocessar a assinatura não duplica as parcelas", async () => {
   const contractId = await rentedContract();
   try {
-    await updateContract(DEMO_TENANT, contractId, { status: "VIGENTE" });
+    await updateContract(TENANT, contractId, { status: "VIGENTE" });
     // Webhook reentregue / regeração manual: passa de novo pela geração.
-    const { created } = await generateReceivables(DEMO_TENANT, contractId);
+    const { created } = await generateReceivables(TENANT, contractId);
     assert.equal(created, 0, "nenhuma parcela nova na segunda passagem");
 
-    const parcelas = await listReceivables(DEMO_TENANT, { ...QUERY, contractId });
+    const parcelas = await listReceivables(TENANT, { ...QUERY, contractId });
     assert.equal(parcelas.length, 12, "uma parcela por mês, sem duplicar");
   } finally {
     await dropContract(contractId);
@@ -106,22 +111,22 @@ test("reprocessar a assinatura não duplica as parcelas", async () => {
 test("filtro por competência traz o mês pedido, inclusive a avulsa sem competência", async () => {
   const contractId = await rentedContract();
   try {
-    await updateContract(DEMO_TENANT, contractId, { status: "VIGENTE" });
+    await updateContract(TENANT, contractId, { status: "VIGENTE" });
     // Avulsa: sem competência, o mês de referência é o do vencimento.
-    await insertReceivable(DEMO_TENANT, {
+    await insertReceivable(TENANT, {
       contractId,
       kind: "MULTA",
       amountCents: 5_000,
       dueDate: "2026-09-20",
     });
 
-    const setembro = await listReceivables(DEMO_TENANT, { ...QUERY, competence: "2026-09" });
+    const setembro = await listReceivables(TENANT, { ...QUERY, competence: "2026-09" });
     const doContrato = setembro.filter((r) => r.contractId === contractId);
     assert.equal(doContrato.length, 2, "o aluguel de setembro e a multa vencendo em setembro");
     assert.ok(doContrato.some((r) => r.kind === "ALUGUEL" && r.competence === "2026-09"));
     assert.ok(doContrato.some((r) => r.kind === "MULTA" && r.competence === null));
 
-    const outubro = await listReceivables(DEMO_TENANT, { ...QUERY, competence: "2026-10" });
+    const outubro = await listReceivables(TENANT, { ...QUERY, competence: "2026-10" });
     assert.equal(
       outubro.filter((r) => r.contractId === contractId).length,
       1,
@@ -139,14 +144,14 @@ test("o fluxo de caixa soma o previsto pelo vencimento e o recebido pela baixa",
   // O seed já tem parcelas, então o teste mede a DIFERENÇA que este lançamento
   // provoca — nunca o valor absoluto do mês.
   const mesCorrente = async (): Promise<{ received: number; expected: number }> => {
-    const serie = await cashFlowSeries(DEMO_TENANT, 6);
+    const serie = await cashFlowSeries(TENANT, 6);
     assert.equal(serie.length, 6, "a janela devolve um ponto por mês, sem buracos");
     const ultimo = serie.at(-1)!;
     return { received: ultimo.receivedCents, expected: ultimo.expectedCents };
   };
 
   const antes = await mesCorrente();
-  const parcela = await insertReceivable(DEMO_TENANT, {
+  const parcela = await insertReceivable(TENANT, {
     kind: "OUTRO",
     description: "Teste de fluxo de caixa",
     amountCents: valor,
@@ -158,7 +163,7 @@ test("o fluxo de caixa soma o previsto pelo vencimento e o recebido pela baixa",
     assert.equal(emAberto.expected - antes.expected, valor, "em aberto entra no previsto");
     assert.equal(emAberto.received - antes.received, 0, "sem baixa, não é caixa");
 
-    await settle(DEMO_TENANT, parcela.id, { paidAt: hoje });
+    await settle(TENANT, parcela.id, { paidAt: hoje });
 
     const paga = await mesCorrente();
     assert.equal(paga.received - antes.received, valor, "a baixa entra no recebido");
@@ -170,21 +175,25 @@ test("o fluxo de caixa soma o previsto pelo vencimento e o recebido pela baixa",
       "TENANT LEAKAGE: o agregado não pode somar parcelas de outro tenant",
     );
   } finally {
-    await deleteReceivable(DEMO_TENANT, parcela.id);
+    await deleteReceivable(TENANT, parcela.id);
   }
 });
 
-test("o imóvel do contrato vira ALUGADO e volta a DISPONÍVEL no encerramento", async (t) => {
-  const propertyId = await withTenant(DEMO_TENANT, async (client) => {
+test("o imóvel do contrato vira ALUGADO e volta a DISPONÍVEL no encerramento", async () => {
+  // Imóvel próprio: pegar "o primeiro do seed" fazia o teste se auto-pular num
+  // tenant sem imóveis — cobertura sumindo em silêncio — e ainda o deixava
+  // sujeito ao que houvesse cadastrado.
+  const propertyId = await withTenant(TENANT, async (client) => {
     const { rows } = await client.query<{ id: string }>(
-      "SELECT id FROM properties ORDER BY created_at LIMIT 1",
+      `INSERT INTO properties (tenant_id, title, kind, purpose, status)
+       VALUES ($1, 'Imóvel do contrato', 'rent', 'rent', 'available') RETURNING id`,
+      [TENANT],
     );
-    return rows[0]?.id ?? null;
+    return rows[0]!.id;
   });
-  if (!propertyId) return t.skip("seed sem imóveis");
 
   const statusDoImovel = (): Promise<string> =>
-    withTenant(DEMO_TENANT, async (client) => {
+    withTenant(TENANT, async (client) => {
       const { rows } = await client.query<{ status: string }>(
         "SELECT status FROM properties WHERE id = $1",
         [propertyId],
@@ -194,7 +203,7 @@ test("o imóvel do contrato vira ALUGADO e volta a DISPONÍVEL no encerramento",
 
   const original = await statusDoImovel();
   const contract = await insertContract(
-    DEMO_TENANT,
+    TENANT,
     createContractSchema.parse({
       propertyId,
       startsAt: "2026-08-01",
@@ -205,20 +214,20 @@ test("o imóvel do contrato vira ALUGADO e volta a DISPONÍVEL no encerramento",
   );
 
   try {
-    await updateContract(DEMO_TENANT, contract.id, { status: "VIGENTE" });
+    await updateContract(TENANT, contract.id, { status: "VIGENTE" });
     assert.equal(await statusDoImovel(), "rented");
 
-    await updateContract(DEMO_TENANT, contract.id, { status: "ENCERRADO" });
+    await updateContract(TENANT, contract.id, { status: "ENCERRADO" });
     assert.equal(await statusDoImovel(), "available");
 
-    const parcelas = await listReceivables(DEMO_TENANT, { ...QUERY, contractId: contract.id });
+    const parcelas = await listReceivables(TENANT, { ...QUERY, contractId: contract.id });
     assert.ok(
       parcelas.every((p) => p.status === "CANCELADO"),
       "encerrar o contrato cancela as parcelas em aberto",
     );
   } finally {
     await dropContract(contract.id);
-    await withTenant(DEMO_TENANT, async (client) => {
+    await withTenant(TENANT, async (client) => {
       await client.query("UPDATE properties SET status = $2 WHERE id = $1", [propertyId, original]);
     });
   }

@@ -6,15 +6,20 @@ import { insertDistrict, listDistricts } from "./district.repository.js";
  * Teste de ISOLAMENTO MULTI-TENANT (SPEC seções 3.1 e 14) — obrigatório no CI.
  * Um bairro de um tenant nunca pode ser visto por outro.
  */
-const DEMO_TENANT = "00000000-0000-0000-0000-000000000001";
+import { createTestTenant } from "../../testing/tenants.js";
+
+// Tenant próprio deste arquivo, descartado no `after` do fixture. Usar o
+// tenant demo fazia cada execução da suíte deixar linhas na imobiliária de
+// desenvolvimento — apareciam no painel misturadas ao dado real.
+const TENANT = (await createTestTenant("district")).id;
 const OTHER_TENANT = "00000000-0000-0000-0000-0000000000ff";
 
-test("um bairro criado no tenant demo não é visível por outro tenant", async () => {
-  const created = await insertDistrict(DEMO_TENANT, {
+test("um bairro criado num tenant não é visível por outro tenant", async () => {
+  const created = await insertDistrict(TENANT, {
     name: `Bairro Isolamento ${Date.now()}`,
   });
 
-  const visibleToDemo = await listDistricts(DEMO_TENANT);
+  const visibleToDemo = await listDistricts(TENANT);
   assert.ok(
     visibleToDemo.some((d) => d.id === created.id),
     "o tenant dono deve enxergar o próprio bairro",

@@ -6,11 +6,16 @@ import { insertEvent, listEvents } from "./event.repository.js";
  * Teste de ISOLAMENTO MULTI-TENANT (SPEC seções 3.1 e 14) — obrigatório no CI.
  * Um evento de um tenant nunca pode ser visto por outro.
  */
-const DEMO_TENANT = "00000000-0000-0000-0000-000000000001";
+import { createTestTenant } from "../../testing/tenants.js";
+
+// Tenant próprio deste arquivo, descartado no `after` do fixture. Usar o
+// tenant demo fazia cada execução da suíte deixar linhas na imobiliária de
+// desenvolvimento — apareciam no painel misturadas ao dado real.
+const TENANT = (await createTestTenant("event")).id;
 const OTHER_TENANT = "00000000-0000-0000-0000-0000000000ff";
 
-test("um evento criado no tenant demo não é visível por outro tenant", async () => {
-  const created = await insertEvent(DEMO_TENANT, {
+test("um evento criado num tenant não é visível por outro tenant", async () => {
+  const created = await insertEvent(TENANT, {
     name: `Evento Isolamento ${Date.now()}`,
     kind: "DEBITO",
     interestPercent: 1,
@@ -19,7 +24,7 @@ test("um evento criado no tenant demo não é visível por outro tenant", async 
     appliesAdminFee: true,
   });
 
-  const visibleToDemo = await listEvents(DEMO_TENANT);
+  const visibleToDemo = await listEvents(TENANT);
   assert.ok(
     visibleToDemo.some((e) => e.id === created.id),
     "o tenant dono deve enxergar o próprio evento",

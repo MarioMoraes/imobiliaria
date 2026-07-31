@@ -19,7 +19,12 @@ import type { OwnerPayout } from "./payable.schema.js";
  *
  * Depende da infra de pé: `npm run infra:up`.
  */
-const DEMO_TENANT = "00000000-0000-0000-0000-000000000001";
+import { createTestTenant } from "../../testing/tenants.js";
+
+// Tenant próprio deste arquivo, descartado no `after` do fixture. Usar o
+// tenant demo fazia cada execução da suíte deixar linhas na imobiliária de
+// desenvolvimento — apareciam no painel misturadas ao dado real.
+const TENANT = (await createTestTenant("payable")).id;
 const OTHER_TENANT = "00000000-0000-0000-0000-0000000000ff"; // inexistente / sem dados
 
 const ALL = listPayablesQuerySchema.parse({});
@@ -39,16 +44,16 @@ function payout(overrides: Partial<OwnerPayout> = {}): OwnerPayout {
   };
 }
 
-test("um repasse criado no tenant demo não é visível por outro tenant", async () => {
+test("um repasse criado num tenant não é visível por outro tenant", async () => {
   const receivableId = randomUUID();
   const created = await insertOwnerPayouts(
-    DEMO_TENANT,
+    TENANT,
     { receivableId, contractId: null, propertyId: null },
     [payout()],
   );
   assert.equal(created, 1);
 
-  const visibleToDemo = await listPayables(DEMO_TENANT, ALL);
+  const visibleToDemo = await listPayables(TENANT, ALL);
   assert.ok(
     visibleToDemo.some((p) => p.receivableId === receivableId),
     "o tenant dono deve enxergar o próprio repasse",
@@ -66,13 +71,13 @@ test("reprocessar a mesma baixa não paga o proprietário duas vezes", async () 
   const owners = [payout({ sharePercent: 60 }), payout({ sharePercent: 40 })];
   const origin = { receivableId, contractId: null, propertyId: null };
 
-  const first = await insertOwnerPayouts(DEMO_TENANT, origin, owners);
+  const first = await insertOwnerPayouts(TENANT, origin, owners);
   assert.equal(first, 2, "a primeira geração cria um lançamento por dono");
 
-  const second = await insertOwnerPayouts(DEMO_TENANT, origin, owners);
+  const second = await insertOwnerPayouts(TENANT, origin, owners);
   assert.equal(second, 0, "a segunda não cria nada (único receivable_id+dono)");
 
-  const rows = await listPayables(DEMO_TENANT, ALL);
+  const rows = await listPayables(TENANT, ALL);
   const forThisRent = rows.filter((p) => p.receivableId === receivableId);
   assert.equal(forThisRent.length, 2, "continuam existindo só os dois repasses");
 });
@@ -84,14 +89,14 @@ test("o mesmo proprietário recebe por aluguéis diferentes", async () => {
   const julho = randomUUID();
   const agosto = randomUUID();
 
-  await insertOwnerPayouts(DEMO_TENANT, { receivableId: julho, contractId: null, propertyId: null }, [
+  await insertOwnerPayouts(TENANT, { receivableId: julho, contractId: null, propertyId: null }, [
     payout({ payeePersonId: personId, competence: "2026-07" }),
   ]);
-  await insertOwnerPayouts(DEMO_TENANT, { receivableId: agosto, contractId: null, propertyId: null }, [
+  await insertOwnerPayouts(TENANT, { receivableId: agosto, contractId: null, propertyId: null }, [
     payout({ payeePersonId: personId, competence: "2026-08" }),
   ]);
 
-  const rows = await listPayables(DEMO_TENANT, ALL);
+  const rows = await listPayables(TENANT, ALL);
   const doAluguel: string[] = [julho, agosto];
   const forPerson = rows.filter(
     (p) => p.payeePersonId === personId && doAluguel.includes(p.receivableId ?? ""),
@@ -104,15 +109,15 @@ test("o resumo do mês soma a taxa de administração como receita", async () =>
   // resto do resumo: entra no mês em que o repasse VENCE, para os quatro cards
   // descreverem o mesmo conjunto que a tabela lista.
   const dueMonth = "2029-04";
-  const before = await summarize(DEMO_TENANT, dueMonth);
+  const before = await summarize(TENANT, dueMonth);
 
   await insertOwnerPayouts(
-    DEMO_TENANT,
+    TENANT,
     { receivableId: randomUUID(), contractId: null, propertyId: null },
     [payout({ competence: "2029-03", dueDate: "2029-04-10", adminFeeCents: 30_000 })],
   );
 
-  const after = await summarize(DEMO_TENANT, dueMonth);
+  const after = await summarize(TENANT, dueMonth);
   assert.equal(
     after.adminFeeCents - before.adminFeeCents,
     30_000,
@@ -128,17 +133,17 @@ test("o repasse conta no mês do VENCIMENTO, não no da competência", async () 
   const competence = "2029-07";
   const dueMonth = "2029-08";
 
-  const antesCompetencia = await summarize(DEMO_TENANT, competence);
-  const antesVencimento = await summarize(DEMO_TENANT, dueMonth);
+  const antesCompetencia = await summarize(TENANT, competence);
+  const antesVencimento = await summarize(TENANT, dueMonth);
 
   const receivableId = randomUUID();
   await insertOwnerPayouts(
-    DEMO_TENANT,
+    TENANT,
     { receivableId, contractId: null, propertyId: null },
     [payout({ competence, dueDate: "2029-08-10", amountCents: 135_000 })],
   );
 
-  const depoisVencimento = await summarize(DEMO_TENANT, dueMonth);
+  const depoisVencimento = await summarize(TENANT, dueMonth);
   assert.equal(
     depoisVencimento.openCents - antesVencimento.openCents,
     135_000,
@@ -146,7 +151,7 @@ test("o repasse conta no mês do VENCIMENTO, não no da competência", async () 
   );
 
   // E não no mês da competência, senão o mesmo valor seria contado duas vezes.
-  const depoisCompetencia = await summarize(DEMO_TENANT, competence);
+  const depoisCompetencia = await summarize(TENANT, competence);
   assert.equal(
     depoisCompetencia.openCents,
     antesCompetencia.openCents,
@@ -157,7 +162,7 @@ test("o repasse conta no mês do VENCIMENTO, não no da competência", async () 
   // recém-criado: o banco de teste é compartilhado e acumula linhas entre runs,
   // então contar por valor daria falso negativo na segunda execução.
   const noVencimento = await listPayables(
-    DEMO_TENANT,
+    TENANT,
     listPayablesQuerySchema.parse({ dueMonth }),
   );
   assert.ok(
@@ -166,7 +171,7 @@ test("o repasse conta no mês do VENCIMENTO, não no da competência", async () 
   );
 
   const naCompetencia = await listPayables(
-    DEMO_TENANT,
+    TENANT,
     listPayablesQuerySchema.parse({ dueMonth: competence }),
   );
   assert.ok(
@@ -179,14 +184,14 @@ test("o repasse conta no mês do VENCIMENTO, não no da competência", async () 
 async function payableEmTransferencia(transferId: string): Promise<string> {
   const receivableId = randomUUID();
   await insertOwnerPayouts(
-    DEMO_TENANT,
+    TENANT,
     { receivableId, contractId: null, propertyId: null },
     [payout()],
   );
-  const [row] = (await listPayables(DEMO_TENANT, ALL)).filter(
+  const [row] = (await listPayables(TENANT, ALL)).filter(
     (p) => p.receivableId === receivableId,
   );
-  await attachTransfer(DEMO_TENANT, row!.id, {
+  await attachTransfer(TENANT, row!.id, {
     asaasTransferId: transferId,
     transferStatus: "PENDING",
   });
@@ -197,7 +202,7 @@ test("transferência enviada deixa o repasse em PROCESSANDO, não em PAGO", asyn
   const transferId = `tr_${randomUUID()}`;
   await payableEmTransferencia(transferId);
 
-  const found = await findByTransferId(DEMO_TENANT, transferId);
+  const found = await findByTransferId(TENANT, transferId);
   assert.equal(found?.status, "PROCESSANDO", "dinheiro em trânsito não é dinheiro pago");
   assert.equal(found?.transferStatus, "PENDING");
   assert.equal(found?.paidAt, null);
@@ -207,7 +212,7 @@ test("TRANSFER_DONE dá a baixa na data em que o dinheiro caiu", async () => {
   const transferId = `tr_${randomUUID()}`;
   await payableEmTransferencia(transferId);
 
-  const done = await applyTransferResult(DEMO_TENANT, transferId, {
+  const done = await applyTransferResult(TENANT, transferId, {
     status: "DONE",
     effectiveDate: "2026-08-11",
   });
@@ -216,7 +221,7 @@ test("TRANSFER_DONE dá a baixa na data em que o dinheiro caiu", async () => {
   assert.equal(done?.paidAmountCents, done?.amountCents);
 
   // Reentrega do mesmo webhook não pode reescrever a baixa.
-  const again = await applyTransferResult(DEMO_TENANT, transferId, {
+  const again = await applyTransferResult(TENANT, transferId, {
     status: "DONE",
     effectiveDate: "2026-09-30",
   });
@@ -227,7 +232,7 @@ test("TRANSFER_FAILED devolve o repasse a ABERTO com o motivo", async () => {
   const transferId = `tr_${randomUUID()}`;
   await payableEmTransferencia(transferId);
 
-  const failed = await applyTransferResult(DEMO_TENANT, transferId, {
+  const failed = await applyTransferResult(TENANT, transferId, {
     status: "FAILED",
     failReason: "Chave PIX inexistente",
   });
@@ -238,14 +243,14 @@ test("TRANSFER_FAILED devolve o repasse a ABERTO com o motivo", async () => {
 });
 
 test("transferência desconhecida (feita fora do sistema) é ignorada", async () => {
-  const applied = await applyTransferResult(DEMO_TENANT, `tr_${randomUUID()}`, { status: "DONE" });
+  const applied = await applyTransferResult(TENANT, `tr_${randomUUID()}`, { status: "DONE" });
   assert.equal(applied, null);
 });
 
 test("o resumo de um tenant não enxerga os repasses do outro", async () => {
   const month = "2029-05";
   await insertOwnerPayouts(
-    DEMO_TENANT,
+    TENANT,
     { receivableId: randomUUID(), contractId: null, propertyId: null },
     [payout({ competence: month, dueDate: "2029-06-10" })],
   );

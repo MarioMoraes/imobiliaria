@@ -16,25 +16,30 @@ import { withTenant } from "../../shared/db.js";
  *
  * Depende da infra de pé (`npm run infra:up`).
  */
-const DEMO_TENANT = "00000000-0000-0000-0000-000000000001";
+import { createTestTenant } from "../../testing/tenants.js";
+
+// Tenant próprio deste arquivo, descartado no `after` do fixture. Usar o
+// tenant demo fazia cada execução da suíte deixar linhas na imobiliária de
+// desenvolvimento — apareciam no painel misturadas ao dado real.
+const TENANT = (await createTestTenant("user")).id;
 
 let app: FastifyInstance;
 let userId: string;
 
 before(async () => {
   app = await buildApp();
-  userId = await withTenant(DEMO_TENANT, async (client) => {
+  userId = await withTenant(TENANT, async (client) => {
     const { rows } = await client.query<{ id: string }>(
       `INSERT INTO users (tenant_id, email, full_name, status)
        VALUES ($1, $2, 'Alvo de Teste', 'active') RETURNING id`,
-      [DEMO_TENANT, `papel-${Date.now()}@teste.local`],
+      [TENANT, `papel-${Date.now()}@teste.local`],
     );
     return rows[0]!.id;
   });
 });
 
 after(async () => {
-  await withTenant(DEMO_TENANT, (client) =>
+  await withTenant(TENANT, (client) =>
     client.query("DELETE FROM users WHERE id = $1", [userId]),
   );
   await app.close();
@@ -45,7 +50,7 @@ function changeRole(id: string, role: string) {
     method: "PATCH",
     url: `/v1/users/${id}/role`,
     payload: { role },
-    headers: { "x-tenant-id": DEMO_TENANT, "x-dev-roles": "ADMIN" },
+    headers: { "x-tenant-id": TENANT, "x-dev-roles": "ADMIN" },
   });
 }
 

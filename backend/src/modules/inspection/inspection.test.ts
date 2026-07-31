@@ -1,24 +1,41 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { listProperties } from "../property/property.repository.js";
+import { insertProperty } from "../property/property.repository.js";
+import { createPropertySchema } from "../property/property.schema.js";
 import { findByProperty, getOrCreateByProperty } from "./inspection.repository.js";
 
 /**
  * Teste de ISOLAMENTO MULTI-TENANT (SPEC seções 3.1 e 14) — obrigatório no CI.
  * Garante que a vistoria de um imóvel nunca vaza para outro tenant. Depende do
- * banco containerizado (`npm run infra:up`) e do seed em init.sql.
+ * banco containerizado (`npm run infra:up`).
  */
-const DEMO_TENANT = "00000000-0000-0000-0000-000000000001";
+import { createTestTenant } from "../../testing/tenants.js";
+
+// Tenant próprio deste arquivo, descartado no `after` do fixture. Usar o
+// tenant demo fazia cada execução da suíte deixar linhas na imobiliária de
+// desenvolvimento — apareciam no painel misturadas ao dado real.
+const TENANT = (await createTestTenant("inspection")).id;
 const OTHER_TENANT = "00000000-0000-0000-0000-0000000000ff"; // inexistente / sem dados
 
-test("a vistoria criada no tenant demo não é visível por outro tenant", async () => {
-  const properties = await listProperties(DEMO_TENANT);
-  const property = properties[0];
-  assert.ok(property, "o seed do tenant demo precisa ter ao menos um imóvel");
+/** Imóvel próprio: o teste não depende mais do que houver no seed. */
+async function freshProperty() {
+  return insertProperty(
+    TENANT,
+    createPropertySchema.parse({
+      title: "Imóvel da vistoria",
+      kind: "rent",
+      purpose: "rent",
+      status: "available",
+    }),
+  );
+}
 
-  const { inspection } = await getOrCreateByProperty(DEMO_TENANT, property.id);
+test("a vistoria criada num tenant não é visível por outro tenant", async () => {
+  const property = await freshProperty();
 
-  const visibleToDemo = await findByProperty(DEMO_TENANT, property.id);
+  const { inspection } = await getOrCreateByProperty(TENANT, property.id);
+
+  const visibleToDemo = await findByProperty(TENANT, property.id);
   assert.equal(
     visibleToDemo?.id,
     inspection.id,
@@ -34,12 +51,10 @@ test("a vistoria criada no tenant demo não é visível por outro tenant", async
 });
 
 test("reabrir a vistoria do mesmo imóvel devolve a mesma (uma por imóvel)", async () => {
-  const properties = await listProperties(DEMO_TENANT);
-  const property = properties[0];
-  assert.ok(property, "o seed do tenant demo precisa ter ao menos um imóvel");
+  const property = await freshProperty();
 
-  const first = await getOrCreateByProperty(DEMO_TENANT, property.id);
-  const second = await getOrCreateByProperty(DEMO_TENANT, property.id);
+  const first = await getOrCreateByProperty(TENANT, property.id);
+  const second = await getOrCreateByProperty(TENANT, property.id);
 
   assert.equal(second.inspection.id, first.inspection.id);
   // A sincronia com o catálogo é idempotente: reabrir não duplica linhas.

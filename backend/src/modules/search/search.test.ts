@@ -15,7 +15,12 @@ import { withTenant } from "../../shared/db.js";
  *
  * Depende da infra de pé (`npm run infra:up`).
  */
-const DEMO_TENANT = "00000000-0000-0000-0000-000000000001";
+import { createTestTenant } from "../../testing/tenants.js";
+
+// Tenant próprio deste arquivo, descartado no `after` do fixture. Usar o
+// tenant demo fazia cada execução da suíte deixar linhas na imobiliária de
+// desenvolvimento — apareciam no painel misturadas ao dado real.
+const TENANT = (await createTestTenant("search")).id;
 
 /** Termo improvável de casar com dado de desenvolvimento pré-existente. */
 const TERM = `Zqxbusca${Date.now()}`;
@@ -32,18 +37,18 @@ let personId: string;
 
 before(async () => {
   app = await buildApp();
-  personId = await withTenant(DEMO_TENANT, async (client) => {
+  personId = await withTenant(TENANT, async (client) => {
     const { rows } = await client.query<{ id: string }>(
       `INSERT INTO persons (tenant_id, full_name, cpf_cnpj, roles)
        VALUES ($1, $2, $3, ARRAY['LOCATARIO']) RETURNING id`,
-      [DEMO_TENANT, `${TERM} da Silva`, CPF],
+      [TENANT, `${TERM} da Silva`, CPF],
     );
     return rows[0]!.id;
   });
 });
 
 after(async () => {
-  await withTenant(DEMO_TENANT, (client) =>
+  await withTenant(TENANT, (client) =>
     client.query("DELETE FROM persons WHERE id = $1", [personId]),
   );
   await app.close();
@@ -53,7 +58,7 @@ function search(roles: string) {
   return app.inject({
     method: "GET",
     url: `/v1/search?q=${encodeURIComponent(TERM)}`,
-    headers: { "x-tenant-id": DEMO_TENANT, "x-dev-roles": roles },
+    headers: { "x-tenant-id": TENANT, "x-dev-roles": roles },
   });
 }
 

@@ -14,8 +14,13 @@ import { WEBHOOK_SECRET_HEADER } from "./signature.schema.js";
  *
  * Depende da infra de pé (`npm run infra:up`).
  */
-const DEMO_TENANT = "00000000-0000-0000-0000-000000000001";
-const URL = `/webhooks/zapsign/${DEMO_TENANT}`;
+import { createTestTenant } from "../../testing/tenants.js";
+
+// Tenant próprio deste arquivo, descartado no `after` do fixture. Usar o
+// tenant demo fazia cada execução da suíte deixar linhas na imobiliária de
+// desenvolvimento — apareciam no painel misturadas ao dado real.
+const TENANT = (await createTestTenant("signature.webhook")).id;
+const URL = `/webhooks/zapsign/${TENANT}`;
 
 let app: FastifyInstance;
 let secret: string;
@@ -24,15 +29,15 @@ let saved: Awaited<ReturnType<typeof repo.findSettings>> = null;
 
 before(async () => {
   app = await buildApp();
-  saved = await repo.findSettings(DEMO_TENANT);
-  await repo.upsertSettings(DEMO_TENANT, {
+  saved = await repo.findSettings(TENANT);
+  await repo.upsertSettings(TENANT, {
     apiTokenEnc: "v1.fake.fake.fake",
     apiTokenHint: "9999",
     sandbox: true,
     authMode: "assinaturaTela-tokenEmail",
     webhookSecret: `webhook-${randomUUID()}`,
   });
-  secret = (await repo.findSettings(DEMO_TENANT))!.webhookSecret!;
+  secret = (await repo.findSettings(TENANT))!.webhookSecret!;
 });
 
 /**
@@ -47,10 +52,10 @@ after(async () => {
 
 /** Devolve a linha ao estado anterior (ou remove, se não existia). */
 async function restoreSettings(previous: Awaited<ReturnType<typeof repo.findSettings>>) {
-  await withTenant(DEMO_TENANT, async (client) => {
+  await withTenant(TENANT, async (client) => {
     if (!previous) {
       await client.query("DELETE FROM tenant_signature_settings WHERE tenant_id = $1", [
-        DEMO_TENANT,
+        TENANT,
       ]);
       return;
     }
@@ -60,7 +65,7 @@ async function restoreSettings(previous: Awaited<ReturnType<typeof repo.findSett
               auth_mode = $5, webhook_secret = $6
         WHERE tenant_id = $1`,
       [
-        DEMO_TENANT,
+        TENANT,
         previous.apiTokenEnc,
         previous.apiTokenHint,
         previous.sandbox,
@@ -115,19 +120,19 @@ test("payload sem o token do documento é ignorado com 200", async () => {
 });
 
 test("o webhook não vaza dados de outro tenant pelo token do documento", async () => {
-  // Envelope do tenant demo; o atacante conhece o docToken e tenta processá-lo
+  // Envelope deste tenant; o atacante conhece o docToken e tenta processá-lo
   // por outro tenant (com o segredo daquele tenant, que ele controlaria).
-  const contractId = await withTenant(DEMO_TENANT, async (client) => {
+  const contractId = await withTenant(TENANT, async (client) => {
     const { rows } = await client.query<{ id: string }>(
       "INSERT INTO contracts (tenant_id, status) VALUES ($1, 'RASCUNHO') RETURNING id",
-      [DEMO_TENANT],
+      [TENANT],
     );
     return rows[0]!.id;
   });
   const docToken = `doc-${randomUUID()}`;
 
   try {
-    await repo.insertEnvelope(DEMO_TENANT, {
+    await repo.insertEnvelope(TENANT, {
       contractId,
       version: 1,
       providerDocToken: docToken,
@@ -145,10 +150,10 @@ test("o webhook não vaza dados de outro tenant pelo token do documento", async 
     });
     assert.equal(res.statusCode, 401, "TENANT LEAKAGE: envelope alcançado por outro tenant");
 
-    const envelope = await repo.findLatestEnvelope(DEMO_TENANT, contractId);
+    const envelope = await repo.findLatestEnvelope(TENANT, contractId);
     assert.equal(envelope?.status, "PENDENTE", "o envelope não pode ter sido concluído");
   } finally {
-    await withTenant(DEMO_TENANT, async (client) => {
+    await withTenant(TENANT, async (client) => {
       await client.query("DELETE FROM contracts WHERE id = $1", [contractId]);
     });
   }

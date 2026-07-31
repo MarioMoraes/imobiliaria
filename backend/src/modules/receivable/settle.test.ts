@@ -17,7 +17,12 @@ import * as repo from "./receivable.repository.js";
  *
  * Depende da infra de pé (`npm run infra:up`).
  */
-const DEMO_TENANT = "00000000-0000-0000-0000-000000000001";
+import { createTestTenant } from "../../testing/tenants.js";
+
+// Tenant próprio deste arquivo, descartado no `after` do fixture. Usar o
+// tenant demo fazia cada execução da suíte deixar linhas na imobiliária de
+// desenvolvimento — apareciam no painel misturadas ao dado real.
+const TENANT = (await createTestTenant("settle")).id;
 const AMOUNT = 500_000; // R$ 5.000,00
 
 let app: FastifyInstance;
@@ -28,14 +33,14 @@ before(async () => {
 });
 
 after(async () => {
-  await withTenant(DEMO_TENANT, (client) =>
+  await withTenant(TENANT, (client) =>
     client.query("DELETE FROM receivables WHERE id = ANY($1::uuid[])", [criados]),
   );
   await app.close();
 });
 
 async function novaParcela(): Promise<string> {
-  const r = await repo.insertReceivable(DEMO_TENANT, {
+  const r = await repo.insertReceivable(TENANT, {
     kind: "ALUGUEL",
     description: `Parcela de teste ${Date.now()}`,
     amountCents: AMOUNT,
@@ -50,7 +55,7 @@ function request(method: "PATCH" | "POST", url: string, payload: Record<string, 
     method,
     url,
     payload,
-    headers: { "x-tenant-id": DEMO_TENANT, "x-dev-roles": "FINANCEIRO" },
+    headers: { "x-tenant-id": TENANT, "x-dev-roles": "FINANCEIRO" },
   });
 }
 
@@ -62,7 +67,7 @@ test("baixa com valor MENOR que a parcela é recusada (não vira PAGO)", async (
   assert.equal(res.statusCode, 400, "1 centavo não quita R$ 5.000");
   assert.equal(res.json().error.code, "ERR_FIN_002");
 
-  const depois = await repo.findReceivable(DEMO_TENANT, id);
+  const depois = await repo.findReceivable(TENANT, id);
   assert.equal(depois!.status, "ABERTO", "a parcela precisa continuar cobrável");
   assert.equal(depois!.paidAmountCents, null);
 });
@@ -115,7 +120,7 @@ test("PATCH não pode gravar status nem dados de pagamento", async () => {
     );
   }
 
-  const depois = await repo.findReceivable(DEMO_TENANT, id);
+  const depois = await repo.findReceivable(TENANT, id);
   assert.equal(depois!.status, "ABERTO", "nenhuma das tentativas pode ter mudado o estado");
 });
 

@@ -21,7 +21,12 @@ import { withTenant, withPlatform } from "../shared/db.js";
  * AUTH_DEV_MODE=true (ver o script `test`), que é justamente o cenário mais
  * permissivo — se o perímetro se sustenta aqui, se sustenta em produção.
  */
-const DEMO_TENANT = "00000000-0000-0000-0000-000000000001";
+import { createTestTenant } from "../testing/tenants.js";
+
+// Tenant próprio deste arquivo, descartado no `after` do fixture. Usar o
+// tenant demo fazia cada execução da suíte deixar linhas na imobiliária de
+// desenvolvimento — apareciam no painel misturadas ao dado real.
+const TENANT = (await createTestTenant("auth-perimeter")).id;
 const OTHER_TENANT = "00000000-0000-0000-0000-0000000000ff";
 
 let app: FastifyInstance;
@@ -47,11 +52,11 @@ test("/admin/tenants NÃO é alcançável pelos headers de dev-mode", async () =
   // Este é o buraco original: os headers de dev valem para o escopo /v1, e
   // `/admin/*` ficava fora de qualquer hook. Um ADMIN de tenant (ou qualquer um,
   // já que o header é livre) não pode virar administrador da plataforma.
-  for (const url of ["/admin/tenants", "/admin/tenants/" + DEMO_TENANT]) {
+  for (const url of ["/admin/tenants", "/admin/tenants/" + TENANT]) {
     const res = await app.inject({
       method: "GET",
       url,
-      headers: { "x-tenant-id": DEMO_TENANT, "x-dev-roles": "ADMIN,SUPER_ADMIN" },
+      headers: { "x-tenant-id": TENANT, "x-dev-roles": "ADMIN,SUPER_ADMIN" },
     });
     assert.equal(res.statusCode, 401, `${url} não pode aceitar headers de dev`);
   }
@@ -60,7 +65,7 @@ test("/admin/tenants NÃO é alcançável pelos headers de dev-mode", async () =
 test("/admin/tenants recusa mutação anônima (não dá para suspender um tenant)", async () => {
   const res = await app.inject({
     method: "PATCH",
-    url: `/admin/tenants/${DEMO_TENANT}`,
+    url: `/admin/tenants/${TENANT}`,
     payload: { status: "suspended" },
   });
 
@@ -70,11 +75,11 @@ test("/admin/tenants recusa mutação anônima (não dá para suspender um tenan
   const tenant = await withPlatform(async (client) => {
     const { rows } = await client.query<{ status: string }>(
       "SELECT status FROM tenants WHERE id = $1",
-      [DEMO_TENANT],
+      [TENANT],
     );
     return rows[0];
   });
-  assert.notEqual(tenant?.status, "suspended", "o tenant demo não pode ter sido suspenso");
+  assert.notEqual(tenant?.status, "suspended", "o tenant não pode ter sido suspenso");
 });
 
 test("/admin/tenants recusa token inválido", async () => {
@@ -136,7 +141,7 @@ test("sem identidade nenhuma, /v1 recusa", async () => {
 /* ------------------------------------------------- RLS da tabela tenants */
 
 test("ISOLAMENTO: sob o contexto de um tenant, `tenants` só devolve a própria linha", async () => {
-  const rows = await withTenant(DEMO_TENANT, async (client) => {
+  const rows = await withTenant(TENANT, async (client) => {
     const { rows } = await client.query<{ id: string }>("SELECT id FROM tenants");
     return rows;
   });
@@ -144,7 +149,7 @@ test("ISOLAMENTO: sob o contexto de um tenant, `tenants` só devolve a própria 
   assert.equal(rows.length, 1, "a policy deve limitar a leitura a uma linha");
   assert.equal(
     rows[0]!.id,
-    DEMO_TENANT,
+    TENANT,
     "TENANT LEAKAGE: o registro de outra imobiliária ficou visível",
   );
 });

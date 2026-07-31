@@ -10,11 +10,16 @@ import {
  * Garante que um condomínio de um tenant nunca vaza para outro. Depende do
  * banco containerizado (`npm run infra:up`) e do seed em init.sql.
  */
-const DEMO_TENANT = "00000000-0000-0000-0000-000000000001";
+import { createTestTenant } from "../../testing/tenants.js";
+
+// Tenant próprio deste arquivo, descartado no `after` do fixture. Usar o
+// tenant demo fazia cada execução da suíte deixar linhas na imobiliária de
+// desenvolvimento — apareciam no painel misturadas ao dado real.
+const TENANT = (await createTestTenant("condominium")).id;
 const OTHER_TENANT = "00000000-0000-0000-0000-0000000000ff"; // inexistente / sem dados
 
-test("um condomínio criado no tenant demo não é visível por outro tenant", async () => {
-  const created = await insertCondominium(DEMO_TENANT, {
+test("um condomínio criado num tenant não é visível por outro tenant", async () => {
+  const created = await insertCondominium(TENANT, {
     name: `Condomínio Isolamento ${Date.now()}`,
     adminFeePercent: 10,
     adminFeeFixedCents: 0,
@@ -22,7 +27,7 @@ test("um condomínio criado no tenant demo não é visível por outro tenant", a
     penaltyPercent: 2,
   });
 
-  const visibleToDemo = await listCondominiums(DEMO_TENANT);
+  const visibleToDemo = await listCondominiums(TENANT);
   assert.ok(
     visibleToDemo.some((c) => c.id === created.id),
     "o tenant dono deve enxergar o próprio condomínio",

@@ -38,11 +38,18 @@ npm run db:prune-test-tenants    # lista tenants residuais de teste (dry-run)
 npm run db:prune-test-tenants -- --apply   # e os remove
 ```
 
-> **Tenant de teste sempre por `src/testing/tenants.ts`** (`createTestTenant` /
-> `createTrackedTenant`, ou `trackTenant` quando o tenant nasce dentro do que se
-> testa). Importar o módulo já registra o `after` que apaga tudo ao fim do
-> arquivo — criar tenant direto pelo serviço vaza a linha, e era assim que a
-> tabela chegou a 1.600 registros aparecendo no Super Admin. O
+> **Teste NUNCA escreve no tenant demo.** Cada arquivo cria o seu por
+> `src/testing/tenants.ts` (`createTestTenant` / `createTrackedTenant`, ou
+> `trackTenant` quando o tenant nasce dentro do que se testa); importar o módulo
+> já registra o `after` que apaga tudo em cascata ao fim do arquivo. As duas
+> regras vêm do mesmo estrago: com tenant próprio não removido, `tenants` chegou
+> a 1.600 linhas no Super Admin; escrevendo no demo, ~87 linhas por execução
+> caíam nas listas do painel misturadas ao dado real.
+>
+> Corolário: **não dependa do seed**. Teste que fazia `SELECT ... LIMIT 1` para
+> pegar "um imóvel do seed" se auto-pulava (`t.skip`) num tenant vazio — a
+> cobertura sumia em silêncio. Monte o cenário no próprio teste.
+>
 > `db:prune-test-tenants` é o resgate para resíduo antigo: só toca em slug
 > `t-<hex8>`/`nova-<hex8>` **sem** `clerk_org_id`, então nenhuma imobiliária real
 > casa com o critério.

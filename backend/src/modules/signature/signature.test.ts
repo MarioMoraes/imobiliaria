@@ -13,12 +13,17 @@ import * as repo from "./signature.repository.js";
  *
  * Depende da infra de pé (`npm run infra:up`).
  */
-const DEMO_TENANT = "00000000-0000-0000-0000-000000000001";
+import { createTestTenant } from "../../testing/tenants.js";
+
+// Tenant próprio deste arquivo, descartado no `after` do fixture. Usar o
+// tenant demo fazia cada execução da suíte deixar linhas na imobiliária de
+// desenvolvimento — apareciam no painel misturadas ao dado real.
+const TENANT = (await createTestTenant("signature")).id;
 const OTHER_TENANT = "00000000-0000-0000-0000-0000000000ff"; // inexistente / sem dados
 
 async function newContract(): Promise<string> {
   const contract = await insertContract(
-    DEMO_TENANT,
+    TENANT,
     createContractSchema.parse({ status: "RASCUNHO" }),
   );
   return contract.id;
@@ -30,27 +35,28 @@ async function newContract(): Promise<string> {
  * não ser visível.
  */
 async function dropContract(contractId: string): Promise<void> {
-  await withTenant(DEMO_TENANT, async (client) => {
+  await withTenant(TENANT, async (client) => {
     await client.query("DELETE FROM contracts WHERE id = $1", [contractId]);
   });
 }
 
 /**
- * Os testes abaixo gravam credenciais FICTÍCIAS no tenant demo. Sem restaurar,
- * a aplicação de desenvolvimento passa a achar que a ZapSign está conectada e
- * "Enviar para assinatura" falha ao decifrar o token de teste.
+ * Os testes abaixo gravam credenciais FICTÍCIAS de ZapSign. O tenant é
+ * descartável, então o restauro abaixo não protege mais a aplicação de
+ * desenvolvimento — ele mantém os casos independentes entre si dentro do
+ * arquivo, que é a razão que continua valendo.
  */
 let saved: Awaited<ReturnType<typeof repo.findSettings>> = null;
 
 before(async () => {
-  saved = await repo.findSettings(DEMO_TENANT);
+  saved = await repo.findSettings(TENANT);
 });
 
 after(async () => {
-  await withTenant(DEMO_TENANT, async (client) => {
+  await withTenant(TENANT, async (client) => {
     if (!saved) {
       await client.query("DELETE FROM tenant_signature_settings WHERE tenant_id = $1", [
-        DEMO_TENANT,
+        TENANT,
       ]);
       return;
     }
@@ -59,14 +65,14 @@ after(async () => {
           SET api_token_enc = $2, api_token_hint = $3, sandbox = $4,
               auth_mode = $5, webhook_secret = $6
         WHERE tenant_id = $1`,
-      [DEMO_TENANT, saved.apiTokenEnc, saved.apiTokenHint, saved.sandbox, saved.authMode, saved.webhookSecret],
+      [TENANT, saved.apiTokenEnc, saved.apiTokenHint, saved.sandbox, saved.authMode, saved.webhookSecret],
     );
   });
 });
 
 test("as credenciais de assinatura de um tenant não vazam para outro", async () => {
   const hint = randomUUID().slice(0, 4);
-  await repo.upsertSettings(DEMO_TENANT, {
+  await repo.upsertSettings(TENANT, {
     apiTokenEnc: "v1.fake.fake.fake",
     apiTokenHint: hint,
     sandbox: true,
@@ -74,7 +80,7 @@ test("as credenciais de assinatura de um tenant não vazam para outro", async ()
     webhookSecret: `webhook-${randomUUID()}`,
   });
 
-  const mine = await repo.findSettings(DEMO_TENANT);
+  const mine = await repo.findSettings(TENANT);
   assert.equal(mine?.apiTokenHint, hint, "o tenant dono lê a própria configuração");
   assert.ok(mine?.webhookSecret, "o segredo do webhook é persistido");
 
@@ -89,27 +95,27 @@ test("reconfigurar preserva o webhook_secret já registrado na ZapSign", async (
     sandbox: true,
     authMode: "assinaturaTela-tokenEmail",
   };
-  await repo.upsertSettings(DEMO_TENANT, { ...base, webhookSecret: `webhook-${randomUUID()}` });
-  const first = await repo.findSettings(DEMO_TENANT);
+  await repo.upsertSettings(TENANT, { ...base, webhookSecret: `webhook-${randomUUID()}` });
+  const first = await repo.findSettings(TENANT);
 
   // Trocar o modo de assinatura não pode invalidar o webhook já cadastrado no
   // provedor — o segredo novo seria rejeitado na chegada do callback.
-  await repo.upsertSettings(DEMO_TENANT, {
+  await repo.upsertSettings(TENANT, {
     ...base,
     authMode: "assinaturaTela",
     webhookSecret: `webhook-${randomUUID()}`,
   });
-  const second = await repo.findSettings(DEMO_TENANT);
+  const second = await repo.findSettings(TENANT);
 
   assert.equal(second?.webhookSecret, first?.webhookSecret);
   assert.equal(second?.authMode, "assinaturaTela", "os demais campos são atualizados");
 });
 
-test("um envelope criado no tenant demo não é visível por outro tenant", async () => {
+test("um envelope criado num tenant não é visível por outro tenant", async () => {
   const contractId = await newContract();
   const docToken = `doc-${randomUUID()}`;
 
-  const created = await repo.insertEnvelope(DEMO_TENANT, {
+  const created = await repo.insertEnvelope(TENANT, {
     contractId,
     version: 1,
     providerDocToken: docToken,
@@ -132,7 +138,7 @@ test("um envelope criado no tenant demo não é visível por outro tenant", asyn
   try {
     assert.equal(created.signers.length, 1);
 
-    const mine = await repo.findLatestEnvelope(DEMO_TENANT, contractId);
+    const mine = await repo.findLatestEnvelope(TENANT, contractId);
     assert.equal(mine?.id, created.id, "o tenant dono enxerga o próprio envelope");
 
     const theirs = await repo.findLatestEnvelope(OTHER_TENANT, contractId);
@@ -157,7 +163,7 @@ test("um envelope criado no tenant demo não é visível por outro tenant", asyn
       "TENANT LEAKAGE: escrita cruzada não pode concluir",
     );
 
-    const after = await repo.findLatestEnvelope(DEMO_TENANT, contractId);
+    const after = await repo.findLatestEnvelope(TENANT, contractId);
     assert.equal(after?.status, "PENDENTE", "o envelope do dono segue intacto");
   } finally {
     await dropContract(contractId);
@@ -167,7 +173,7 @@ test("um envelope criado no tenant demo não é visível por outro tenant", asyn
 test("applyEnvelopeState é idempotente: só a 1ª conclusão retorna justCompleted", async () => {
   const contractId = await newContract();
   const signerToken = `signer-${randomUUID()}`;
-  const envelope = await repo.insertEnvelope(DEMO_TENANT, {
+  const envelope = await repo.insertEnvelope(TENANT, {
     contractId,
     version: 1,
     providerDocToken: `doc-${randomUUID()}`,
@@ -202,13 +208,13 @@ test("applyEnvelopeState é idempotente: só a 1ª conclusão retorna justComple
       ],
     };
 
-    const first = await repo.applyEnvelopeState(DEMO_TENANT, state);
+    const first = await repo.applyEnvelopeState(TENANT, state);
     assert.equal(first.justCompleted, true, "a 1ª aplicação conclui o envelope");
     assert.equal(first.envelope.status, "ASSINADO");
     assert.equal(first.envelope.signers[0]?.status, "ASSINADO");
 
     // Reprocessar o MESMO webhook não pode versionar/publicar de novo.
-    const second = await repo.applyEnvelopeState(DEMO_TENANT, state);
+    const second = await repo.applyEnvelopeState(TENANT, state);
     assert.equal(second.justCompleted, false, "reprocessar o mesmo evento é no-op");
     assert.equal(second.envelope.status, "ASSINADO");
   } finally {

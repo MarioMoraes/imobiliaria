@@ -7,10 +7,15 @@ import * as service from "./document.service.js";
 
 /**
  * Repositório documental. Depende da infra de pé (`npm run infra:up`) e usa o
- * tenant demo do seed. Os testes ficam na camada do repositório porque o service
+ * Os testes ficam na camada do repositório porque o service
  * grava no bucket — o que é I/O de rede e não pertence a um teste de unidade.
  */
-const DEMO_TENANT = "00000000-0000-0000-0000-000000000001";
+import { createTestTenant } from "../../testing/tenants.js";
+
+// Tenant próprio deste arquivo, descartado no `after` do fixture. Usar o
+// tenant demo fazia cada execução da suíte deixar linhas na imobiliária de
+// desenvolvimento — apareciam no painel misturadas ao dado real.
+const TENANT = (await createTestTenant("document")).id;
 const OTHER_TENANT = "00000000-0000-0000-0000-0000000000ff"; // inexistente / sem dados
 
 /** Documento com uma versão 1 fictícia (chave de bucket falsa, ninguém lê). */
@@ -23,7 +28,7 @@ function draft(overrides: Partial<Parameters<typeof repo.insertDocument>[1]> = {
     mime: "application/pdf",
     sizeBytes: 1234,
     expiresAt: null,
-    storageKey: `${DEMO_TENANT}/documents/person/${randomUUID()}.pdf`,
+    storageKey: `${TENANT}/documents/person/${randomUUID()}.pdf`,
     uploadedBy: null,
     ...overrides,
   };
@@ -31,16 +36,16 @@ function draft(overrides: Partial<Parameters<typeof repo.insertDocument>[1]> = {
 
 /** Limpeza: o expurgo mantém a linha de propósito, então o teste apaga na mão. */
 async function hardDelete(id: string): Promise<void> {
-  await withTenant(DEMO_TENANT, async (client) => {
+  await withTenant(TENANT, async (client) => {
     await client.query("DELETE FROM documents WHERE id = $1", [id]);
   });
 }
 
-test("um documento do tenant demo não é visível por outro tenant", async () => {
-  const created = await repo.insertDocument(DEMO_TENANT, draft());
+test("um documento de um tenant não é visível por outro", async () => {
+  const created = await repo.insertDocument(TENANT, draft());
 
   try {
-    const visibleToDemo = await repo.listDocuments(DEMO_TENANT, {});
+    const visibleToDemo = await repo.listDocuments(TENANT, {});
     assert.ok(
       visibleToDemo.some((d) => d.id === created.id),
       "o tenant dono deve enxergar o próprio documento",
@@ -60,24 +65,24 @@ test("um documento do tenant demo não é visível por outro tenant", async () =
 
 test("o upload nasce na versão 1, já com a chave do objeto resolvida", async () => {
   const input = draft();
-  const created = await repo.insertDocument(DEMO_TENANT, input);
+  const created = await repo.insertDocument(TENANT, input);
 
   try {
     assert.equal(created.currentVersion, 1);
     assert.equal(created.status, "ATIVO");
     assert.equal(created.storageKey, input.storageKey);
-    assert.equal((await repo.listVersions(DEMO_TENANT, created.id)).length, 1);
+    assert.equal((await repo.listVersions(TENANT, created.id)).length, 1);
   } finally {
     await hardDelete(created.id);
   }
 });
 
 test("nova versão vira a vigente e PRESERVA a anterior", async () => {
-  const created = await repo.insertDocument(DEMO_TENANT, draft());
+  const created = await repo.insertDocument(TENANT, draft());
 
   try {
-    const key2 = `${DEMO_TENANT}/documents/person/${randomUUID()}.pdf`;
-    const updated = await repo.insertVersion(DEMO_TENANT, created.id, {
+    const key2 = `${TENANT}/documents/person/${randomUUID()}.pdf`;
+    const updated = await repo.insertVersion(TENANT, created.id, {
       fileName: "rg-atualizado.pdf",
       mime: "application/pdf",
       sizeBytes: 4321,
@@ -92,35 +97,35 @@ test("nova versão vira a vigente e PRESERVA a anterior", async () => {
     assert.equal(updated?.expiresAt, "2027-01-31");
 
     // A v1 continua no histórico — é a prova do que valia antes.
-    const versions = await repo.listVersions(DEMO_TENANT, created.id);
+    const versions = await repo.listVersions(TENANT, created.id);
     assert.deepEqual(versions.map((v) => v.version), [2, 1]);
-    assert.equal((await repo.listStorageKeys(DEMO_TENANT, created.id)).length, 2);
+    assert.equal((await repo.listStorageKeys(TENANT, created.id)).length, 2);
   } finally {
     await hardDelete(created.id);
   }
 });
 
 test("omitir a validade na nova versão mantém a que já existia", async () => {
-  const created = await repo.insertDocument(DEMO_TENANT, draft({ expiresAt: "2026-12-31" }));
+  const created = await repo.insertDocument(TENANT, draft({ expiresAt: "2026-12-31" }));
 
   try {
-    const updated = await repo.insertVersion(DEMO_TENANT, created.id, {
+    const updated = await repo.insertVersion(TENANT, created.id, {
       fileName: null,
       mime: "application/pdf",
       sizeBytes: 10,
       expiresAt: undefined, // não mexe
-      storageKey: `${DEMO_TENANT}/documents/person/${randomUUID()}.pdf`,
+      storageKey: `${TENANT}/documents/person/${randomUUID()}.pdf`,
       uploadedBy: null,
     });
     assert.equal(updated?.expiresAt, "2026-12-31");
     assert.equal(updated?.fileName, "rg.pdf", "sem nome novo, mantém o anterior");
 
-    const cleared = await repo.insertVersion(DEMO_TENANT, created.id, {
+    const cleared = await repo.insertVersion(TENANT, created.id, {
       fileName: null,
       mime: "application/pdf",
       sizeBytes: 10,
       expiresAt: null, // limpa
-      storageKey: `${DEMO_TENANT}/documents/person/${randomUUID()}.pdf`,
+      storageKey: `${TENANT}/documents/person/${randomUUID()}.pdf`,
       uploadedBy: null,
     });
     assert.equal(cleared?.expiresAt, null);
@@ -130,36 +135,36 @@ test("omitir a validade na nova versão mantém a que já existia", async () => 
 });
 
 test("expurgo mantém a linha anonimizada e some da listagem padrão", async () => {
-  const created = await repo.insertDocument(DEMO_TENANT, draft());
+  const created = await repo.insertDocument(TENANT, draft());
 
   try {
     // As chaves precisam ser lidas ANTES do expurgo — depois dele não há mais o
     // que apagar no bucket.
-    const keys = await repo.listStorageKeys(DEMO_TENANT, created.id);
+    const keys = await repo.listStorageKeys(TENANT, created.id);
     assert.equal(keys.length, 1);
 
-    assert.equal(await repo.markPurged(DEMO_TENANT, created.id), true);
+    assert.equal(await repo.markPurged(TENANT, created.id), true);
     assert.equal(
-      await repo.markPurged(DEMO_TENANT, created.id),
+      await repo.markPurged(TENANT, created.id),
       false,
       "expurgar de novo não faz nada",
     );
 
-    const purged = await repo.findDocument(DEMO_TENANT, created.id);
+    const purged = await repo.findDocument(TENANT, created.id);
     assert.equal(purged?.status, "EXPURGADO");
     assert.equal(purged?.fileName, null, "metadado anonimizado");
     assert.equal(purged?.mime, null);
     assert.equal(purged?.storageKey, null, "sem chave, ninguém presigna nada");
 
-    const listed = await repo.listDocuments(DEMO_TENANT, {});
+    const listed = await repo.listDocuments(TENANT, {});
     assert.ok(!listed.some((d) => d.id === created.id));
 
     // Mas continua acessível para auditoria.
-    const audited = await repo.listDocuments(DEMO_TENANT, { includePurged: true });
+    const audited = await repo.listDocuments(TENANT, { includePurged: true });
     assert.ok(audited.some((d) => d.id === created.id));
 
     // Expurgado não aceita versão nova.
-    const rejected = await repo.insertVersion(DEMO_TENANT, created.id, {
+    const rejected = await repo.insertVersion(TENANT, created.id, {
       fileName: null,
       mime: "application/pdf",
       sizeBytes: 1,
@@ -175,14 +180,14 @@ test("expurgo mantém a linha anonimizada e some da listagem padrão", async () 
 
 test("filtro por entidade só devolve o que está preso àquela entidade", async () => {
   const entityId = randomUUID();
-  const mine = await repo.insertDocument(DEMO_TENANT, draft({ entityId, kind: "RENDA" }));
-  const other = await repo.insertDocument(DEMO_TENANT, draft());
+  const mine = await repo.insertDocument(TENANT, draft({ entityId, kind: "RENDA" }));
+  const other = await repo.insertDocument(TENANT, draft());
 
   try {
-    const found = await repo.listDocuments(DEMO_TENANT, { entityType: "PERSON", entityId });
+    const found = await repo.listDocuments(TENANT, { entityType: "PERSON", entityId });
     assert.deepEqual(found.map((d) => d.id), [mine.id]);
 
-    const byKind = await repo.listDocuments(DEMO_TENANT, { entityId, kind: "RG" });
+    const byKind = await repo.listDocuments(TENANT, { entityId, kind: "RG" });
     assert.equal(byKind.length, 0, "o kind do documento é RENDA");
   } finally {
     await hardDelete(mine.id);
@@ -192,7 +197,7 @@ test("filtro por entidade só devolve o que está preso àquela entidade", async
 
 test("anexar a uma entidade inexistente falha antes de tocar no bucket", async () => {
   await assert.rejects(
-    service.create(DEMO_TENANT, {
+    service.create(TENANT, {
       entityType: "PROPERTY",
       entityId: randomUUID(),
       kind: "MATRICULA",

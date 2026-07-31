@@ -14,19 +14,24 @@ import { redact } from "./audit.redact.js";
  * (`npm run infra:up`): isolamento entre tenants (obrigatório no CI — SPEC 3.1)
  * e imutabilidade do registro. Os demais são puros.
  */
-const DEMO_TENANT = "00000000-0000-0000-0000-000000000001";
+import { createTestTenant } from "../../testing/tenants.js";
+
+// Tenant próprio deste arquivo, descartado no `after` do fixture. Usar o
+// tenant demo fazia cada execução da suíte deixar linhas na imobiliária de
+// desenvolvimento — apareciam no painel misturadas ao dado real.
+const TENANT = (await createTestTenant("audit")).id;
 const OTHER_TENANT = "00000000-0000-0000-0000-0000000000ff"; // inexistente / sem dados
 
 const query = (over: Record<string, unknown> = {}) => auditQuery.parse(over);
 
-test("um registro do tenant demo não é visível por outro tenant", async () => {
-  const created = await insertAuditLog(DEMO_TENANT, {
+test("um registro de um tenant não é visível por outro", async () => {
+  const created = await insertAuditLog(TENANT, {
     action: "property.created",
     entity: "property",
     entityId: "teste-isolamento",
   });
 
-  const visibleToDemo = await listAuditLogs(DEMO_TENANT, query({ limit: 100 }));
+  const visibleToDemo = await listAuditLogs(TENANT, query({ limit: 100 }));
   assert.ok(
     visibleToDemo.items.some((log) => log.id === created.id),
     "o tenant dono deve enxergar o próprio registro",
@@ -40,7 +45,7 @@ test("um registro do tenant demo não é visível por outro tenant", async () =>
 });
 
 test("o registro é imutável: não se edita, e o recente não se apaga", async () => {
-  const created = await insertAuditLog(DEMO_TENANT, {
+  const created = await insertAuditLog(TENANT, {
     action: "property.updated",
     entity: "property",
     entityId: "teste-imutabilidade",
@@ -49,7 +54,7 @@ test("o registro é imutável: não se edita, e o recente não se apaga", async 
   // UPDATE: `app_user` não tem o privilégio (nem existe policy de UPDATE).
   await assert.rejects(
     () =>
-      withTenant(DEMO_TENANT, (client) =>
+      withTenant(TENANT, (client) =>
         client.query("UPDATE audit_logs SET action = 'forjado' WHERE id = $1", [created.id]),
       ),
     /permission denied|permissão negada/i,
@@ -67,7 +72,7 @@ test("o registro é imutável: não se edita, e o recente não se apaga", async 
   assert.equal(removed, 0, "linha recente não pode ser apagada nem pela plataforma");
 
   const stillThere = await listAuditLogs(
-    DEMO_TENANT,
+    TENANT,
     query({ entityId: "teste-imutabilidade", limit: 100 }),
   );
   assert.ok(stillThere.items.some((log) => log.id === created.id));
@@ -76,7 +81,7 @@ test("o registro é imutável: não se edita, e o recente não se apaga", async 
 
 test("record() nunca deixa um segredo chegar ao banco", async () => {
   await record({
-    tenantId: DEMO_TENANT,
+    tenantId: TENANT,
     action: "config.integrations.updated",
     entity: "config",
     entityId: "teste-redacao",
@@ -84,7 +89,7 @@ test("record() nunca deixa um segredo chegar ao banco", async () => {
   });
 
   const found = await listAuditLogs(
-    DEMO_TENANT,
+    TENANT,
     query({ entityId: "teste-redacao", limit: 1 }),
   );
   const payload = found.items[0]?.payload as Record<string, unknown> | undefined;
