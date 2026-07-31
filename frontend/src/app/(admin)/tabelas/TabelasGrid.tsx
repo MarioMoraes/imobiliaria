@@ -56,6 +56,7 @@ export function TabelasGrid({
   liveItems,
   liveDistricts,
   liveEvents,
+  notice,
 }: {
   types: PropertyType[];
   clauses: Clause[];
@@ -70,6 +71,8 @@ export function TabelasGrid({
   liveItems: boolean;
   liveDistricts: boolean;
   liveEvents: boolean;
+  /** Diagnóstico da falha de carga, repassado aos gerenciadores. */
+  notice?: string | null;
 }) {
   const [open, setOpen] = useState<CardKey | null>(null);
 
@@ -174,18 +177,20 @@ export function TabelasGrid({
             placeholder="Novo tipo (ex.: Cobertura)"
             emptyLabel="Nenhum tipo cadastrado."
             live={liveTypes}
+            notice={notice}
             createAction={createTypeAction}
             deleteAction={deleteTypeAction}
           />
         )}
         {active?.key === "clauses" && (
-          <ClauseManager clauses={clauses} live={liveClauses} />
+          <ClauseManager clauses={clauses} live={liveClauses} notice={notice} />
         )}
         {active?.key === "templates" && (
           <ContractTemplateManager
             templates={templates}
             mergeFields={mergeFields}
             live={liveTemplates}
+            notice={notice}
           />
         )}
         {active?.key === "items" && (
@@ -195,6 +200,7 @@ export function TabelasGrid({
             placeholder="Novo item (ex.: Pintura externa)"
             emptyLabel="Nenhum item cadastrado."
             live={liveItems}
+            notice={notice}
             createAction={createItemAction}
             deleteAction={deleteItemAction}
           />
@@ -206,12 +212,13 @@ export function TabelasGrid({
             placeholder="Novo bairro (ex.: Centro)"
             emptyLabel="Nenhum bairro cadastrado."
             live={liveDistricts}
+            notice={notice}
             createAction={createDistrictAction}
             deleteAction={deleteDistrictAction}
           />
         )}
         {active?.key === "events" && (
-          <EventManager events={events} live={liveEvents} />
+          <EventManager events={events} live={liveEvents} notice={notice} />
         )}
       </Modal>
     </>

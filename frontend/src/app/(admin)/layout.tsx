@@ -1,10 +1,11 @@
+import { redirect } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
 import { currentUser } from "@clerk/nextjs/server";
 import { AppDialogs } from "../../components/AppDialogs";
 import { Sidebar } from "../../components/Sidebar";
 import { Topbar } from "../../components/Topbar";
 import { adminNav, visibleNav } from "../../lib/nav";
-import { fetchCurrentTenant, fetchCurrentUser } from "../../lib/api";
+import { backendFailure, fetchCurrentTenant, fetchCurrentUser } from "../../lib/api";
 import { requireSession } from "../../lib/auth-guard";
 
 /** Rótulos em português dos papéis do sistema (RBAC). */
@@ -34,6 +35,15 @@ export default async function AdminLayout({
     currentUser().catch(() => null),
     fetchCurrentUser(),
   ]);
+
+  // Sessão válida que o backend não associa a nenhuma imobiliária: o onboarding
+  // não foi concluído (ou a organização do Clerk nasceu sem `tenant_id`). Servir
+  // o painel aqui produzia a pior versão do erro — todas as telas acusando
+  // "backend offline", sem caminho de volta, porque o /onboarding devolvia
+  // quem já tinha organização para cá. Só redirecionamos com esse diagnóstico
+  // específico: backend fora do ar não vira convite a recadastrar a imobiliária.
+  if (backendFailure() === "no-tenant") redirect("/onboarding");
+
   const brandName = tenant?.name ?? "Offices AI";
 
   const userName =

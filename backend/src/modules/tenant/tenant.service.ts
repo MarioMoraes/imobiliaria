@@ -148,16 +148,23 @@ export async function assertActive(id: string): Promise<void> {
  * outra imobiliária, e o backend não teria como recusar. Aproveita o cache do
  * `assertActive`, então não custa uma query a mais por request.
  *
- * Tolerante quando o tenant ainda não tem org registrada (`clerk_org_id` nulo —
- * tenants criados no dev-mode ou antes do vínculo): aí não há o que comparar.
+ * NÃO é tolerante com `clerk_org_id` nulo: quem chega com organização no token
+ * veio do Clerk, e um tenant sem org registrada não é dele. A tolerância antiga
+ * ("não há o que comparar") era a brecha que deixava um claim `tenant_id`
+ * apontando para qualquer tenant criado fora do Clerk — inclusive os de teste —
+ * passar sem contestação. Tenant legítimo ganha `clerk_org_id` no onboarding;
+ * se um tenant antigo perder o vínculo (ex.: `npm run infra:reset` recria o
+ * demo sem a coluna), a correção é regravar a coluna, não afrouxar o gate.
  */
 export async function assertOrgMatches(id: string, orgId: string): Promise<void> {
   const { clerkOrgId } = await resolve(id);
-  if (clerkOrgId && clerkOrgId !== orgId) {
+  if (clerkOrgId !== orgId) {
     throw new AppError(
       "ERR_AUTH_009",
       401,
-      "Organização do token não corresponde ao tenant",
+      clerkOrgId
+        ? "Organização do token não corresponde ao tenant"
+        : "Tenant sem organização vinculada no Clerk",
     );
   }
 }

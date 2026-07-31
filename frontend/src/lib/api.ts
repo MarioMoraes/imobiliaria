@@ -10,6 +10,7 @@
  * /v1/persons (cadastro unificado; /fiadores usa ?role=FIADOR), /v1/employees,
  * /v1/users, /admin/tenants. Os demais módulos usam lib/sample.ts.
  */
+import { cache } from "react";
 import { auth } from "@clerk/nextjs/server";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:3001";
@@ -663,6 +664,85 @@ export interface PayableSummary {
   pendingCount: number;
 }
 
+/* -------------------------------------------- Diagnóstico de falha (leitura) */
+
+/**
+ * Por que uma leitura não trouxe dado. As telas tratam ausência de dado como
+ * `null` (e continuam tratando), mas `null` sozinho não diz NADA: era traduzido
+ * em toda a UI como "backend offline", inclusive quando o backend respondera
+ * 401 na hora — mandando o usuário subir um processo que já estava no ar.
+ */
+export type BackendFailure =
+  /** Não houve resposta: processo fora do ar, DNS, porta errada. */
+  | "offline"
+  /** Sessão sem imobiliária provisionada (ERR_AUTH_005/008) — falta onboarding. */
+  | "no-tenant"
+  /** Autenticado, mas sem papel/permissão para este recurso. */
+  | "denied"
+  /** O backend respondeu, com erro (5xx, 404, payload inesperado). */
+  | "error";
+
+/**
+ * Qual falha "ganha" quando várias acontecem no mesmo request: a página faz
+ * dezenas de leituras em paralelo e queremos reportar a mais explicativa, não a
+ * última a chegar. Falta de tenant explica todas as outras; permissão negada é
+ * o caso mais banal (RBAC funcionando) e só aparece se nada pior ocorreu.
+ */
+const FAILURE_RANK: Record<BackendFailure, number> = {
+  "no-tenant": 3,
+  offline: 2,
+  error: 1,
+  denied: 0,
+};
+
+/**
+ * Caixa mutável com escopo de REQUEST. `cache()` do React memoriza por render
+ * server-side, então cada request tem a sua — um usuário não vê o diagnóstico
+ * do request de outro.
+ */
+const failureBox = cache((): { reason: BackendFailure | null } => ({ reason: null }));
+
+function recordFailure(reason: BackendFailure, path: string, detail: string): void {
+  // Falha silenciosa era o pior deste caminho: nada no terminal, e a tela
+  // acusando "backend offline". Um aviso por leitura falha resolve o diagnóstico.
+  console.warn(`[api] ${path} → ${reason} (${detail})`);
+  const box = failureBox();
+  if (box.reason === null || FAILURE_RANK[reason] > FAILURE_RANK[box.reason]) {
+    box.reason = reason;
+  }
+}
+
+/** A falha mais explicativa deste request, ou `null` se tudo respondeu. */
+export function backendFailure(): BackendFailure | null {
+  return failureBox().reason;
+}
+
+/** Texto para a UI explicar por que a tela está sem dado. */
+export function backendFailureMessage(reason: BackendFailure): string {
+  switch (reason) {
+    case "offline":
+      return "Servidor fora do ar — não foi possível carregar os dados.";
+    case "no-tenant":
+      return "Sua sessão ainda não está vinculada a uma imobiliária.";
+    case "denied":
+      return "Você não tem permissão para ver ou alterar estes dados.";
+    case "error":
+      return "O servidor respondeu com erro ao carregar estes dados.";
+  }
+}
+
+/**
+ * Mensagem pronta para o rodapé de uma tela que não conseguiu carregar. `null`
+ * quando não houve falha alguma (a tela está apenas vazia).
+ */
+export function backendNotice(): string | null {
+  const reason = backendFailure();
+  return reason ? backendFailureMessage(reason) : null;
+}
+
+/** Códigos que significam "esta sessão não tem imobiliária" (ver backend/errors.ts). */
+const NO_TENANT_CODES = new Set(["ERR_AUTH_005", "ERR_AUTH_008", "TENANT_REQUIRED"]);
+
 /* ------------------------------------------------------------- Helpers */
 async function get<T>(
   path: string,
@@ -673,13 +753,40 @@ async function get<T>(
       headers: { ...(await authHeaders()), ...headers },
       cache: "no-store",
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const code = await errorCode(res);
+      recordFailure(classify(res.status, code), path, `HTTP ${res.status} ${code ?? ""}`.trim());
+      return null;
+    }
     const json = (await res.json()) as { data: T };
     return json.data;
-  } catch {
-    // Backend indisponível (ex.: infra não subiu) — a página cai no fallback.
+  } catch (err) {
+    // Sem sessão (ver authHeaders) não é "backend fora do ar": a resposta seria
+    // 401 de qualquer forma, e chamar isso de offline é o erro que esta
+    // classificação existe para não repetir.
+    const noSession = err instanceof Error && err.message === "UNAUTHENTICATED";
+    recordFailure(
+      noSession ? "no-tenant" : "offline",
+      path,
+      err instanceof Error ? err.message : "falha na requisição",
+    );
     return null;
   }
+}
+
+/** Lê o `error.code` do corpo padrão de erro, sem quebrar se não houver corpo. */
+async function errorCode(res: Response): Promise<string | null> {
+  const json = (await res.json().catch(() => null)) as { error?: { code?: string } } | null;
+  return json?.error?.code ?? null;
+}
+
+function classify(status: number, code: string | null): BackendFailure {
+  if (code && NO_TENANT_CODES.has(code)) return "no-tenant";
+  // 401 sem código conhecido: a sessão não foi aceita — ainda é problema de
+  // vínculo/sessão, não de rede.
+  if (status === 401) return "no-tenant";
+  if (status === 403) return "denied";
+  return "error";
 }
 
 /** Resumo do painel inicial (/v1/dashboard/summary). */

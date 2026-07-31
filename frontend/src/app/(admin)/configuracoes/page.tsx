@@ -1,6 +1,11 @@
 import { PageHeader, Section } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
-import { fetchCurrentTenant, fetchPaymentSettings, fetchSignatureSettings } from "../../../lib/api";
+import {
+  backendNotice,
+  fetchCurrentTenant,
+  fetchPaymentSettings,
+  fetchSignatureSettings,
+} from "../../../lib/api";
 import { SignatureSettingsCard } from "./SignatureSettingsCard";
 import { PaymentSettingsCard } from "./PaymentSettingsCard";
 import { TenantProfileCard } from "./TenantProfileCard";
@@ -19,6 +24,8 @@ export default async function ConfiguracoesPage() {
     fetchPaymentSettings(),
     fetchCurrentTenant(),
   ]);
+  // Depois das leituras: é delas que sai o diagnóstico exibido nos cartões.
+  const notice = backendNotice();
 
   return (
     <>
@@ -26,15 +33,15 @@ export default async function ConfiguracoesPage() {
 
       <div className="grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
         <Section title="Dados da imobiliária" pad>
-          <TenantProfileCard tenant={tenant} />
+          <TenantProfileCard tenant={tenant} notice={notice} />
         </Section>
 
         <Section title="Assinatura Digital (ZapSign)" pad>
-          <SignatureSettingsCard settings={signature} />
+          <SignatureSettingsCard settings={signature} notice={notice} />
         </Section>
 
         <Section title="Cobrança (Asaas)" pad>
-          <PaymentSettingsCard settings={payment} />
+          <PaymentSettingsCard settings={payment} notice={notice} />
         </Section>
 
         <Section title="Integrações">

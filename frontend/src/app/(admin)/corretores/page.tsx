@@ -1,5 +1,5 @@
 import { PageHeader } from "../../../components/ui";
-import { fetchBrokers } from "../../../lib/api";
+import { backendNotice, fetchBrokers } from "../../../lib/api";
 import { CorretoresGrid } from "./CorretoresGrid";
 
 /**
@@ -9,11 +9,12 @@ import { CorretoresGrid } from "./CorretoresGrid";
  */
 export default async function CorretoresPage() {
   const brokers = await fetchBrokers();
+  const notice = backendNotice();
 
   return (
     <>
       <PageHeader title="Corretores" />
-      <CorretoresGrid brokers={brokers ?? []} live={brokers !== null} />
+      <CorretoresGrid brokers={brokers ?? []} live={brokers !== null} notice={notice} />
     </>
   );
 }

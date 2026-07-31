@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { PageHeader, StatCard, Section, EmptyState } from "../../../components/ui";
 import { Icon } from "../../../components/Icon";
-import { fetchCondominiums, formatPrice, type Condominium } from "../../../lib/api";
+import { BackendNotice } from "../../../components/BackendNotice";
+import { backendNotice, fetchCondominiums, formatPrice, type Condominium } from "../../../lib/api";
 import { CondominiumFormButton } from "./CondominiumFormButton";
 import { DeleteCondominiumButton } from "./DeleteCondominiumButton";
 
@@ -13,6 +14,7 @@ function formatPercent(n: number): string {
 export default async function CondominiosPage() {
   const live = await fetchCondominiums();
   const condominiums: Condominium[] = live ?? [];
+  const notice = backendNotice();
   const isLive = live !== null;
 
   const totalBalance = condominiums.reduce((sum, c) => sum + c.balanceCents, 0);
@@ -47,11 +49,11 @@ export default async function CondominiosPage() {
             <div className="card-pad">
               <EmptyState
                 icon="home"
-                title={isLive ? "Nenhum condomínio cadastrado" : "Backend offline"}
+                title={isLive ? "Nenhum condomínio cadastrado" : "Não foi possível carregar"}
                 hint={
                   isLive
                     ? "Cadastre o primeiro condomínio administrado pela imobiliária."
-                    : "Suba a infra (npm run dev) para carregar e gravar os condomínios."
+                    : (notice ?? undefined)
                 }
                 action={isLive ? <CondominiumFormButton /> : undefined}
               />
@@ -115,7 +117,7 @@ export default async function CondominiosPage() {
 
       {!isLive && (
         <p className="text-xs subtle mt-4">
-          <Icon name="server" size={12} /> Backend offline — suba <code>npm run dev</code> para gravar.
+          <BackendNotice message={notice} />
         </p>
       )}
     </>

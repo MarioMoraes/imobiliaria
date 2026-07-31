@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { BackendNotice, GENERIC_BACKEND_NOTICE } from "../../../components/BackendNotice";
 import { Icon } from "../../../components/Icon";
 import type { SignatureSettings } from "../../../lib/api";
 import { disconnectSignatureAction, saveSignatureSettingsAction } from "./actions";
@@ -21,7 +22,14 @@ const AUTH_MODES: { value: string; label: string }[] = [
  * Conexão da conta ZapSign do tenant. O token é write-only: uma vez salvo, a
  * tela só exibe os últimos 4 caracteres.
  */
-export function SignatureSettingsCard({ settings }: { settings: SignatureSettings | null }) {
+export function SignatureSettingsCard({
+  settings,
+  notice,
+}: {
+  settings: SignatureSettings | null;
+  /** Por que não está disponível — vem do `backendNotice()` de quem renderiza. */
+  notice?: string | null;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [token, setToken] = useState("");
@@ -128,11 +136,7 @@ export function SignatureSettingsCard({ settings }: { settings: SignatureSetting
         )}
       </div>
 
-      {offline && (
-        <span className="text-xs subtle">
-          Backend offline — suba <code>npm run dev</code> para configurar.
-        </span>
-      )}
+      {offline && <BackendNotice message={notice ?? GENERIC_BACKEND_NOTICE} />}
     </div>
   );
 }

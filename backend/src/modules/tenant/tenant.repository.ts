@@ -96,6 +96,22 @@ export async function findTenantByCnpj(cnpj: string): Promise<Tenant | null> {
   });
 }
 
+/**
+ * Tenant vinculado a uma organização do Clerk. É a resposta autoritativa para
+ * "esta org já foi onboardada?" — o `public_metadata` da org é só o espelho que
+ * alimenta o claim, e pode estar vazio (org criada pelo próprio Clerk) ou
+ * defasado. Atravessa tenants por definição, como slug/CNPJ.
+ */
+export async function findTenantByClerkOrgId(orgId: string): Promise<Tenant | null> {
+  return withPlatform(async (client) => {
+    const { rows } = await client.query<Row>(
+      "SELECT * FROM tenants WHERE clerk_org_id = $1",
+      [orgId],
+    );
+    return rows[0] ? toTenant(rows[0]) : null;
+  });
+}
+
 export async function insertTenantAsPlatform(input: CreateTenantInput): Promise<Tenant> {
   return withPlatform(async (client) => {
     const { rows } = await client.query<Row>(

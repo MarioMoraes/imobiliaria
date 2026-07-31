@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { PageHeader, StatCard, Section, EmptyState } from "../../../../../components/ui";
-import { Icon } from "../../../../../components/Icon";
+import { BackendNotice } from "../../../../../components/BackendNotice";
 import {
+  backendNotice,
   fetchCondominium,
   fetchCondominiumExpenses,
   fetchEvents,
@@ -28,6 +29,7 @@ export default async function DespesasPage({
   if (condominium === null && live !== null) notFound();
 
   const expenses: CondominiumExpense[] = live ?? [];
+  const notice = backendNotice();
   const isLive = live !== null;
   const total = expenses.reduce((sum, e) => sum + e.amountCents, 0);
 
@@ -59,11 +61,11 @@ export default async function DespesasPage({
             <div className="card-pad">
               <EmptyState
                 icon="receipt"
-                title={isLive ? "Nenhuma despesa lançada" : "Backend offline"}
+                title={isLive ? "Nenhuma despesa lançada" : "Não foi possível carregar"}
                 hint={
                   isLive
                     ? "Lance a primeira despesa deste condomínio."
-                    : "Suba a infra (npm run dev) para carregar e gravar as despesas."
+                    : (notice ?? undefined)
                 }
                 action={addButton}
               />
@@ -119,7 +121,7 @@ export default async function DespesasPage({
 
       {!isLive && (
         <p className="text-xs subtle mt-4">
-          <Icon name="server" size={12} /> Backend offline — suba <code>npm run dev</code> para gravar.
+          <BackendNotice message={notice} />
         </p>
       )}
     </>

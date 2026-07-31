@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { GENERIC_BACKEND_NOTICE } from "../../../../components/BackendNotice";
 import { Icon } from "../../../../components/Icon";
 import { StatusBadge } from "../../../../components/ui";
 // Só o TIPO vem de lib/api (apagado na compilação). Importar um VALOR de lá
@@ -102,10 +103,16 @@ function SettleButton({
 export function PayablesPanel({
   payables,
   live,
+  failureNotice,
   month,
 }: {
   payables: Payable[];
   live: boolean;
+  /**
+   * Por que não está `live` — vem do `backendNotice()` de quem renderiza.
+   * Prefixado para não colidir com o `notice` de retorno das ações abaixo.
+   */
+  failureNotice?: string | null;
   /** Competência exibida (YYYY-MM) — é a do relatório em PDF. */
   month: string;
 }) {
@@ -335,7 +342,7 @@ export function PayablesPanel({
       <div className="row" style={{ justifyContent: "space-between", alignItems: "center", gap: 8 }}>
         {!live && (
           <span className="badge badge-red">
-            <Icon name="x" size={13} /> Backend offline
+            <Icon name="x" size={13} /> {failureNotice ?? GENERIC_BACKEND_NOTICE}
           </span>
         )}
         <div className="row gap-8" style={{ marginLeft: "auto" }}>

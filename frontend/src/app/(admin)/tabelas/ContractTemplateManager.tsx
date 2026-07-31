@@ -3,6 +3,7 @@
 import { useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "../../../components/Icon";
+import { BackendNotice, GENERIC_BACKEND_NOTICE } from "../../../components/BackendNotice";
 import type { ContractTemplate, MergeField } from "../../../lib/api";
 import {
   deleteContractTemplateAction,
@@ -24,10 +25,13 @@ export function ContractTemplateManager({
   templates,
   mergeFields,
   live,
+  notice,
 }: {
   templates: ContractTemplate[];
   mergeFields: MergeField[];
   live: boolean;
+  /** Por que não está disponível — vem do `backendNotice()` de quem renderiza. */
+  notice?: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -428,11 +432,7 @@ export function ContractTemplateManager({
         </button>
       </div>
 
-      {!live && (
-        <span className="text-xs subtle">
-          Backend offline — suba <code>npm run dev</code> para gravar.
-        </span>
-      )}
+      {!live && <BackendNotice message={notice ?? GENERIC_BACKEND_NOTICE} />}
     </div>
   );
 }

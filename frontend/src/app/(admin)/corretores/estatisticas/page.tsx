@@ -1,6 +1,6 @@
 import { PageHeader, StatCard, Section, EmptyState } from "../../../../components/ui";
-import { Icon } from "../../../../components/Icon";
-import { fetchBrokers, type Broker } from "../../../../lib/api";
+import { BackendNotice } from "../../../../components/BackendNotice";
+import { backendNotice, fetchBrokers, type Broker } from "../../../../lib/api";
 import { formatPhone } from "../../../../lib/br-doc";
 
 /** Percentual pt-BR: 10 → "10,00%". */
@@ -17,6 +17,7 @@ function pct(n: number): string {
 export default async function CorretoresEstatisticasPage() {
   const live = await fetchBrokers();
   const brokers: Broker[] = live ?? [];
+  const notice = backendNotice();
   const isLive = live !== null;
 
   const count = brokers.length;
@@ -42,11 +43,11 @@ export default async function CorretoresEstatisticasPage() {
         {ranked.length === 0 ? (
           <EmptyState
             icon="broker"
-            title={isLive ? "Nenhum corretor cadastrado" : "Backend offline"}
+            title={isLive ? "Nenhum corretor cadastrado" : "Não foi possível carregar"}
             hint={
               isLive
                 ? "Cadastre corretores no card “Cadastro de Corretores” para ver os indicadores."
-                : "Suba a infra e o backend (npm run dev) para carregar os corretores."
+                : (notice ?? undefined)
             }
           />
         ) : (
@@ -85,7 +86,7 @@ export default async function CorretoresEstatisticasPage() {
 
       {!isLive && (
         <p className="text-xs subtle mt-4">
-          <Icon name="server" size={12} /> Backend offline — suba <code>npm run dev</code>.
+          <BackendNotice message={notice} />
         </p>
       )}
     </>

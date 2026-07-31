@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { BackendNotice, GENERIC_BACKEND_NOTICE } from "../../../components/BackendNotice";
 import { Icon } from "../../../components/Icon";
 import type { Tenant } from "../../../lib/api";
 import { TENANT_DOMAIN } from "../../../lib/format";
@@ -56,7 +57,14 @@ async function logoToDataUrl(file: File, maxDim = 320): Promise<string> {
  * Cadastro da imobiliária. O logo aparece na sidebar e no topbar assim que é
  * salvo — é o que personaliza o sistema para o cliente.
  */
-export function TenantProfileCard({ tenant }: { tenant: Tenant | null }) {
+export function TenantProfileCard({
+  tenant,
+  notice,
+}: {
+  tenant: Tenant | null;
+  /** Por que não está disponível — vem do `backendNotice()` de quem renderiza. */
+  notice?: string | null;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -220,11 +228,7 @@ export function TenantProfileCard({ tenant }: { tenant: Tenant | null }) {
         {pending ? <Icon name="loader" className="spin" size={14} /> : null} Salvar alterações
       </button>
 
-      {offline && (
-        <span className="text-xs subtle">
-          Backend offline — suba <code>npm run dev</code> para editar o cadastro.
-        </span>
-      )}
+      {offline && <BackendNotice message={notice ?? GENERIC_BACKEND_NOTICE} />}
     </div>
   );
 }

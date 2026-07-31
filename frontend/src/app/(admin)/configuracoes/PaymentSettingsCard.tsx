@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { BackendNotice, GENERIC_BACKEND_NOTICE } from "../../../components/BackendNotice";
 import { Icon } from "../../../components/Icon";
 import type { PaymentSettings } from "../../../lib/api";
 import { disconnectPaymentAction, savePaymentSettingsAction } from "./actions";
@@ -17,7 +18,14 @@ const BILLING_TYPES: { value: string; label: string }[] = [
  * Conexão da conta Asaas do tenant. A chave é write-only: uma vez salva, a tela
  * só exibe os últimos 4 caracteres.
  */
-export function PaymentSettingsCard({ settings }: { settings: PaymentSettings | null }) {
+export function PaymentSettingsCard({
+  settings,
+  notice,
+}: {
+  settings: PaymentSettings | null;
+  /** Por que não está disponível — vem do `backendNotice()` de quem renderiza. */
+  notice?: string | null;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [apiKey, setApiKey] = useState("");
@@ -126,11 +134,7 @@ export function PaymentSettingsCard({ settings }: { settings: PaymentSettings | 
         )}
       </div>
 
-      {offline && (
-        <span className="text-xs subtle">
-          Backend offline — suba <code>npm run dev</code> para configurar.
-        </span>
-      )}
+      {offline && <BackendNotice message={notice ?? GENERIC_BACKEND_NOTICE} />}
     </div>
   );
 }

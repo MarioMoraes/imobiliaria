@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PageHeader, StatCard, Section, EmptyState, FilterNotice } from "../../../../components/ui";
 import { Icon } from "../../../../components/Icon";
 import {
+  backendNotice,
   fetchContracts,
   fetchDocumentCounts,
   fetchDocuments,
@@ -72,6 +73,7 @@ export default async function DocumentosPage({
   const nameOf = (doc: DocumentRecord) => names.get(doc.entityId) ?? "(registro removido)";
 
   const isLive = live !== null;
+  const notice = backendNotice();
   const documents = (live ?? []).filter((d) =>
     matches(q, d.fileName, KIND_LABEL[d.kind] ?? d.kind, nameOf(d)),
   );
@@ -107,11 +109,11 @@ export default async function DocumentosPage({
         {documents.length === 0 ? (
           <EmptyState
             icon="folder"
-            title={isLive ? "Nenhum documento anexado" : "Backend offline"}
+            title={isLive ? "Nenhum documento anexado" : "Não foi possível carregar"}
             hint={
               isLive
                 ? "Anexe pela aba Documentos na ficha da pessoa ou no cadastro do imóvel."
-                : "Suba a infra e o backend (npm run dev) para carregar a biblioteca."
+                : (notice ?? undefined)
             }
           />
         ) : (

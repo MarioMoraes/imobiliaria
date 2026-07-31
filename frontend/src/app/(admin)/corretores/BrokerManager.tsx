@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "../../../components/Icon";
+import { BackendNotice, GENERIC_BACKEND_NOTICE } from "../../../components/BackendNotice";
 import { useConfirm } from "../../../components/ConfirmDialog";
 import { useToast } from "../../../components/Toast";
 import type { Broker } from "../../../lib/api";
@@ -20,7 +21,16 @@ function pct(n: number): string {
  * corretores com ações de editar e remover, e um botão para cadastrar um novo.
  * Mesmo padrão do BankManager.
  */
-export function BrokerManager({ brokers, live }: { brokers: Broker[]; live: boolean }) {
+export function BrokerManager({
+  brokers,
+  live,
+  notice,
+}: {
+  brokers: Broker[];
+  live: boolean;
+  /** Por que não está disponível — vem do `backendNotice()` de quem renderiza. */
+  notice?: string | null;
+}) {
   const router = useRouter();
   const confirm = useConfirm();
   const toast = useToast();
@@ -109,11 +119,7 @@ export function BrokerManager({ brokers, live }: { brokers: Broker[]; live: bool
         <BrokerFormButton disabled={!live} />
       </div>
 
-      {!live && (
-        <span className="text-xs subtle">
-          Backend offline — suba <code>npm run dev</code> para gravar.
-        </span>
-      )}
+      {!live && <BackendNotice message={notice ?? GENERIC_BACKEND_NOTICE} />}
     </div>
   );
 }

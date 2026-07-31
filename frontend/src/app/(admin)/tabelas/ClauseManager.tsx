@@ -3,6 +3,7 @@
 import { useActionState, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "../../../components/Icon";
+import { BackendNotice, GENERIC_BACKEND_NOTICE } from "../../../components/BackendNotice";
 import type { Clause } from "../../../lib/api";
 import {
   createClauseAction,
@@ -16,9 +17,12 @@ const initial: LookupFormState = {};
 export function ClauseManager({
   clauses,
   live,
+  notice,
 }: {
   clauses: Clause[];
   live: boolean;
+  /** Por que não está disponível — vem do `backendNotice()` de quem renderiza. */
+  notice?: string | null;
 }) {
   const [state, action, pending] = useActionState(createClauseAction, initial);
   const router = useRouter();
@@ -108,11 +112,7 @@ export function ClauseManager({
         </div>
       </form>
 
-      {!live && (
-        <span className="text-xs subtle">
-          Backend offline — suba <code>npm run dev</code> para gravar.
-        </span>
-      )}
+      {!live && <BackendNotice message={notice ?? GENERIC_BACKEND_NOTICE} />}
       {removeError && <span className="badge badge-red">{removeError}</span>}
       {state.error && <span className="badge badge-red">{state.error}</span>}
       {state.ok && (

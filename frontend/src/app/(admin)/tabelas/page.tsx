@@ -1,5 +1,6 @@
 import { PageHeader } from "../../../components/ui";
 import {
+  backendNotice,
   fetchClauses,
   fetchContractTemplates,
   fetchDistricts,
@@ -35,6 +36,8 @@ export default async function TabelasPage() {
     fetchDistricts(),
     fetchEvents(),
   ]);
+  // Depois das leituras: é delas que sai o diagnóstico exibido nos popups.
+  const notice = backendNotice();
 
   return (
     <>
@@ -53,6 +56,7 @@ export default async function TabelasPage() {
         liveItems={liveItems !== null}
         liveDistricts={liveDistricts !== null}
         liveEvents={liveEvents !== null}
+        notice={notice}
       />
     </>
   );

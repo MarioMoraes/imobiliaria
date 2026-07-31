@@ -16,10 +16,13 @@ import { BankManager } from "./BankManager";
 export function FinanceiroGrid({
   banks,
   live,
+  notice,
   pendingPayouts,
 }: {
   banks: Bank[];
   live: boolean;
+  /** Diagnóstico da falha de carga, repassado aos gerenciadores. */
+  notice?: string | null;
   /** Repasses em aberto — o badge do card de proprietários. */
   pendingPayouts: number;
 }) {
@@ -95,7 +98,7 @@ export function FinanceiroGrid({
         title="Bancos"
         icon="banknote"
       >
-        <BankManager banks={banks} live={live} />
+        <BankManager banks={banks} live={live} notice={notice} />
       </Modal>
     </>
   );

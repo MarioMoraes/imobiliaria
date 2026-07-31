@@ -1,5 +1,10 @@
 import { PageHeader, Section, StatCard } from "../../../../components/ui";
-import { fetchPayableSummary, fetchPayables, formatPrice } from "../../../../lib/api";
+import {
+  backendNotice,
+  fetchPayableSummary,
+  fetchPayables,
+  formatPrice,
+} from "../../../../lib/api";
 import { PayablesPanel } from "./PayablesPanel";
 
 const monthNames = [
@@ -89,7 +94,12 @@ export default async function PagamentoProprietariosPage({
         }
       >
         <div className="card-pad">
-          <PayablesPanel payables={payables ?? []} live={live} month={month} />
+          <PayablesPanel
+            payables={payables ?? []}
+            live={live}
+            failureNotice={backendNotice()}
+            month={month}
+          />
         </div>
       </Section>
     </>

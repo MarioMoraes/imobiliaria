@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "../../../components/Icon";
+import { BackendNotice, GENERIC_BACKEND_NOTICE } from "../../../components/BackendNotice";
 import type { Event } from "../../../lib/api";
 import { deleteEventAction } from "./actions";
 import { EventFormButton } from "./EventFormButton";
@@ -15,9 +16,12 @@ import { EventFormButton } from "./EventFormButton";
 export function EventManager({
   events,
   live,
+  notice,
 }: {
   events: Event[];
   live: boolean;
+  /** Por que não está disponível — vem do `backendNotice()` de quem renderiza. */
+  notice?: string | null;
 }) {
   const router = useRouter();
   const [, startRemove] = useTransition();
@@ -83,11 +87,7 @@ export function EventManager({
         <EventFormButton disabled={!live} />
       </div>
 
-      {!live && (
-        <span className="text-xs subtle">
-          Backend offline — suba <code>npm run dev</code> para gravar.
-        </span>
-      )}
+      {!live && <BackendNotice message={notice ?? GENERIC_BACKEND_NOTICE} />}
       {removeError && <span className="badge badge-red">{removeError}</span>}
     </div>
   );

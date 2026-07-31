@@ -1,5 +1,5 @@
 import { PageHeader, StatCard, Section, StatusBadge, EmptyState, initials, FilterNotice } from "../../../components/ui";
-import { fetchPersons } from "../../../lib/api";
+import { backendNotice, fetchPersons } from "../../../lib/api";
 import { formatPhone } from "../../../lib/br-doc";
 import { matches, readQuery } from "../../../lib/filter";
 import { PersonFormButton } from "../clientes/PersonFormButton";
@@ -22,6 +22,7 @@ export default async function ProprietariosPage({
     matches(q, p.fullName, p.cpfCnpj, p.email, p.phone, p.mobile),
   );
   const isLive = live !== null;
+  const notice = backendNotice();
 
   return (
     <>
@@ -45,8 +46,8 @@ export default async function ProprietariosPage({
         {owners.length === 0 ? (
           <EmptyState
             icon="user"
-            title={isLive ? "Nenhum locador ainda" : "Backend offline"}
-            hint={isLive ? "Cadastre o primeiro locador no botão acima." : "Suba a infra e o backend (npm run dev)."}
+            title={isLive ? "Nenhum locador ainda" : "Não foi possível carregar"}
+            hint={isLive ? "Cadastre o primeiro locador no botão acima." : (notice ?? undefined)}
           />
         ) : (
           <div className="table-wrap">

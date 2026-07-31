@@ -176,6 +176,25 @@ export async function verifyClerkSession(token: string): Promise<{ userId: strin
   }
 }
 
+/**
+ * Id da organização no token de sessão, nos DOIS formatos que o Clerk emite.
+ *
+ * O formato v2 (`"v": 2`, atual das instâncias novas) move a organização para um
+ * objeto compacto `o: { id, rol, slg }`; o v1 usava `org_id` na raiz. Ler só
+ * `org_id` fazia `orgId` sair sempre `undefined` nas sessões v2 — e como a
+ * contraprova `assertOrgMatches` só roda quando há `orgId`, ela ficava
+ * silenciosamente desligada. Era justamente a defesa que pegaria um claim
+ * `tenant_id` apontando para o tenant errado.
+ */
+function readOrgId(claims: Record<string, unknown>): string | undefined {
+  if (typeof claims.org_id === "string") return claims.org_id;
+  const org = claims.o;
+  if (org && typeof org === "object" && typeof (org as { id?: unknown }).id === "string") {
+    return (org as { id: string }).id;
+  }
+  return undefined;
+}
+
 export async function verifyClerkToken(token: string): Promise<ClerkAuth> {
   if (!env.CLERK_SECRET_KEY && !env.CLERK_JWT_KEY) {
     // Sem chaves configuradas não há como validar um Bearer real.
@@ -193,8 +212,7 @@ export async function verifyClerkToken(token: string): Promise<ClerkAuth> {
       logger.warn({ tenantId }, "claim tenant_id não é um UUID");
       throw AppError.tenantNotResolved("Claim tenant_id inválido");
     }
-    const orgId = typeof claims.org_id === "string" ? claims.org_id : undefined;
-    return { tenantId, userId: claims.sub, orgId };
+    return { tenantId, userId: claims.sub, orgId: readOrgId(claims) };
   } catch (err) {
     if (err instanceof AppError) throw err;
     logger.warn({ err }, "falha ao verificar token do Clerk");

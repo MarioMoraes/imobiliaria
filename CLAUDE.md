@@ -123,6 +123,12 @@ tenant demo `00000000-0000-0000-0000-000000000001` com imóveis de exemplo.
   ser idempotente por `eventId` (SPEC 4.1 e 12).
 - Erros de API sempre no formato `{ "error": { "code", "message", "details? } }`
   (use/estenda `AppError`). Respostas de sucesso envelopam em `{ "data": ... }`.
+- **Tela sem dado não diz "backend offline".** Os `fetch*` de `lib/api.ts` devolvem
+  `null` para qualquer falha, mas classificam a causa (offline / sem tenant /
+  sem permissão / erro). A tela pega o texto em `backendNotice()` — chamado
+  DEPOIS das leituras, na mesma request — e o exibe com `<BackendNotice>`; em
+  Client Component, passe-o como prop. Nunca crave a causa na mensagem: era o
+  que mandava o usuário subir um backend que já estava no ar.
 - Novos módulos: crie a pasta seguindo `property/`, registre as rotas em
   `gateway/routes.ts` e adicione as tabelas (com `tenant_id` + RLS ativado). O
   schema hoje vive em `infra/postgres/init.sql`; escolher uma ferramenta de

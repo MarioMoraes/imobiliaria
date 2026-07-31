@@ -1,5 +1,5 @@
 import { PageHeader } from "../../../components/ui";
-import { fetchBanks, fetchPayableSummary } from "../../../lib/api";
+import { backendNotice, fetchBanks, fetchPayableSummary } from "../../../lib/api";
 import { FinanceiroGrid } from "./FinanceiroGrid";
 
 /**
@@ -10,6 +10,7 @@ import { FinanceiroGrid } from "./FinanceiroGrid";
  */
 export default async function FinanceiroPage() {
   const [banks, payouts] = await Promise.all([fetchBanks(), fetchPayableSummary()]);
+  const notice = backendNotice();
 
   return (
     <>
@@ -17,6 +18,7 @@ export default async function FinanceiroPage() {
       <FinanceiroGrid
         banks={banks ?? []}
         live={banks !== null}
+        notice={notice}
         pendingPayouts={payouts?.pendingCount ?? 0}
       />
     </>

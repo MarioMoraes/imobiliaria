@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader, StatCard, Section, EmptyState } from "../../../../components/ui";
 import { Icon } from "../../../../components/Icon";
+import { BackendNotice } from "../../../../components/BackendNotice";
 import {
+  backendNotice,
   fetchCondominium,
   fetchContracts,
   fetchPropertiesByCondominium,
@@ -57,6 +59,7 @@ export default async function CondominosPage({
   if (condominium === null && live !== null) notFound();
 
   const properties: Property[] = live ?? [];
+  const notice = backendNotice();
   const isLive = live !== null;
   const tenants = tenantsByProperty(contracts ?? []);
 
@@ -103,11 +106,11 @@ export default async function CondominosPage({
             <div className="card-pad">
               <EmptyState
                 icon="building"
-                title={isLive ? "Nenhum imóvel neste condomínio" : "Backend offline"}
+                title={isLive ? "Nenhum imóvel neste condomínio" : "Não foi possível carregar"}
                 hint={
                   isLive
                     ? "Vincule imóveis a este condomínio pelo cadastro de Imóveis."
-                    : "Suba a infra (npm run dev) para carregar os condôminos."
+                    : (notice ?? undefined)
                 }
               />
             </div>
@@ -161,7 +164,7 @@ export default async function CondominosPage({
 
       {!isLive && (
         <p className="text-xs subtle mt-4">
-          <Icon name="server" size={12} /> Backend offline — suba <code>npm run dev</code>.
+          <BackendNotice message={notice} />
         </p>
       )}
     </>

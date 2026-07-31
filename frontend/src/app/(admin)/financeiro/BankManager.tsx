@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "../../../components/Icon";
+import { BackendNotice, GENERIC_BACKEND_NOTICE } from "../../../components/BackendNotice";
 import type { Bank } from "../../../lib/api";
 import { formatPrice } from "../../../lib/format";
 import { deleteBankAction } from "./actions";
@@ -13,7 +14,16 @@ import { BankFormButton } from "./BankFormButton";
  * ações de editar e remover, e um botão para cadastrar uma nova. Mesmo padrão dos
  * demais cadastros do sistema.
  */
-export function BankManager({ banks, live }: { banks: Bank[]; live: boolean }) {
+export function BankManager({
+  banks,
+  live,
+  notice,
+}: {
+  banks: Bank[];
+  live: boolean;
+  /** Por que não está disponível — vem do `backendNotice()` de quem renderiza. */
+  notice?: string | null;
+}) {
   const router = useRouter();
   const [, startRemove] = useTransition();
   const [removingId, setRemovingId] = useState<string | null>(null);
@@ -99,11 +109,7 @@ export function BankManager({ banks, live }: { banks: Bank[]; live: boolean }) {
         <BankFormButton disabled={!live} />
       </div>
 
-      {!live && (
-        <span className="text-xs subtle">
-          Backend offline — suba <code>npm run dev</code> para gravar.
-        </span>
-      )}
+      {!live && <BackendNotice message={notice ?? GENERIC_BACKEND_NOTICE} />}
       {removeError && <span className="badge badge-red">{removeError}</span>}
     </div>
   );

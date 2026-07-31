@@ -11,6 +11,7 @@ import { authDevMode } from "../../config/env.js";
 import type { Tenant } from "../tenant/tenant.schema.js";
 import {
   deleteTenantAsPlatform,
+  findTenantByClerkOrgId,
   findTenantByCnpj,
   findTenantBySlug,
 } from "../tenant/tenant.repository.js";
@@ -72,13 +73,12 @@ async function clerkOnboarding(
     fullName: [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(" ") || email,
   };
 
-  // 1) cria a org no Clerk (o criador vira admin da org).
-  const org = await clerkClient.organizations.createOrganization({
-    name: input.studio.name,
-    createdBy: userId,
-  });
+  // 1) resolve a org no Clerk: adota a que o Clerk já criou para este usuário
+  // (ver `resolveOrganization`) ou cria uma nova.
+  const org = await resolveOrganization(userId, input.studio.name);
 
-  // 2) cria tenant + admin (DB). Se falhar, desfaz a org para não deixar órfã.
+  // 2) cria tenant + admin (DB). Se falhar, desfaz a org — mas SÓ se ela nasceu
+  // aqui: apagar uma org adotada destruiria algo que já era do usuário.
   let result: { tenant: Tenant; user: OnboardedUser };
   try {
     result = await repo.createTenantWithAdmin(input, admin, {
@@ -86,9 +86,11 @@ async function clerkOnboarding(
       clerkOrgId: org.id,
     });
   } catch (err) {
-    await clerkClient.organizations
-      .deleteOrganization(org.id)
-      .catch((e) => logger.warn({ e, orgId: org.id }, "falha ao limpar org órfã"));
+    if (org.created) {
+      await clerkClient.organizations
+        .deleteOrganization(org.id)
+        .catch((e) => logger.warn({ e, orgId: org.id }, "falha ao limpar org órfã"));
+    }
     throw err;
   }
 
@@ -100,7 +102,7 @@ async function clerkOnboarding(
   try {
     await writeTenantMetadata(org.id, result.tenant.id);
   } catch (err) {
-    await rollbackOnboarding(org.id, result.tenant.id);
+    await rollbackOnboarding(org.id, result.tenant.id, org.created);
     logger.error(
       { err, orgId: org.id, tenantId: result.tenant.id },
       "onboarding desfeito: não foi possível gravar tenant_id no metadata da org",
@@ -114,6 +116,57 @@ async function clerkOnboarding(
 
   await publishOnboardingEvents(result.tenant, result.user);
   return { ...result, clerkOrgId: org.id };
+}
+
+/** Organização do Clerk que vai receber o tenant, e se nasceu neste request. */
+interface ResolvedOrg {
+  id: string;
+  /** `false` quando adotamos uma org que já existia — importa no rollback. */
+  created: boolean;
+}
+
+/**
+ * Decide em QUAL organização do Clerk o tenant será criado.
+ *
+ * Não basta criar uma: com "force organization selection" ligado na instância,
+ * o próprio Clerk exibe a tela nativa de criar organização logo após o sign-up e
+ * já entrega o usuário com uma org — sem `tenant_id` no metadata e sem nada no
+ * nosso banco. Criar outra aqui deixaria o usuário com duas orgs, a ativa na
+ * sessão sendo justamente a que não aponta para tenant nenhum: token sem claim,
+ * 401 em todo /v1, e o painel inteiro parecendo "backend fora do ar".
+ *
+ * Então: se o usuário já é admin de uma org órfã (sem tenant no nosso banco),
+ * adotamos essa org — inclusive renomeando-a para o nome informado no formulário.
+ * Se alguma das orgs dele já tem tenant, o onboarding não se aplica (409).
+ */
+async function resolveOrganization(userId: string, name: string): Promise<ResolvedOrg> {
+  const memberships = await clerkClient.users.getOrganizationMembershipList({
+    userId,
+    limit: 100,
+  });
+
+  // A autoridade sobre "já onboardado" é o NOSSO banco, não o metadata da org
+  // (que pode estar vazio ou defasado — é só o espelho que alimenta o claim).
+  for (const membership of memberships.data) {
+    if (await findTenantByClerkOrgId(membership.organization.id)) {
+      throw AppError.conflict("Este usuário já pertence a uma imobiliária");
+    }
+  }
+
+  const orphan = memberships.data.find((m) => m.role === "org:admin");
+  if (orphan) {
+    const orgId = orphan.organization.id;
+    // O nome que vale é o do nosso formulário: o da tela do Clerk foi digitado
+    // sem contexto (e o fallback dele é literalmente "My Organization").
+    await clerkClient.organizations
+      .updateOrganization(orgId, { name })
+      .catch((err) => logger.warn({ err, orgId }, "falha ao renomear org adotada"));
+    logger.info({ orgId, userId }, "onboarding adotou organização existente do Clerk");
+    return { id: orgId, created: false };
+  }
+
+  const org = await clerkClient.organizations.createOrganization({ name, createdBy: userId });
+  return { id: org.id, created: true };
 }
 
 /**
@@ -135,15 +188,25 @@ async function writeTenantMetadata(orgId: string, tenantId: string): Promise<voi
 }
 
 /**
- * Desfaz um onboarding pela metade: apaga a org no Clerk e o tenant no banco
- * (users/user_roles saem por cascata). Melhor não deixar nada do que deixar um
- * tenant inacessível — o usuário pode simplesmente tentar de novo, com o mesmo
- * CNPJ e slug.
+ * Desfaz um onboarding pela metade: apaga o tenant no banco (users/user_roles
+ * saem por cascata) e, se a org nasceu neste request, apaga a org também. Melhor
+ * não deixar nada do que deixar um tenant inacessível — o usuário pode
+ * simplesmente tentar de novo, com o mesmo CNPJ e slug.
+ *
+ * Org ADOTADA não é apagada: ela já era do usuário antes de nós, e removê-la
+ * tiraria dele a organização ativa da sessão por um erro nosso. Ela volta ao
+ * estado em que estava (órfã), e a próxima tentativa a adota de novo.
  */
-async function rollbackOnboarding(orgId: string, tenantId: string): Promise<void> {
-  await clerkClient.organizations
-    .deleteOrganization(orgId)
-    .catch((e) => logger.warn({ e, orgId }, "falha ao limpar org no rollback"));
+async function rollbackOnboarding(
+  orgId: string,
+  tenantId: string,
+  orgCreatedHere: boolean,
+): Promise<void> {
+  if (orgCreatedHere) {
+    await clerkClient.organizations
+      .deleteOrganization(orgId)
+      .catch((e) => logger.warn({ e, orgId }, "falha ao limpar org no rollback"));
+  }
   await deleteTenantAsPlatform(tenantId).catch((e) =>
     logger.error({ e, tenantId }, "falha ao limpar tenant no rollback — órfão no banco"),
   );

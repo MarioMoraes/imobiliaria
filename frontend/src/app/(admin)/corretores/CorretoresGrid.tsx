@@ -12,7 +12,16 @@ import { BrokerManager } from "./BrokerManager";
  * abre um popup (Modal) com o gerenciador (lista + cadastro/edição + remoção);
  * "Estatísticas" navega para o ranking/indicadores em /corretores/estatisticas.
  */
-export function CorretoresGrid({ brokers, live }: { brokers: Broker[]; live: boolean }) {
+export function CorretoresGrid({
+  brokers,
+  live,
+  notice,
+}: {
+  brokers: Broker[];
+  live: boolean;
+  /** Diagnóstico da falha de carga, repassado aos gerenciadores. */
+  notice?: string | null;
+}) {
   const [cadastroOpen, setCadastroOpen] = useState(false);
 
   return (
@@ -64,7 +73,7 @@ export function CorretoresGrid({ brokers, live }: { brokers: Broker[]; live: boo
         icon="broker"
         maxWidth={900}
       >
-        <BrokerManager brokers={brokers} live={live} />
+        <BrokerManager brokers={brokers} live={live} notice={notice} />
       </Modal>
     </>
   );

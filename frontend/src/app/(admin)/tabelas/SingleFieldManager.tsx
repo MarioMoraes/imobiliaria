@@ -3,6 +3,7 @@
 import { useActionState, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "../../../components/Icon";
+import { BackendNotice, GENERIC_BACKEND_NOTICE } from "../../../components/BackendNotice";
 import type { DeleteResult, LookupFormState } from "./actions";
 
 const initial: LookupFormState = {};
@@ -22,6 +23,7 @@ export function SingleFieldManager({
   placeholder,
   emptyLabel,
   live,
+  notice,
   createAction,
   deleteAction,
 }: {
@@ -30,6 +32,8 @@ export function SingleFieldManager({
   placeholder: string;
   emptyLabel: string;
   live: boolean;
+  /** Por que não está `live` — vem do `backendNotice()` de quem renderiza. */
+  notice?: string | null;
   createAction: (prev: LookupFormState, formData: FormData) => Promise<LookupFormState>;
   deleteAction: (id: string) => Promise<DeleteResult>;
 }) {
@@ -102,11 +106,7 @@ export function SingleFieldManager({
         </button>
       </form>
 
-      {!live && (
-        <span className="text-xs subtle">
-          Backend offline — suba <code>npm run dev</code> para gravar.
-        </span>
-      )}
+      {!live && <BackendNotice message={notice ?? GENERIC_BACKEND_NOTICE} />}
       {removeError && <span className="badge badge-red">{removeError}</span>}
       {state.error && <span className="badge badge-red">{state.error}</span>}
       {state.ok && (
