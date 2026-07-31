@@ -12,25 +12,9 @@ import {
   type PropertyType,
 } from "../../../lib/api";
 import { formatPhone } from "../../../lib/br-doc";
+import { propertyTypeIcon } from "../../../lib/property-icon";
 import { PropertyFormButton, type Opt } from "./PropertyFormButton";
 import { DeletePropertyButton } from "./DeletePropertyButton";
-
-/**
- * Ícone que representa o tipo do imóvel na lista. Faz match por palavra-chave
- * (sem acento) para funcionar também com tipos personalizados por tenant.
- */
-function propertyTypeIcon(typeName: string | undefined): string {
-  const t = (typeName ?? "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-  if (/(casa|sobrado|resid|chac|sitio|fazenda|rural)/.test(t)) return "home";
-  if (/(apart|apto|flat|kitnet|studio|cobertura|loft)/.test(t)) return "building";
-  if (/(comerc|sala|loja|escrit|ponto)/.test(t)) return "store";
-  if (/(galp|armaz|deposito|barrac|industr)/.test(t)) return "warehouse";
-  if (/(terreno|lote|area|gleba)/.test(t)) return "tree";
-  return "building";
-}
 
 /**
  * Tom (cor) de cada situação do imóvel, usado na faixa lateral da linha —

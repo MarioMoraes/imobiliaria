@@ -14,6 +14,7 @@ import {
   fetchCashFlow,
   fetchDashboardSummary,
   fetchProperties,
+  fetchPropertyTypes,
   formatDay,
   formatPrice,
   propertyKindLabel,
@@ -22,6 +23,7 @@ import {
   type DashboardReceivableBrief,
   type DashboardSummary,
 } from "../../../lib/api";
+import { propertyTypeIcon } from "../../../lib/property-icon";
 
 /**
  * Painel inicial. Todos os números vêm do backend: /v1/dashboard/summary
@@ -70,13 +72,17 @@ export default async function DashboardPage() {
   // (`/v1/receivables/cash-flow`) para as duas telas não poderem divergir.
   // Quem não tem `finance:read` recebe null aqui e também `summary.finance`
   // nulo — o gráfico simplesmente não entra.
-  const [summary, properties, credits, cashFlow, clerkUser] = await Promise.all([
-    fetchDashboardSummary(),
-    fetchProperties(),
-    fetchAiCredits(),
-    fetchCashFlow(CASH_FLOW_MONTHS).then((c) => c ?? []),
-    currentUser().catch(() => null),
-  ]);
+  const [summary, properties, propertyTypes, credits, cashFlow, clerkUser] =
+    await Promise.all([
+      fetchDashboardSummary(),
+      fetchProperties(),
+      // O imóvel carrega só o `propertyTypeId`; o nome (que decide o ícone) vive
+      // no cadastro de tipos do tenant.
+      fetchPropertyTypes(),
+      fetchAiCredits(),
+      fetchCashFlow(CASH_FLOW_MONTHS).then((c) => c ?? []),
+      currentUser().catch(() => null),
+    ]);
 
   const firstName =
     clerkUser?.firstName ?? clerkUser?.fullName?.split(" ")[0] ?? "bem-vindo";
@@ -107,7 +113,7 @@ export default async function DashboardPage() {
           <div className="grid" style={{ gridTemplateColumns: "1.6fr 1fr" }}>
             <div className="stack">
               {summary.finance && <RevenueChart points={cashFlow} />}
-              <RecentProperties properties={properties} />
+              <RecentProperties properties={properties} types={propertyTypes} />
             </div>
 
             <div className="stack">
@@ -242,10 +248,13 @@ function RevenueChart({ points }: { points: CashFlowPoint[] }) {
 
 function RecentProperties({
   properties,
+  types,
 }: {
   properties: Awaited<ReturnType<typeof fetchProperties>>;
+  types: Awaited<ReturnType<typeof fetchPropertyTypes>>;
 }) {
   const lista = properties ?? [];
+  const typeName = new Map((types ?? []).map((t) => [t.id, t.name]));
   return (
     <Section
       title="Imóveis recentes"
@@ -282,7 +291,16 @@ function RecentProperties({
                 <tr key={p.id}>
                   <td>
                     <div className="cell-main">
-                      <span className="thumb" />
+                      {/* Mesmo ícone-por-tipo da lista de Imóveis, pelo mesmo
+                          helper — as duas telas não podem divergir. */}
+                      <span className="thumb thumb-icon">
+                        <Icon
+                          name={propertyTypeIcon(
+                            p.propertyTypeId ? typeName.get(p.propertyTypeId) : undefined,
+                          )}
+                          size={20}
+                        />
+                      </span>
                       <span>
                         <span className="strong" style={{ display: "block" }}>
                           {p.title}
