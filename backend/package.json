@@ -11,7 +11,8 @@
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "test": "NODE_ENV=development AUTH_DEV_MODE=true node --import tsx --test 'src/**/*.test.ts'"
+    "test": "NODE_ENV=development AUTH_DEV_MODE=true node --import tsx --test 'src/**/*.test.ts'",
+    "db:prune-test-tenants": "tsx scripts/prune-test-tenants.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
