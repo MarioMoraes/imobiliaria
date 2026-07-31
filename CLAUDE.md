@@ -34,14 +34,18 @@ npm run lint
 npm test                         # inclui teste de isolamento multi-tenant
 npm run infra:down               # para os containers
 npm run infra:reset              # para e APAGA o volume (re-roda init.sql)
-npm run db:prune-test-tenants    # lista os tenants deixados pela suíte (dry-run)
+npm run db:prune-test-tenants    # lista tenants residuais de teste (dry-run)
 npm run db:prune-test-tenants -- --apply   # e os remove
 ```
 
-> A suíte cria um tenant por caso e **não desfaz nada** — sem isso a listagem do
-> Super Admin enche de `Func-*`, `Pes-*`, `RBAC*` e `Nova Imobiliária`. O script
-> só toca em slug `t-<hex8>`/`nova-<hex8>` **sem** `clerk_org_id`, então nenhuma
-> imobiliária real casa com o critério (ver `backend/scripts/prune-test-tenants.ts`).
+> **Tenant de teste sempre por `src/testing/tenants.ts`** (`createTestTenant` /
+> `createTrackedTenant`, ou `trackTenant` quando o tenant nasce dentro do que se
+> testa). Importar o módulo já registra o `after` que apaga tudo ao fim do
+> arquivo — criar tenant direto pelo serviço vaza a linha, e era assim que a
+> tabela chegou a 1.600 registros aparecendo no Super Admin. O
+> `db:prune-test-tenants` é o resgate para resíduo antigo: só toca em slug
+> `t-<hex8>`/`nova-<hex8>` **sem** `clerk_org_id`, então nenhuma imobiliária real
+> casa com o critério.
 
 Escopo de um workspace só: `npm run <script> --workspace=backend`.
 

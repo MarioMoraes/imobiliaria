@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import { create, list, assertActive, update } from "./tenant.service.js";
+import { createTrackedTenant, testSlug } from "../../testing/tenants.js";
 
 /**
  * Testes do módulo tenant (nível plataforma). Requerem o banco containerizado:
@@ -10,8 +11,8 @@ import { create, list, assertActive, update } from "./tenant.service.js";
  */
 
 test("cria um tenant e ele aparece na listagem", async () => {
-  const slug = `t-${randomUUID().slice(0, 8)}`;
-  const created = await create({ name: "Imobiliária Teste", slug, plan: "free" });
+  const slug = testSlug();
+  const created = await createTrackedTenant({ name: "Imobiliária Teste", slug, plan: "free" });
 
   assert.equal(created.slug, slug);
   assert.equal(created.status, "active");
@@ -21,8 +22,8 @@ test("cria um tenant e ele aparece na listagem", async () => {
 });
 
 test("slug duplicado gera conflito (409)", async () => {
-  const slug = `t-${randomUUID().slice(0, 8)}`;
-  await create({ name: "Primeira", slug, plan: "free" });
+  const slug = testSlug();
+  await createTrackedTenant({ name: "Primeira", slug, plan: "free" });
 
   await assert.rejects(
     () => create({ name: "Segunda", slug, plan: "free" }),
@@ -31,23 +32,23 @@ test("slug duplicado gera conflito (409)", async () => {
 });
 
 test("a imobiliária troca o próprio slug (subdomínio)", async () => {
-  const tenant = await create({
+  const tenant = await createTrackedTenant({
     name: "Renomeia",
-    slug: `t-${randomUUID().slice(0, 8)}`,
+    slug: testSlug(),
     plan: "free",
   });
 
-  const novo = `t-${randomUUID().slice(0, 8)}`;
+  const novo = testSlug();
   const updated = await update(tenant.id, { slug: novo });
   assert.equal(updated.slug, novo);
 });
 
 test("trocar o slug para um já usado gera conflito (409)", async () => {
-  const ocupado = `t-${randomUUID().slice(0, 8)}`;
-  await create({ name: "Dona do slug", slug: ocupado, plan: "free" });
-  const outra = await create({
+  const ocupado = testSlug();
+  await createTrackedTenant({ name: "Dona do slug", slug: ocupado, plan: "free" });
+  const outra = await createTrackedTenant({
     name: "Outra",
-    slug: `t-${randomUUID().slice(0, 8)}`,
+    slug: testSlug(),
     plan: "free",
   });
 
@@ -55,16 +56,16 @@ test("trocar o slug para um já usado gera conflito (409)", async () => {
 });
 
 test("salvar o mesmo slug do próprio tenant não é conflito", async () => {
-  const slug = `t-${randomUUID().slice(0, 8)}`;
-  const tenant = await create({ name: "Sem mudança", slug, plan: "free" });
+  const slug = testSlug();
+  const tenant = await createTrackedTenant({ name: "Sem mudança", slug, plan: "free" });
 
   const updated = await update(tenant.id, { slug, name: "Sem mudança II" });
   assert.equal(updated.slug, slug);
 });
 
 test("assertActive permite tenant ativo e bloqueia tenant suspenso", async () => {
-  const slug = `t-${randomUUID().slice(0, 8)}`;
-  const tenant = await create({ name: "Ativa", slug, plan: "free" });
+  const slug = testSlug();
+  const tenant = await createTrackedTenant({ name: "Ativa", slug, plan: "free" });
 
   await assert.doesNotReject(() => assertActive(tenant.id));
 
@@ -73,8 +74,8 @@ test("assertActive permite tenant ativo e bloqueia tenant suspenso", async () =>
 });
 
 test("assertActive permite tenant em trial", async () => {
-  const slug = `t-${randomUUID().slice(0, 8)}`;
-  const tenant = await create({ name: "Trial", slug, plan: "free" });
+  const slug = testSlug();
+  const tenant = await createTrackedTenant({ name: "Trial", slug, plan: "free" });
   await update(tenant.id, { status: "trial" });
   await assert.doesNotReject(() => assertActive(tenant.id));
 });

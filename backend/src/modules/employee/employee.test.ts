@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import { AppError } from "../../shared/errors.js";
-import { create as createTenant } from "../tenant/tenant.service.js";
+import { createTestTenant } from "../../testing/tenants.js";
 import * as service from "./employee.service.js";
 import { inviteHtml, inviteText } from "./invite-email.js";
 
@@ -25,7 +25,7 @@ function makeValidCpf(): string {
 }
 
 async function freshTenant(name: string) {
-  return createTenant({ name, slug: `t-${randomUUID().slice(0, 8)}`, plan: "free" });
+  return createTestTenant(name);
 }
 
 function newEmployee(overrides: Partial<{ roles: ("ADMIN" | "GESTOR" | "FINANCEIRO")[] }> = {}) {

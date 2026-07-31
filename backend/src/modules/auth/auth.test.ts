@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import { withTenant } from "../../shared/db.js";
 import { onboarding } from "./auth.service.js";
+import { trackTenant } from "../../testing/tenants.js";
 import type { OnboardingInput } from "./auth.schema.js";
 
 /**
@@ -27,6 +28,7 @@ function makeInput(overrides: Partial<OnboardingInput["studio"]> = {}): Onboardi
 test("onboarding cria tenant em trial e primeiro usuário ADMIN", async () => {
   const input = makeInput();
   const { tenant, user } = await onboarding(input);
+  trackTenant(tenant);
 
   assert.equal(tenant.status, "trial");
   assert.equal(tenant.slug, input.studio.slug);
@@ -39,7 +41,7 @@ test("onboarding cria tenant em trial e primeiro usuário ADMIN", async () => {
 
 test("onboarding com CNPJ já cadastrado gera conflito (409 ERR_AUTH_004)", async () => {
   const cnpj = String(Math.floor(Math.random() * 1e14)).padStart(14, "0");
-  await onboarding(makeInput({ cnpj }));
+  trackTenant((await onboarding(makeInput({ cnpj }))).tenant);
 
   await assert.rejects(
     () => onboarding(makeInput({ cnpj })),
@@ -52,6 +54,7 @@ test("onboarding com CNPJ já cadastrado gera conflito (409 ERR_AUTH_004)", asyn
 
 test("ISOLAMENTO: o usuário admin de um tenant não é visível por outro tenant", async () => {
   const { tenant, user } = await onboarding(makeInput());
+  trackTenant(tenant);
 
   // Dono enxerga o próprio usuário.
   const visibleToOwner = await withTenant(tenant.id, async (client) => {

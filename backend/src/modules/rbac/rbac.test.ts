@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import { withTenant } from "../../shared/db.js";
-import { create as createTenant } from "../tenant/tenant.service.js";
+import { createTestTenant } from "../../testing/tenants.js";
 import { resolveUserAndRoles } from "./rbac.repository.js";
 
 /**
@@ -24,8 +24,7 @@ async function seedUser(tenantId: string, clerkId: string, role: string): Promis
 }
 
 test("resolve o usuário e seus papéis pelo id externo do Clerk", async () => {
-  const slug = `t-${randomUUID().slice(0, 8)}`;
-  const tenant = await createTenant({ name: "RBAC", slug, plan: "free" });
+  const tenant = await createTestTenant("RBAC");
   const clerkId = `clerk_${randomUUID().slice(0, 8)}`;
   await seedUser(tenant.id, clerkId, "GESTOR");
 
@@ -35,11 +34,7 @@ test("resolve o usuário e seus papéis pelo id externo do Clerk", async () => {
 });
 
 test("ISOLAMENTO: papéis não vazam entre tenants", async () => {
-  const tenant = await createTenant({
-    name: "RBAC-iso",
-    slug: `t-${randomUUID().slice(0, 8)}`,
-    plan: "free",
-  });
+  const tenant = await createTestTenant("RBAC-iso");
   const clerkId = `clerk_${randomUUID().slice(0, 8)}`;
   await seedUser(tenant.id, clerkId, "ADMIN");
 
