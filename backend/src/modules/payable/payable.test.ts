@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import {
   attachTransfer,
-  findByTransferId,
+  listByTransferId,
   insertOwnerPayouts,
   listPayables,
   summarize,
@@ -191,7 +191,7 @@ async function payableEmTransferencia(transferId: string): Promise<string> {
   const [row] = (await listPayables(TENANT, ALL)).filter(
     (p) => p.receivableId === receivableId,
   );
-  await attachTransfer(TENANT, row!.id, {
+  await attachTransfer(TENANT, [row!.id], {
     asaasTransferId: transferId,
     transferStatus: "PENDING",
   });
@@ -202,7 +202,7 @@ test("transferência enviada deixa o repasse em PROCESSANDO, não em PAGO", asyn
   const transferId = `tr_${randomUUID()}`;
   await payableEmTransferencia(transferId);
 
-  const found = await findByTransferId(TENANT, transferId);
+  const [found] = await listByTransferId(TENANT, transferId);
   assert.equal(found?.status, "PROCESSANDO", "dinheiro em trânsito não é dinheiro pago");
   assert.equal(found?.transferStatus, "PENDING");
   assert.equal(found?.paidAt, null);
@@ -212,7 +212,7 @@ test("TRANSFER_DONE dá a baixa na data em que o dinheiro caiu", async () => {
   const transferId = `tr_${randomUUID()}`;
   await payableEmTransferencia(transferId);
 
-  const done = await applyTransferResult(TENANT, transferId, {
+  const [done] = await applyTransferResult(TENANT, transferId, {
     status: "DONE",
     effectiveDate: "2026-08-11",
   });
@@ -221,7 +221,7 @@ test("TRANSFER_DONE dá a baixa na data em que o dinheiro caiu", async () => {
   assert.equal(done?.paidAmountCents, done?.amountCents);
 
   // Reentrega do mesmo webhook não pode reescrever a baixa.
-  const again = await applyTransferResult(TENANT, transferId, {
+  const [again] = await applyTransferResult(TENANT, transferId, {
     status: "DONE",
     effectiveDate: "2026-09-30",
   });
@@ -232,7 +232,7 @@ test("TRANSFER_FAILED devolve o repasse a ABERTO com o motivo", async () => {
   const transferId = `tr_${randomUUID()}`;
   await payableEmTransferencia(transferId);
 
-  const failed = await applyTransferResult(TENANT, transferId, {
+  const [failed] = await applyTransferResult(TENANT, transferId, {
     status: "FAILED",
     failReason: "Chave PIX inexistente",
   });
@@ -244,7 +244,64 @@ test("TRANSFER_FAILED devolve o repasse a ABERTO com o motivo", async () => {
 
 test("transferência desconhecida (feita fora do sistema) é ignorada", async () => {
   const applied = await applyTransferResult(TENANT, `tr_${randomUUID()}`, { status: "DONE" });
-  assert.equal(applied, null);
+  assert.deepEqual(applied, []);
+});
+
+/* --------------------------------------- PIX único para vários lançamentos */
+
+/**
+ * Um PIX só paga N repasses do mesmo proprietário, então `asaas_transfer_id`
+ * repete entre eles. O desfecho tem que alcançar TODOS: baixar só um deixaria o
+ * proprietário recebendo um dinheiro que o sistema ainda cobra como devido.
+ */
+test("um PIX único baixa todos os repasses que ele paga", async () => {
+  const transferId = `tr_${randomUUID()}`;
+  const personId = randomUUID();
+  const ids: string[] = [];
+
+  for (const competence of ["2026-06", "2026-07", "2026-08"]) {
+    const receivableId = randomUUID();
+    await insertOwnerPayouts(
+      TENANT,
+      { receivableId, contractId: null, propertyId: null },
+      [payout({ payeePersonId: personId, competence })],
+    );
+    const [row] = (await listPayables(TENANT, ALL)).filter(
+      (p) => p.receivableId === receivableId,
+    );
+    ids.push(row!.id);
+  }
+
+  const attached = await attachTransfer(TENANT, ids, {
+    asaasTransferId: transferId,
+    transferStatus: "PENDING",
+  });
+  assert.equal(attached.length, 3, "os três entram em PROCESSANDO juntos");
+
+  const doGrupo = await listByTransferId(TENANT, transferId);
+  assert.equal(doGrupo.length, 3, "a correlação do webhook devolve o grupo, não um só");
+
+  const pagos = await applyTransferResult(TENANT, transferId, {
+    status: "DONE",
+    effectiveDate: "2026-09-05",
+  });
+  assert.equal(pagos.length, 3);
+  assert.ok(
+    pagos.every((p) => p.status === "PAGO" && p.paidAt === "2026-09-05"),
+    "TRANSFER_DONE de um PIX agrupado baixa todos os lançamentos",
+  );
+
+  // Recusa também vale para o grupo: nenhum dinheiro saiu.
+  const outro = `tr_${randomUUID()}`;
+  await attachTransfer(TENANT, ids, { asaasTransferId: outro, transferStatus: "PENDING" });
+  const recusados = await applyTransferResult(TENANT, outro, {
+    status: "FAILED",
+    failReason: "Saldo insuficiente",
+  });
+  assert.ok(
+    recusados.every((p) => p.status === "ABERTO"),
+    "o grupo inteiro volta a ABERTO quando o banco recusa",
+  );
 });
 
 test("o resumo de um tenant não enxerga os repasses do outro", async () => {

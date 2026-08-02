@@ -4,10 +4,12 @@ import { publish } from "../../shared/events.js";
 import { logger } from "../../shared/logger.js";
 import { htmlToPdf } from "../../shared/pdf.js";
 import * as contractService from "../contract/contract.service.js";
+import * as personService from "../person/person.service.js";
 import * as propertyService from "../property/property.service.js";
 import * as tenantService from "../tenant/tenant.service.js";
 import * as repo from "./payable.repository.js";
 import { buildOwnerPayouts } from "./owner-payout.js";
+import { toPayoutReceiptHtml } from "./receipt.js";
 import { toPayoutReportHtml } from "./report.js";
 import { listPayablesQuerySchema } from "./payable.schema.js";
 import type {
@@ -72,6 +74,78 @@ export async function getById(tenantId: string, id: string): Promise<Payable> {
   const payable = await repo.findPayable(tenantId, id);
   if (!payable) throw AppError.notFound("Conta a pagar não encontrada");
   return payable;
+}
+
+/* ------------------------------------------- Seleção de vários lançamentos */
+
+/**
+ * Carrega os lançamentos escolhidos na tela e aplica o que vale para os DOIS
+ * recursos que operam em lote (recibo e PIX único): existir e ser **do mesmo
+ * proprietário**.
+ *
+ * A regra do mesmo proprietário não é cosmética: um recibo dá quitação em nome
+ * de uma pessoa, e um PIX vai para uma chave. Misturar donos produziria um
+ * documento falso ou um pagamento no destinatário errado — por isso a checagem
+ * é do servidor, não só do desabilitar do checkbox.
+ */
+async function selection(tenantId: string, ids: string[]): Promise<Payable[]> {
+  const payables = await repo.listPayablesByIds(tenantId, ids);
+
+  if (payables.length !== ids.length) {
+    throw AppError.notFound("Algum dos lançamentos selecionados não existe mais.");
+  }
+  const donos = new Set(payables.map((p) => p.payeePersonId));
+  if (donos.size > 1) {
+    throw AppError.badRequest(
+      "Os lançamentos selecionados são de proprietários diferentes. Selecione um proprietário por vez.",
+    );
+  }
+  return payables;
+}
+
+/** Uso do módulo `payment` (PIX único) — mesma validação, sem duplicar a regra. */
+export function selectedPayables(tenantId: string, ids: string[]): Promise<Payable[]> {
+  return selection(tenantId, ids);
+}
+
+/**
+ * Recibo de repasse em PDF (um ou vários lançamentos do mesmo proprietário).
+ *
+ * Só de repasse **PAGO**: um recibo declara "recebi", então emiti-lo antes de o
+ * dinheiro sair seria um documento falso — inclusive no PIX, onde o repasse fica
+ * PROCESSANDO até o banco confirmar. Depois da baixa (manual ou pelo
+ * `TRANSFER_DONE`) o documento sai com data, valor e competência.
+ *
+ * Efêmero como o relatório: gera na hora, não versiona no storage.
+ */
+export async function receipt(tenantId: string, ids: string[]): Promise<Buffer> {
+  const payables = await selection(tenantId, ids);
+
+  const naoPagos = payables.filter((p) => p.status !== "PAGO");
+  if (naoPagos.length) {
+    throw AppError.badRequest(
+      naoPagos.some((p) => p.status === "PROCESSANDO")
+        ? "O PIX ainda está em processamento no banco. O recibo sai quando o pagamento for confirmado."
+        : "Só é possível emitir recibo de repasse já pago.",
+    );
+  }
+
+  const [tenant, payee] = await Promise.all([
+    tenantService.getById(tenantId),
+    personService.getById(tenantId, payables[0]!.payeePersonId),
+  ]);
+
+  return htmlToPdf(
+    toPayoutReceiptHtml({
+      tenantName: tenant.name,
+      tenantCnpj: tenant.cnpj,
+      tenantCreci: tenant.creci,
+      payeeName: payee.fullName,
+      payeeCpfCnpj: payee.cpfCnpj,
+      payables,
+      generatedAt: new Date(),
+    }),
+  );
 }
 
 export async function create(
@@ -169,23 +243,28 @@ export async function cancel(tenantId: string, id: string): Promise<Payable> {
  */
 export async function attachTransfer(
   tenantId: string,
-  id: string,
+  ids: string[],
   transfer: { asaasTransferId: string; transferStatus: string },
-): Promise<Payable> {
-  const updated = await repo.attachTransfer(tenantId, id, transfer);
-  if (!updated) throw AppError.notFound("Conta a pagar não encontrada");
+): Promise<Payable[]> {
+  const updated = await repo.attachTransfer(tenantId, ids, transfer);
+  if (updated.length !== ids.length) {
+    throw AppError.notFound("Conta a pagar não encontrada");
+  }
   return updated;
 }
 
-export function findByTransferId(
+export function listByTransferId(
   tenantId: string,
   asaasTransferId: string,
-): Promise<Payable | null> {
-  return repo.findByTransferId(tenantId, asaasTransferId);
+): Promise<Payable[]> {
+  return repo.listByTransferId(tenantId, asaasTransferId);
 }
 
 /**
- * Aplica o desfecho da transferência (webhook ou sincronização manual).
+ * Aplica o desfecho da transferência (webhook ou sincronização manual) a
+ * **todos** os repasses que ela paga — um PIX único cobre vários lançamentos do
+ * mesmo proprietário, e o desfecho vale para o conjunto: ou o dinheiro saiu (e
+ * todos ficam PAGO), ou o banco recusou (e todos voltam a ABERTO).
  *
  * Idempotente: repasse já baixado não republica evento nem reescreve a data.
  * `effectiveDate` do Asaas é o dia em que o dinheiro caiu na conta do
@@ -195,46 +274,57 @@ export async function applyTransferResult(
   tenantId: string,
   asaasTransferId: string,
   result: { status: string; effectiveDate?: string | null; failReason?: string | null },
-): Promise<Payable | null> {
-  const payable = await repo.findByTransferId(tenantId, asaasTransferId);
-  if (!payable) return null;
+): Promise<Payable[]> {
+  const payables = await repo.listByTransferId(tenantId, asaasTransferId);
+  const applied: Payable[] = [];
 
-  if (result.status === "DONE") {
-    if (payable.status === "PAGO") return payable;
-    const updated = await patch(tenantId, payable.id, {
-      status: "PAGO",
-      paidAt: result.effectiveDate ?? new Date().toISOString().slice(0, 10),
-      paidAmountCents: payable.amountCents,
-      transferStatus: result.status,
-      transferFailedReason: null,
-    });
-    await publish({
-      type: "payable.settled",
-      tenantId,
-      eventId: randomUUID(),
-      occurredAt: new Date().toISOString(),
-      payload: {
-        payableId: payable.id,
-        payeePersonId: payable.payeePersonId,
-        amountCents: updated.paidAmountCents,
-        via: "PIX",
-      },
-    });
-    return updated;
+  for (const payable of payables) {
+    if (result.status === "DONE") {
+      if (payable.status === "PAGO") {
+        applied.push(payable);
+        continue;
+      }
+      const updated = await patch(tenantId, payable.id, {
+        status: "PAGO",
+        paidAt: result.effectiveDate ?? new Date().toISOString().slice(0, 10),
+        paidAmountCents: payable.amountCents,
+        transferStatus: result.status,
+        transferFailedReason: null,
+      });
+      await publish({
+        type: "payable.settled",
+        tenantId,
+        eventId: randomUUID(),
+        occurredAt: new Date().toISOString(),
+        payload: {
+          payableId: payable.id,
+          payeePersonId: payable.payeePersonId,
+          amountCents: updated.paidAmountCents,
+          via: "PIX",
+        },
+      });
+      applied.push(updated);
+      continue;
+    }
+
+    if (result.status === "FAILED" || result.status === "CANCELLED") {
+      // Volta para ABERTO: o dinheiro não saiu, então o repasse continua devido.
+      // O motivo fica gravado para o operador corrigir a chave e reenviar.
+      applied.push(
+        await patch(tenantId, payable.id, {
+          status: "ABERTO",
+          transferStatus: result.status,
+          transferFailedReason: result.failReason ?? "Transferência recusada pelo banco.",
+        }),
+      );
+      continue;
+    }
+
+    // PENDING / BANK_PROCESSING: ainda em trânsito, só atualiza o estado bruto.
+    applied.push(await patch(tenantId, payable.id, { transferStatus: result.status }));
   }
 
-  if (result.status === "FAILED" || result.status === "CANCELLED") {
-    // Volta para ABERTO: o dinheiro não saiu, então o repasse continua devido.
-    // O motivo fica gravado para o operador corrigir a chave e reenviar.
-    return patch(tenantId, payable.id, {
-      status: "ABERTO",
-      transferStatus: result.status,
-      transferFailedReason: result.failReason ?? "Transferência recusada pelo banco.",
-    });
-  }
-
-  // PENDING / BANK_PROCESSING: ainda em trânsito, só atualiza o estado bruto.
-  return patch(tenantId, payable.id, { transferStatus: result.status });
+  return applied;
 }
 
 export async function remove(tenantId: string, id: string): Promise<void> {

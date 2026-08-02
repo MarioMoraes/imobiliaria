@@ -70,6 +70,7 @@ export interface PropertyFormInput {
   reserved: boolean;
   propertyTypeId: string;
   condominiumId: string;
+  /** Contrato — LEITURA: gravado pelo contrato ao entrar em vigência. */
   contractNumber: string;
   isCommercial: boolean;
 
@@ -111,10 +112,10 @@ export interface PropertyFormInput {
 
   // Locação / comissão
   leaseTermMonths: string;
-  leaseStart: string; // YYYY-MM-DD
   penaltyInfo: string;
   hasCommission: boolean;
   commissionType: string;
+  /** Entrada — LEITURA: gravada pelo contrato ao entrar em vigência. */
   entryDate: string; // YYYY-MM-DD
 
   // Captação / publicação / observações
@@ -217,7 +218,9 @@ function toPayload(input: PropertyFormInput, isEdit: boolean) {
     reserved: input.reserved,
     propertyTypeId: opt(toText(input.propertyTypeId)),
     condominiumId: opt(toText(input.condominiumId)),
-    contractNumber: opt(toText(input.contractNumber)),
+    // `contractNumber` e `entryDate` seguem a Situação: são ciclo de vida,
+    // gravados pelo contrato ao entrar em vigência. Fora do payload — reenviá-los
+    // de um cadastro aberto antes da assinatura apagaria o que o contrato gravou.
     isCommercial: input.isCommercial,
 
     zip: opt(toText(input.zip)),
@@ -254,11 +257,9 @@ function toPayload(input: PropertyFormInput, isEdit: boolean) {
     isGuaranteed: input.isGuaranteed,
 
     leaseTermMonths: opt(toInt(input.leaseTermMonths)),
-    leaseStart: opt(toDate(input.leaseStart)),
     penaltyInfo: opt(toText(input.penaltyInfo)),
     hasCommission: input.hasCommission,
     commissionType: opt(toText(input.commissionType)),
-    entryDate: opt(toDate(input.entryDate)),
 
     brokerId: opt(toText(input.brokerId)),
     capturerId: opt(toText(input.capturerId)),

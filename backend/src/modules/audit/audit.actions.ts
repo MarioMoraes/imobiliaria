@@ -55,6 +55,9 @@ const OVERRIDES: Record<string, AuditAction | null> = {
   "POST /v1/receivables/:id/sync-charge": { action: "charge.synced", entity: "receivable" },
   "POST /v1/payables/:id/settle": { action: "transfer.executed", entity: "payable" },
   "POST /v1/payables/:id/transfer": { action: "transfer.executed", entity: "payable" },
+  // PIX único de vários repasses: a trilha registra o mesmo fato (dinheiro
+  // saindo), com os ids do lote no payload.
+  "POST /v1/payables/transfer-batch": { action: "transfer.executed", entity: "payable" },
   "POST /v1/payables/:id/sync-transfer": { action: "transfer.synced", entity: "payable" },
   "POST /v1/payables/:id/cancel": { action: "payable.canceled", entity: "payable" },
   "POST /v1/payables/generate": { action: "payable.generated", entity: "payable" },

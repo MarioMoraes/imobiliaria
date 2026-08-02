@@ -5,6 +5,7 @@ import { logger } from "../../shared/logger.js";
 import { isUuid } from "../../shared/uuid.js";
 import { requirePermission } from "../rbac/authorize.js";
 import { record } from "../audit/audit.service.js";
+import { payableIdsSchema } from "../payable/payable.schema.js";
 import {
   savePaymentSettingsSchema,
   webhookPayloadSchema,
@@ -42,6 +43,18 @@ export async function paymentRoutes(app: FastifyInstance): Promise<void> {
  * `payableRoutes` porque os paths são distintos (transfer, sync-transfer).
  */
 export async function payoutRoutes(app: FastifyInstance): Promise<void> {
+  /**
+   * Um PIX só para vários repasses do mesmo proprietário. Path estático, então
+   * não colide com `POST /:id/transfer` nem com o `POST /` de `payableRoutes`.
+   */
+  app.post("/transfer-batch", { preHandler: requirePermission("finance:write") }, async (req) => {
+    const parsed = payableIdsSchema.safeParse(req.body);
+    if (!parsed.success) {
+      throw AppError.badRequest("Seleção inválida", parsed.error.flatten());
+    }
+    return { data: await service.transferPayouts(getTenantId(), parsed.data.payableIds) };
+  });
+
   // Envia o repasse por PIX. É dinheiro SAINDO, então fica sob finance:write
   // (ADMIN/FINANCEIRO) como o resto da escrita financeira.
   app.post<{ Params: { id: string } }>(

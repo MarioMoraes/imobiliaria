@@ -116,6 +116,21 @@ export async function transferPayoutAction(id: string): Promise<PayableActionRes
   return { ok: true };
 }
 
+/**
+ * Um PIX só para vários repasses do mesmo proprietário: o dono vê um crédito no
+ * extrato, a imobiliária paga uma tarifa e os lançamentos continuam separados no
+ * sistema (todos passam a apontar para a mesma transferência).
+ */
+export async function transferPayoutBatchAction(
+  ids: string[],
+): Promise<PayableActionResult> {
+  if (!ids.length) return { ok: false, error: "Selecione ao menos um repasse." };
+  const res = await postJson("/v1/payables/transfer-batch", { payableIds: ids });
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePayables();
+  return { ok: true };
+}
+
 /** Consulta o Asaas e aplica o desfecho — o webhook não alcança o localhost. */
 export async function syncTransferAction(id: string): Promise<PayableActionResult> {
   if (!id) return { ok: false, error: "ID inválido." };

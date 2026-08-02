@@ -5,6 +5,7 @@ import { requirePermission } from "../rbac/authorize.js";
 import {
   createPayableSchema,
   listPayablesQuerySchema,
+  payableSelectionSchema,
   payableSummaryQuerySchema,
   settlePayableSchema,
   updatePayableSchema,
@@ -51,6 +52,26 @@ export async function payableRoutes(app: FastifyInstance): Promise<void> {
     reply
       .header("Content-Type", "application/pdf")
       .header("Content-Disposition", `inline; filename="repasses-${month}.pdf"`);
+    return reply.send(pdf);
+  });
+
+  /**
+   * Recibo de repasse em PDF — um ou vários lançamentos do mesmo proprietário
+   * (`?ids=a,b,c`). Responde os BYTES, como o relatório.
+   *
+   * Fica sob `finance:read`: o recibo é a leitura de um pagamento que já
+   * aconteceu, não uma nova saída de dinheiro.
+   */
+  app.get("/receipt", { preHandler: requirePermission("finance:read") }, async (req, reply) => {
+    const parsed = payableSelectionSchema.safeParse(req.query);
+    if (!parsed.success) {
+      throw AppError.badRequest("Seleção inválida", parsed.error.flatten());
+    }
+    const pdf = await service.receipt(getTenantId(), parsed.data.ids);
+
+    reply
+      .header("Content-Type", "application/pdf")
+      .header("Content-Disposition", `inline; filename="recibo-repasse.pdf"`);
     return reply.send(pdf);
   });
 

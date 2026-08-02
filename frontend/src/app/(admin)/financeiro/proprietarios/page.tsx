@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { Icon } from "../../../../components/Icon";
 import { PageHeader, Section, StatCard } from "../../../../components/ui";
 import {
   backendNotice,
@@ -16,6 +18,46 @@ const monthNames = [
 function monthTitle(month: string): string {
   const index = Number(month.slice(5, 7)) - 1;
   return `${monthNames[index] ?? month}/${month.slice(0, 4)}`;
+}
+
+/** "2026-12" + 1 → "2027-01". Vira o ano sozinho. */
+function shiftMonth(month: string, delta: number): string {
+  const year = Number(month.slice(0, 4));
+  const index = Number(month.slice(5, 7)) - 1 + delta;
+  return new Date(Date.UTC(year, index, 1)).toISOString().slice(0, 7);
+}
+
+/**
+ * Navegação de mês. Sem ela o filtro `?mes=` só se alcançava digitando a URL —
+ * e como o repasse vence no mês SEGUINTE ao pagamento, quem dava a baixa ficava
+ * olhando um mês vazio, sem caminho até o mês em que o repasse existe.
+ */
+function MonthNav({ month }: { month: string }) {
+  return (
+    <div className="row gap-8" style={{ alignItems: "center" }}>
+      <Link
+        className="icon-btn"
+        style={{ width: 28, height: 28 }}
+        href={`/financeiro/proprietarios?mes=${shiftMonth(month, -1)}`}
+        aria-label={`Ver ${monthTitle(shiftMonth(month, -1))}`}
+        title={monthTitle(shiftMonth(month, -1))}
+      >
+        <Icon name="arrowLeft" size={14} />
+      </Link>
+      {/* "Vencem em" e não só o mês: a coluna Competência mostra outro mês
+          (o do aluguel de origem), e sem o rótulo os dois se confundem. */}
+      <span className="badge badge-blue">Vencem em {monthTitle(month)}</span>
+      <Link
+        className="icon-btn"
+        style={{ width: 28, height: 28 }}
+        href={`/financeiro/proprietarios?mes=${shiftMonth(month, 1)}`}
+        aria-label={`Ver ${monthTitle(shiftMonth(month, 1))}`}
+        title={monthTitle(shiftMonth(month, 1))}
+      >
+        <Icon name="arrowRight" size={14} />
+      </Link>
+    </div>
+  );
 }
 
 /**
@@ -48,6 +90,20 @@ export default async function PagamentoProprietariosPage({
     fetchPayableSummary(month),
   ]);
   const live = payables !== null && summary !== null;
+
+  // Mês vazio não quer dizer "não há repasse": o vencimento cai no mês seguinte
+  // ao pagamento, então a baixa de hoje aparece só na virada. Sem este ponteiro
+  // o operador dá a baixa, não vê nada e conclui que o repasse não foi gerado —
+  // foi o que motivou o achado. A busca só roda quando a lista veio vazia.
+  const elsewhere =
+    payables?.length === 0
+      ? ((await fetchPayables({ status: "ABERTO", limit: 500 })) ?? [])
+      : [];
+  // Já vem ordenado por vencimento, então o primeiro é o mês mais próximo.
+  const nextMonth = elsewhere.find((p) => p.dueDate.slice(0, 7) !== month)?.dueDate.slice(0, 7);
+  const nextCount = nextMonth
+    ? elsewhere.filter((p) => p.dueDate.slice(0, 7) === nextMonth).length
+    : 0;
 
   return (
     <>
@@ -85,20 +141,16 @@ export default async function PagamentoProprietariosPage({
         />
       </div>
 
-      <Section
-        title="Repasses"
-        action={
-          // "Vencem em" e não só o mês: a coluna Competência mostra outro mês
-          // (o do aluguel de origem), e sem o rótulo os dois se confundem.
-          <span className="badge badge-blue">Vencem em {monthTitle(month)}</span>
-        }
-      >
+      <Section title="Repasses" action={<MonthNav month={month} />}>
         <div className="card-pad">
           <PayablesPanel
             payables={payables ?? []}
             live={live}
             failureNotice={backendNotice()}
             month={month}
+            elsewhere={
+              nextMonth ? { month: nextMonth, label: monthTitle(nextMonth), count: nextCount } : null
+            }
           />
         </div>
       </Section>

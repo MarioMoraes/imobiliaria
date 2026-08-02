@@ -322,35 +322,61 @@ export async function updatePayable(
 }
 
 /** Vincula o repasse à transferência criada no Asaas (chamado pelo MOD-PAY). */
+/**
+ * Amarra N lançamentos à MESMA transferência. Um PIX único paga vários repasses
+ * do mesmo proprietário, então `asaas_transfer_id` não é chave: a correlação do
+ * webhook (`listByTransferId`) devolve o conjunto.
+ *
+ * Uma UPDATE só, e não N: os lançamentos entram em PROCESSANDO juntos ou não
+ * entram — metade marcada seria dinheiro enviado sem rastro no resto.
+ */
 export async function attachTransfer(
   tenantId: string,
-  id: string,
+  ids: string[],
   transfer: { asaasTransferId: string; transferStatus: string },
-): Promise<Payable | null> {
+): Promise<Payable[]> {
   return withTenant(tenantId, async (client) => {
     const { rows } = await client.query<Row>(
       `UPDATE payables
           SET asaas_transfer_id = $2, transfer_status = $3,
               transfer_failed_reason = NULL, status = 'PROCESSANDO', updated_at = now()
-        WHERE id = $1
+        WHERE id = ANY($1::uuid[])
         ${RETURNING}`,
-      [id, transfer.asaasTransferId, transfer.transferStatus],
+      [ids, transfer.asaasTransferId, transfer.transferStatus],
     );
-    return rows[0] ? toPayable(rows[0]) : null;
+    return rows.map(toPayable);
   });
 }
 
-/** Repasse correspondente a uma transferência do Asaas (correlação do webhook). */
-export async function findByTransferId(
+/**
+ * Repasses correspondentes a uma transferência do Asaas (correlação do webhook).
+ * Devolve LISTA porque um PIX único cobre vários lançamentos — quando ele é
+ * confirmado, todos precisam ser baixados.
+ */
+export async function listByTransferId(
   tenantId: string,
   asaasTransferId: string,
-): Promise<Payable | null> {
+): Promise<Payable[]> {
   return withTenant(tenantId, async (client) => {
     const { rows } = await client.query<Row>(
-      `${SELECT} WHERE p.asaas_transfer_id = $1`,
+      `${SELECT} WHERE p.asaas_transfer_id = $1 ORDER BY p.due_date ASC`,
       [asaasTransferId],
     );
-    return rows[0] ? toPayable(rows[0]) : null;
+    return rows.map(toPayable);
+  });
+}
+
+/** Os lançamentos escolhidos na tela, na ordem de vencimento. */
+export async function listPayablesByIds(
+  tenantId: string,
+  ids: string[],
+): Promise<Payable[]> {
+  return withTenant(tenantId, async (client) => {
+    const { rows } = await client.query<Row>(
+      `${SELECT} WHERE p.id = ANY($1::uuid[]) ORDER BY p.due_date ASC`,
+      [ids],
+    );
+    return rows.map(toPayable);
   });
 }
 

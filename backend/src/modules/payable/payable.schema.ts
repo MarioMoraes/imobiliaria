@@ -100,6 +100,28 @@ export const payableSummaryQuerySchema = z.object({
 export type PayableSummaryQuery = z.infer<typeof payableSummaryQuerySchema>;
 
 /**
+ * Um conjunto de lançamentos escolhido na tela — base do recibo e do PIX único.
+ *
+ * `ids` chega como CSV (`?ids=a,b,c`) para caber numa URL de `<a>`, que é como o
+ * PDF é aberto. O teto de 50 é o mesmo espírito do `limit` da listagem: protege
+ * de uma URL absurda sem atrapalhar o uso real (um proprietário com 50 imóveis
+ * já é caso raro).
+ */
+export const payableSelectionSchema = z.object({
+  ids: z
+    .string()
+    .transform((v) => v.split(",").map((s) => s.trim()).filter(Boolean))
+    .pipe(z.array(z.string().uuid()).min(1).max(50)),
+});
+export type PayableSelection = z.infer<typeof payableSelectionSchema>;
+
+/** Mesma seleção vinda de um POST (corpo JSON), para o PIX único. */
+export const payableIdsSchema = z.object({
+  payableIds: z.array(z.string().uuid()).min(1).max(50),
+});
+export type PayableIdsInput = z.infer<typeof payableIdsSchema>;
+
+/**
  * Indicadores do mês, agregados no banco.
  *
  * Somar a listagem no cliente não serve: ela tem limite (500), e a partir daí os

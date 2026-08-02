@@ -3,7 +3,8 @@ import { test } from "node:test";
 import { withTenant } from "../../shared/db.js";
 import { addParty, insertContract, listContracts } from "./contract.repository.js";
 import { createContractSchema } from "./contract.schema.js";
-import { linkOwnersAsLocador } from "./contract.service.js";
+import { linkOwnersAsLocador, update as updateContract } from "./contract.service.js";
+import { findProperty } from "../property/property.repository.js";
 
 /**
  * Teste de ISOLAMENTO MULTI-TENANT (SPEC seções 3.1 e 14) — obrigatório no CI.
@@ -123,6 +124,45 @@ test("um locador escolhido à mão nunca é substituído pelo dono do imóvel", 
     const locadores = linked.parties.filter((p) => p.role === "LOCADOR");
     assert.equal(locadores.length, 1, "o dono do imóvel não pode ser somado à escolha manual");
     assert.equal(locadores[0]?.personName, outra.full_name);
+  } finally {
+    await dropContract(contract.id);
+  }
+});
+
+/* ------------------- Entrada e Contrato no cadastro do imóvel --------------- */
+
+/**
+ * "Entrada" e "Contrato" são campos de leitura no cadastro do imóvel: quem os
+ * preenche é o contrato ao entrar em vigência, e o fim da locação os zera. Sem
+ * isso o operador teria de digitar à mão o número de um contrato que o sistema
+ * já conhece — e o dado sobreviveria ao fim da locação.
+ */
+test("entrar em vigência grava entrada e número do contrato no imóvel", async () => {
+  const property = await propertyWithOwner();
+  const contract = await insertContract(
+    TENANT,
+    createContractSchema.parse({
+      propertyId: property.id,
+      status: "EM_ASSINATURA",
+      startsAt: "2026-03-01",
+    }),
+  );
+
+  try {
+    await updateContract(TENANT, contract.id, { status: "VIGENTE" });
+
+    const rented = await findProperty(TENANT, property.id);
+    assert.equal(rented?.status, "rented");
+    assert.equal(rented?.entryDate, "2026-03-01");
+    assert.equal(rented?.contractNumber, String(contract.code));
+
+    // Fim da locação devolve o imóvel à vitrine sem entrada nem contrato.
+    await updateContract(TENANT, contract.id, { status: "ENCERRADO" });
+
+    const free = await findProperty(TENANT, property.id);
+    assert.equal(free?.status, "available");
+    assert.equal(free?.entryDate, null);
+    assert.equal(free?.contractNumber, null);
   } finally {
     await dropContract(contract.id);
   }

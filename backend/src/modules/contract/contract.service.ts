@@ -115,7 +115,14 @@ export async function update(
 async function activate(tenantId: string, contract: Contract): Promise<void> {
   if (contract.propertyId) {
     try {
-      await propertyService.update(tenantId, contract.propertyId, { status: "rented" });
+      await propertyService.update(tenantId, contract.propertyId, {
+        status: "rented",
+        // "Entrada" e "Contrato" no cadastro do imóvel são campos de leitura:
+        // quem os preenche é o contrato ao entrar em vigência — antes da
+        // assinatura não existe data de entrada nem número de contrato.
+        entryDate: contract.startsAt,
+        contractNumber: contract.code != null ? String(contract.code) : null,
+      });
     } catch (err) {
       logger.error(
         { err, tenantId, contractId: contract.id, propertyId: contract.propertyId },
@@ -148,7 +155,13 @@ async function activate(tenantId: string, contract: Contract): Promise<void> {
 async function deactivate(tenantId: string, contract: Contract): Promise<void> {
   if (contract.propertyId) {
     try {
-      await propertyService.update(tenantId, contract.propertyId, { status: "available" });
+      await propertyService.update(tenantId, contract.propertyId, {
+        status: "available",
+        // Fim da locação zera o par que o contrato havia gravado: um imóvel de
+        // volta à vitrine não tem entrada nem contrato em vigor.
+        entryDate: null,
+        contractNumber: null,
+      });
     } catch (err) {
       logger.error(
         { err, tenantId, propertyId: contract.propertyId },

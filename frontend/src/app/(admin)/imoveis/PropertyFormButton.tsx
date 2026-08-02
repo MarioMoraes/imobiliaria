@@ -7,6 +7,7 @@ import { Icon } from "../../../components/Icon";
 import { FieldBlock, TabBar, initials } from "../../../components/ui";
 import { DocumentsPanel } from "../../../components/DocumentsPanel";
 import { formatCep } from "../../../lib/br-doc";
+import { formatDay } from "../../../lib/format";
 import AdministrationContractModal from "./AdministrationContractModal";
 import InspectionModal from "./InspectionModal";
 import type { Property, PropertyPhoto } from "../../../lib/api";
@@ -104,7 +105,6 @@ const EMPTY: PropertyFormInput = {
   chargeAdminFee: false,
   isGuaranteed: false,
   leaseTermMonths: "",
-  leaseStart: "",
   penaltyInfo: "",
   hasCommission: false,
   commissionType: "",
@@ -186,7 +186,6 @@ function fromProperty(p: Property): PropertyFormInput {
     chargeAdminFee: !!p.chargeAdminFee,
     isGuaranteed: !!p.isGuaranteed,
     leaseTermMonths: numStr(p.leaseTermMonths),
-    leaseStart: txt(p.leaseStart),
     penaltyInfo: txt(p.penaltyInfo),
     hasCommission: !!p.hasCommission,
     commissionType: txt(p.commissionType),
@@ -547,7 +546,9 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
                   <option value="">—</option>
                   {condominiums.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
                 </Select>
-                <Text label="Contrato" value={form.contractNumber} onChange={(v) => set({ contractNumber: v })} />
+                {/* Contrato é leitura: o número só existe depois que o
+                    contrato entra em vigência e o imóvel vira Alugado. */}
+                <ReadOnly label="Contrato" value={form.contractNumber || "—"} />
                 {!isSale && (
                   <div className="field" style={{ justifyContent: "flex-end", paddingBottom: 8 }}>
                     <Check label="Comércio" checked={form.isCommercial} onChange={(v) => set({ isCommercial: v })} />
@@ -702,10 +703,11 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
         {tab === "locacao" && (
           <FieldBlock tone="tone-ambar" icon="key" title="Locação e comissão">
             <div className="stack" style={{ gap: 12 }}>
-            <div className="grid grid-3" style={{ gap: 12 }}>
+            {/* Entrada é leitura: quem a grava é o contrato ao entrar em
+                vigência (assinaturas confirmadas), junto com o ALUGADO. */}
+            <div className="grid grid-2" style={{ gap: 12 }}>
               <Text label="Prazo de locação (meses)" value={form.leaseTermMonths} onChange={(v) => set({ leaseTermMonths: v })} inputMode="numeric" />
-              <Text label="Início" value={form.leaseStart} onChange={(v) => set({ leaseStart: v })} type="date" />
-              <Text label="Entrada" value={form.entryDate} onChange={(v) => set({ entryDate: v })} type="date" />
+              <ReadOnly label="Entrada" value={formatDay(form.entryDate || null)} />
             </div>
             <Text label="Multa" value={form.penaltyInfo} onChange={(v) => set({ penaltyInfo: v })} placeholder="Ex.: 3 aluguéis" />
             <div className="grid grid-2" style={{ gap: 12 }}>

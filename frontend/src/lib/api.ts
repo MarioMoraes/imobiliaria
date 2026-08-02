@@ -1087,6 +1087,18 @@ export async function fetchPayoutReport(month: string): Promise<Response> {
   });
 }
 
+/**
+ * Recibo de repasse (PDF) de um ou mais lançamentos do mesmo proprietário —
+ * `Response` crua, como o relatório. O backend recusa seleção de donos
+ * diferentes e repasse ainda não pago.
+ */
+export async function fetchPayoutReceipt(ids: string[]): Promise<Response> {
+  return fetch(`${BACKEND_URL}/v1/payables/receipt?ids=${encodeURIComponent(ids.join(","))}`, {
+    headers: await authHeaders(),
+    cache: "no-store",
+  });
+}
+
 /** Um contrato pelo id. */
 export function fetchContract(id: string): Promise<Contract | null> {
   return get<Contract>(`/v1/contracts/${id}`);

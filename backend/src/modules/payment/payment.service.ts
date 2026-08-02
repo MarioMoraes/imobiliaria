@@ -311,23 +311,63 @@ async function chargeTerms(
  * Idempotente: repasse que já tem transferência não cria uma segunda — pagar o
  * mesmo aluguel duas vezes é dinheiro que não volta sozinho.
  */
-export async function transferPayout(
+export function transferPayout(
   tenantId: string,
   payableId: string,
 ): Promise<IssuedTransfer> {
-  const payable = await payableService.getById(tenantId, payableId);
+  return transferPayouts(tenantId, [payableId]);
+}
 
-  if (payable.asaasTransferId) {
-    return { asaasTransferId: payable.asaasTransferId, status: payable.transferStatus ?? "PENDING" };
+/**
+ * Um PIX só para vários repasses do mesmo proprietário.
+ *
+ * Por que em lote e não N transferências: o proprietário de três imóveis recebe
+ * um crédito só no extrato (é o que ele espera ver), a imobiliária paga uma
+ * tarifa em vez de três, e a conciliação passa a ter uma linha por pagamento em
+ * vez de três parciais. Os lançamentos continuam separados no sistema — o que se
+ * agrupa é o dinheiro, não a contabilidade: cada repasse mantém sua competência,
+ * seu imóvel e sua taxa, e todos apontam para a mesma `asaas_transfer_id`.
+ *
+ * Idempotente: um conjunto já enviado devolve a transferência existente em vez
+ * de criar a segunda — pagar o mesmo aluguel duas vezes é dinheiro que não volta
+ * sozinho. Se só PARTE da seleção já foi enviada, recusa: incluí-la de novo
+ * duplicaria o valor dela dentro do lote.
+ */
+export async function transferPayouts(
+  tenantId: string,
+  payableIds: string[],
+): Promise<IssuedTransfer> {
+  // A validação de "mesmo proprietário" mora no payable.service: é a regra que o
+  // recibo também usa, e o destino do PIX é uma chave só.
+  const payables = await payableService.selectedPayables(tenantId, payableIds);
+
+  const enviados = payables.filter((p) => p.asaasTransferId);
+  if (enviados.length) {
+    const transferencias = new Set(enviados.map((p) => p.asaasTransferId));
+    if (enviados.length === payables.length && transferencias.size === 1) {
+      const primeiro = enviados[0]!;
+      return {
+        asaasTransferId: primeiro.asaasTransferId!,
+        status: primeiro.transferStatus ?? "PENDING",
+      };
+    }
+    throw AppError.badRequest(
+      `${enviados.length} lançamento(s) da seleção já foram enviados ao banco. Desmarque-os para enviar o restante.`,
+    );
   }
-  if (payable.status === "PAGO") {
+
+  const quitados = payables.filter((p) => p.status === "PAGO");
+  if (quitados.length) {
     throw AppError.badRequest("Repasse já quitado — não há pagamento a enviar.");
   }
-  if (payable.status === "CANCELADO" || payable.status === "ESTORNADO") {
+  const cancelados = payables.filter(
+    (p) => p.status === "CANCELADO" || p.status === "ESTORNADO",
+  );
+  if (cancelados.length) {
     throw AppError.badRequest("Repasse cancelado não gera pagamento.");
   }
 
-  const person = await personService.getById(tenantId, payable.payeePersonId);
+  const person = await personService.getById(tenantId, payables[0]!.payeePersonId);
   const pixKey = person.pixKey?.trim();
   if (!pixKey || !person.pixKeyType) {
     throw new AppError(
@@ -337,22 +377,32 @@ export async function transferPayout(
     );
   }
 
+  const totalCents = payables.reduce((sum, p) => sum + p.amountCents, 0);
+  const unico = payables.length === 1 ? payables[0]! : null;
+  // Referência externa: o id do lançamento quando é um só. Num lote não cabe a
+  // lista de ids, e não faz falta — a correlação do webhook é por `transfer.id`,
+  // que fica gravado em todos os lançamentos do grupo.
+  const externalReference = unico ? unico.id : `lote:${randomUUID()}`;
+
   const creds = await credentials(tenantId);
   const transfer = await asaas.createTransfer(
     { apiKey: creds.apiKey, sandbox: creds.sandbox },
     {
-      value: toReais(payable.amountCents),
+      value: toReais(totalCents),
       pixAddressKey: pixKey,
       pixAddressKeyType: person.pixKeyType as asaas.PixKeyType,
-      description: payable.description ?? "Repasse de aluguel",
-      externalReference: payable.id,
+      description: unico
+        ? (unico.description ?? "Repasse de aluguel")
+        : `Repasse de aluguel · ${payables.length} lançamentos`,
+      externalReference,
     },
   );
 
-  await payableService.attachTransfer(tenantId, payable.id, {
-    asaasTransferId: transfer.id,
-    transferStatus: transfer.status,
-  });
+  await payableService.attachTransfer(
+    tenantId,
+    payables.map((p) => p.id),
+    { asaasTransferId: transfer.id, transferStatus: transfer.status },
+  );
 
   await publish({
     type: "payable.transfer_sent",
@@ -360,9 +410,9 @@ export async function transferPayout(
     eventId: randomUUID(),
     occurredAt: new Date().toISOString(),
     payload: {
-      payableId: payable.id,
+      payableIds: payables.map((p) => p.id),
       transferId: transfer.id,
-      amountCents: payable.amountCents,
+      amountCents: totalCents,
       sandbox: creds.sandbox,
     },
   });

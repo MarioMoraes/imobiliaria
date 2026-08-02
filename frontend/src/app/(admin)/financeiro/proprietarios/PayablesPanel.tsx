@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { GENERIC_BACKEND_NOTICE } from "../../../../components/BackendNotice";
 import { Icon } from "../../../../components/Icon";
@@ -10,16 +11,31 @@ import { StatusBadge } from "../../../../components/ui";
 import type { Payable } from "../../../../lib/api";
 import { formatDay as dateBr, formatPrice } from "../../../../lib/format";
 import {
-  cancelPayableAction,
   generatePayoutsAction,
   settlePayableAction,
   syncTransferAction,
   transferPayoutAction,
+  transferPayoutBatchAction,
 } from "../actions";
 
 /** Repasse em aberto com vencimento passado é exibido como vencido. */
 function displayStatus(p: Payable, today: string): string {
   return p.status === "ABERTO" && p.dueDate < today ? "VENCIDO" : p.status;
+}
+
+/** URL do recibo em PDF (Route Handler que faz proxy autenticado do backend). */
+const receiptHref = (ids: string[]): string =>
+  `/financeiro/proprietarios/recibo?ids=${ids.join(",")}`;
+
+/**
+ * O que dá para fazer em lote com este lançamento — e é por isso que a seleção
+ * é homogênea: `PAGAVEL` vira um PIX, `PAGO` vira um recibo. Repasse em trânsito
+ * ou cancelado não entra em lote nenhum.
+ */
+function batchKind(p: Payable): "PAGAVEL" | "PAGO" | null {
+  if (p.status === "ABERTO" || p.status === "VENCIDO") return "PAGAVEL";
+  if (p.status === "PAGO") return "PAGO";
+  return null;
 }
 
 /**
@@ -105,6 +121,7 @@ export function PayablesPanel({
   live,
   failureNotice,
   month,
+  elsewhere,
 }: {
   payables: Payable[];
   live: boolean;
@@ -115,13 +132,47 @@ export function PayablesPanel({
   failureNotice?: string | null;
   /** Competência exibida (YYYY-MM) — é a do relatório em PDF. */
   month: string;
+  /**
+   * Repasses em aberto que existem FORA do mês exibido (o mais próximo). O mês
+   * do repasse é o seguinte ao do pagamento, então a lista vazia é o caso comum
+   * logo após uma baixa — e sem este ponteiro ela se lê como "não foi gerado".
+   */
+  elsewhere?: { month: string; label: string; count: number } | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const today = new Date().toISOString().slice(0, 10);
+
+  /* ---------------------------------------------------------- Seleção */
+
+  // A seleção é derivada da lista a cada render: um repasse que mudou de estado
+  // (baixa, cancelamento) ou saiu do mês sai dela sozinho, sem estado órfão.
+  const selected = payables.filter((p) => selectedIds.includes(p.id));
+  // O primeiro escolhido define o grupo — proprietário e natureza do lote. É o
+  // que impede um PIX para a chave errada e um recibo com dois donos.
+  const anchor = selected[0] ?? null;
+  const anchorKind = anchor ? batchKind(anchor) : null;
+
+  function selectable(p: Payable): boolean {
+    const kind = batchKind(p);
+    if (!kind) return false;
+    if (!anchor) return true;
+    return p.payeePersonId === anchor.payeePersonId && kind === anchorKind;
+  }
+
+  function toggle(id: string): void {
+    setError(null);
+    setSelectedIds((current) =>
+      current.includes(id) ? current.filter((x) => x !== id) : [...current, id],
+    );
+  }
+
+  const clearSelection = (): void => setSelectedIds([]);
+  const selectedTotal = selected.reduce((sum, p) => sum + p.amountCents, 0);
 
   function settle(id: string, paidAt: string) {
     setError(null);
@@ -130,19 +181,6 @@ export function PayablesPanel({
       const res = await settlePayableAction(id, paidAt);
       if (!res.ok) {
         setError(res.error ?? "Não foi possível dar baixa no repasse.");
-        return;
-      }
-      router.refresh();
-    });
-  }
-
-  function cancel(id: string) {
-    setError(null);
-    setNotice(null);
-    startTransition(async () => {
-      const res = await cancelPayableAction(id);
-      if (!res.ok) {
-        setError(res.error ?? "Não foi possível cancelar o repasse.");
         return;
       }
       router.refresh();
@@ -161,6 +199,27 @@ export function PayablesPanel({
       setNotice(
         "Pagamento enviado ao Asaas. O repasse fica em Processando até o banco confirmar.",
       );
+      router.refresh();
+    });
+  }
+
+  /** Um PIX só para todos os selecionados (mesmo proprietário). */
+  function transferSelected() {
+    setError(null);
+    setNotice(null);
+    const ids = selected.map((p) => p.id);
+    startTransition(async () => {
+      const res = await transferPayoutBatchAction(ids);
+      if (!res.ok) {
+        setError(res.error ?? "Não foi possível enviar o pagamento.");
+        return;
+      }
+      setNotice(
+        `Pagamento único de ${formatPrice(selectedTotal)} enviado ao Asaas para ${
+          anchor?.payeeName ?? "o proprietário"
+        }. Os ${ids.length} repasses ficam em Processando até o banco confirmar.`,
+      );
+      clearSelection();
       router.refresh();
     });
   }
@@ -219,18 +278,85 @@ export function PayablesPanel({
         </div>
       )}
 
+      {/* Barra da seleção. Só aparece com algo marcado — a tela de quem não usa
+          lote continua idêntica à de antes. */}
+      {anchor && (
+        <div
+          className="row gap-8"
+          style={{
+            alignItems: "center",
+            flexWrap: "wrap",
+            border: "1px solid var(--border)",
+            borderRadius: 8,
+            padding: "8px 12px",
+          }}
+        >
+          <span className="text-sm">
+            <span className="strong">{selected.length} selecionado(s)</span> ·{" "}
+            {anchor.payeeName ?? "proprietário"} ·{" "}
+            <span className="strong tabular">{formatPrice(selectedTotal)}</span>
+          </span>
+          <div className="row gap-8" style={{ marginLeft: "auto" }}>
+            {anchorKind === "PAGAVEL" ? (
+              <button
+                className="btn btn-primary btn-sm"
+                type="button"
+                disabled={pending || !live}
+                onClick={transferSelected}
+                title={
+                  selected.length > 1
+                    ? "Envia UM PIX com a soma dos repasses selecionados para a chave do proprietário"
+                    : "Envia o repasse por PIX para a chave do proprietário (Asaas)"
+                }
+              >
+                <Icon name="banknote" size={14} />{" "}
+                {selected.length > 1 ? "Gerar um PIX único" : "Gerar pagamento"}
+              </button>
+            ) : (
+              // Link, e não fetch: o resultado é um ARQUIVO — mesmo motivo do
+              // relatório (abre no visualizador, sem bloqueador de pop-up).
+              <a
+                className="btn btn-primary btn-sm"
+                href={receiptHref(selected.map((p) => p.id))}
+                target="_blank"
+                rel="noopener"
+                title="Recibo em PDF com os lançamentos selecionados, para o proprietário assinar"
+              >
+                <Icon name="printer" size={14} /> Emitir recibo
+              </a>
+            )}
+            <button className="btn btn-ghost btn-sm" type="button" onClick={clearSelection}>
+              Limpar
+            </button>
+          </div>
+        </div>
+      )}
+
       {payables.length === 0 ? (
-        <p className="text-sm subtle" style={{ padding: "8px 0" }}>
-          Os repasses nascem sozinhos quando um aluguel recebe baixa: o sistema
-          identifica os donos do imóvel e credita o valor do aluguel menos a taxa
-          de administração do contrato, vencendo no mês seguinte no dia do
-          proprietário.
-        </p>
+        <div className="stack" style={{ gap: 8, padding: "8px 0" }}>
+          <p className="text-sm subtle" style={{ margin: 0 }}>
+            Os repasses nascem sozinhos quando um aluguel recebe baixa: o sistema
+            identifica os donos do imóvel e credita o valor do aluguel menos a taxa
+            de administração do contrato, vencendo no mês seguinte no dia do
+            proprietário.
+          </p>
+          {elsewhere && (
+            <div className="row gap-8" style={{ alignItems: "center" }}>
+              <span className="text-sm">
+                Há {elsewhere.count} repasse(s) em aberto vencendo em {elsewhere.label}.
+              </span>
+              <Link className="btn btn-outline btn-sm" href={`/financeiro/proprietarios?mes=${elsewhere.month}`}>
+                Ver {elsewhere.label}
+              </Link>
+            </div>
+          )}
+        </div>
       ) : (
         <div className="table-wrap">
           <table className="table">
             <thead>
               <tr>
+                <th style={{ width: 34 }} />
                 <th>Proprietário</th>
                 <th style={{ width: 90 }}>Imóvel</th>
                 <th style={{ width: 110 }}>Competência</th>
@@ -243,6 +369,28 @@ export function PayablesPanel({
             <tbody>
               {payables.map((p) => (
                 <tr key={p.id}>
+                  <td>
+                    {/* Marcar um lançamento trava o grupo: os de outro
+                        proprietário (ou de outra natureza) ficam indisponíveis,
+                        porque um PIX vai para uma chave e um recibo dá quitação
+                        em nome de uma pessoa. */}
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(p.id)}
+                      disabled={!selectable(p)}
+                      onChange={() => toggle(p.id)}
+                      aria-label={`Selecionar repasse de ${p.payeeName ?? "proprietário"}${
+                        p.competence ? ` · ${p.competence}` : ""
+                      }`}
+                      title={
+                        selectable(p)
+                          ? undefined
+                          : anchor
+                            ? "Só é possível agrupar repasses do mesmo proprietário e na mesma situação"
+                            : "Repasse em processamento ou cancelado não entra em lote"
+                      }
+                    />
+                  </td>
                   <td className="strong">
                     {p.payeeName ?? "—"}
                     {/* A participação só informa quando o imóvel é dividido. */}
@@ -296,23 +444,31 @@ export function PayablesPanel({
                           >
                             <Icon name="banknote" size={14} /> Gerar pagamento
                           </button>
+                          {/* O cancelar (X) saiu da linha por ora — a decisão de
+                              se ele volta é para depois. A rota
+                              `POST /v1/payables/:id/cancel` e a action continuam
+                              de pé, então religar é devolver o botão. */}
                           <SettleButton
                             payable={p}
                             today={today}
                             disabled={pending || !live}
                             onSettle={settle}
                           />
-                          <button
-                            className="icon-btn"
-                            style={{ width: 30, height: 30 }}
-                            type="button"
-                            disabled={pending || !live}
-                            onClick={() => cancel(p.id)}
-                            aria-label={`Cancelar repasse a ${p.payeeName ?? "proprietário"}`}
-                            title="Cancelar este repasse"
+                        </>
+                      ) : p.status === "PAGO" ? (
+                        <>
+                          <span className="text-xs subtle">{p.paidAt ? dateBr(p.paidAt) : ""}</span>
+                          {/* O recibo vale inclusive no PIX: o comprovante do
+                              banco prova que saiu dinheiro, não de que ele é. */}
+                          <a
+                            className="btn btn-ghost btn-sm"
+                            href={receiptHref([p.id])}
+                            target="_blank"
+                            rel="noopener"
+                            title="Recibo em PDF deste repasse, para o proprietário assinar"
                           >
-                            <Icon name="x" size={15} />
-                          </button>
+                            <Icon name="printer" size={14} /> Recibo
+                          </a>
                         </>
                       ) : (
                         <span className="text-xs subtle">{p.paidAt ? dateBr(p.paidAt) : ""}</span>
@@ -322,10 +478,10 @@ export function PayablesPanel({
                 </tr>
               ))}
             </tbody>
-            {/* Os colSpan têm que somar as 7 colunas do thead. */}
+            {/* Os colSpan têm que somar as 8 colunas do thead. */}
             <tfoot className="table-total">
               <tr>
-                <td colSpan={3}>
+                <td colSpan={4}>
                   {payables.length} repasse(s) · {pagos.length} pago(s) · {abertos.length} em aberto
                 </td>
                 <td className="tabular">{formatPrice(sum(payables, (p) => p.amountCents))}</td>
