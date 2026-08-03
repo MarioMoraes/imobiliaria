@@ -1,0 +1,5 @@
+# Bundles JS minificados do kit de design de referência.
+# São código de terceiros (iconify, sandpack) sem símbolos legíveis: geravam
+# 58% dos nós do grafo e sequestravam o ranking de god nodes com `n()`, `s()`, `r()`.
+# O design-modelo.html, as imagens e os SVGs continuam indexados.
+frontend/design/assets/js/

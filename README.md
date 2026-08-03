@@ -6,6 +6,18 @@ com uma camada de **agentes de IA (AaaS)** sobre o núcleo de gestão.
 Documentos mestres: [`PRD-Imobiliaria-AI.md`](./PRD-Imobiliaria-AI.md) (produto) e
 [`SPEC-Imobiliaria-AI.md`](./SPEC-Imobiliaria-AI.md) (arquitetura).
 
+## Grafo de conhecimento do projeto
+
+Antes de responder sobre arquitetura ou modificar código, consulte o grafo gerado
+por [graphify](https://github.com/safishamsi/graphify) em `graphify-out/`:
+
+- [`GRAPH_REPORT.md`](./graphify-out/GRAPH_REPORT.md) — comunidades, nós centrais e trilha de auditoria da extração
+- [`graph.html`](./graphify-out/graph.html) — grafo interativo (abrir no navegador)
+- `graph.json` — dados brutos, para consulta programática
+
+Para perguntar ao grafo em vez de reler o código: `graphify query "<pergunta>"`.
+Para reindexar depois de mudanças: `graphify update`.
+
 ## Estrutura
 
 Monorepo com **npm workspaces**, frontend e backend em diretórios separados:

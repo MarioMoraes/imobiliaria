@@ -1,0 +1,1 @@
+{"nodes": [{"id": "$graphify-root$_infra_postgres_migrations_2026_07_31_vistoria_repasse_documentos_auditoria_sql", "label": "2026-07-31-vistoria-repasse-documentos-auditoria.sql", "file_type": "code", "source_file": "infra/postgres/migrations/2026-07-31-vistoria-repasse-documentos-auditoria.sql", "source_location": null}], "edges": []}
