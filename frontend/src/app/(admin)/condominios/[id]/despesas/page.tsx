@@ -49,6 +49,8 @@ export default async function DespesasPage({
         backHref={`/condominios/${id}`}
         actions={addButton}
       />
+      {/* O caminho de volta é o condomínio aberto (hub), não a listagem: quem
+          chegou aqui veio de lá e costuma seguir para a cobrança. */}
 
       <div className="grid grid-2 mb-4">
         <StatCard icon="receipt" label="Lançamentos" value={String(expenses.length)} tone="blue" />

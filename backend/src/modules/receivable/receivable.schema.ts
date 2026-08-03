@@ -122,6 +122,8 @@ export interface Receivable {
   id: string;
   tenantId: string;
   contractId: string | null;
+  /** Condomínio de origem, nas cobranças geradas pela tela de cobrança. */
+  condominiumId: string | null;
   propertyId: string | null;
   payerPersonId: string | null;
   payerName: string | null;
@@ -149,6 +151,19 @@ export interface Receivable {
 
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * Uma cobrança de condomínio pronta para inserção em lote. Montada pelo módulo
+ * `condominium` (que conhece o rateio); aqui só é gravada.
+ */
+export interface CondoChargeRow {
+  propertyId: string;
+  payerPersonId: string;
+  description: string;
+  competence: string;
+  amountCents: number;
+  dueDate: string;
 }
 
 /** Uma parcela pronta para inserção (saída de `buildRentSchedule`). */

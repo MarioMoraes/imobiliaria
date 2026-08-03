@@ -515,3 +515,56 @@ export async function searchContracts(
     return rows.map(toContract);
   });
 }
+
+/** Locatário do contrato ativo de um imóvel (ver `findActiveByPropertyIds`). */
+export interface ActiveTenantRow {
+  propertyId: string;
+  contractId: string;
+  personId: string;
+  personName: string;
+}
+
+/**
+ * Quem ocupa cada imóvel da lista: o locatário do contrato VIGENTE/RENOVADO.
+ * Usado pela cobrança de condomínio para decidir se a conta vai ao inquilino ou
+ * ao proprietário.
+ *
+ * Existe em vez de filtrar `listContracts` porque aquela consulta tem
+ * `LIMIT 100`: numa carteira maior, o contrato de um imóvel simplesmente não
+ * apareceria e a conta seria emitida para o proprietário de um imóvel alugado.
+ *
+ * `DISTINCT ON (c.property_id)` com início decrescente: havendo mais de um
+ * contrato ativo no mesmo imóvel (renovação registrada em paralelo), vale o
+ * mais recente.
+ */
+export async function findActiveByPropertyIds(
+  tenantId: string,
+  propertyIds: string[],
+): Promise<ActiveTenantRow[]> {
+  if (propertyIds.length === 0) return [];
+  return withTenant(tenantId, async (client) => {
+    const { rows } = await client.query<{
+      property_id: string;
+      contract_id: string;
+      person_id: string;
+      person_name: string;
+    }>(
+      `SELECT DISTINCT ON (c.property_id)
+              c.property_id, c.id AS contract_id,
+              pe.id AS person_id, pe.full_name AS person_name
+         FROM contracts c
+         JOIN contract_parties cp ON cp.contract_id = c.id AND cp.role = 'LOCATARIO'
+         JOIN persons pe ON pe.id = cp.person_id
+        WHERE c.status IN ('VIGENTE', 'RENOVADO')
+          AND c.property_id = ANY($1::uuid[])
+        ORDER BY c.property_id, c.starts_at DESC NULLS LAST, c.created_at DESC`,
+      [propertyIds],
+    );
+    return rows.map((r) => ({
+      propertyId: r.property_id,
+      contractId: r.contract_id,
+      personId: r.person_id,
+      personName: r.person_name,
+    }));
+  });
+}

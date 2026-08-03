@@ -117,3 +117,61 @@ export interface CondominiumExpense {
   createdAt: string;
   updatedAt: string;
 }
+
+/* ─────────────────── Cobrança do condomínio (contas a receber) ───────────────
+ * Informa-se condomínio + período + vencimento; o sistema rateia as despesas
+ * lançadas no período entre as unidades e soma o valor de condomínio de cada
+ * imóvel (× meses do período). A conta vai para o locatário do contrato ativo
+ * ou, na falta dele, para o proprietário. Ver `condo-billing.ts` para o cálculo. */
+
+export const condoBillingQuerySchema = z
+  .object({
+    periodStart: isoDate,
+    periodEnd: isoDate,
+    dueDate: isoDate,
+  })
+  .refine((d) => d.periodEnd >= d.periodStart, {
+    message: "Fim do período anterior ao início",
+    path: ["periodEnd"],
+  });
+export type CondoBillingQuery = z.infer<typeof condoBillingQuerySchema>;
+
+/** Uma unidade do condomínio na prévia da cobrança. */
+export interface CondoBillingLine {
+  propertyId: string;
+  propertyCode: number | null;
+  propertyAddress: string;
+  /** Quem paga: locatário, proprietário, ou `null` quando não há nem um nem outro. */
+  payerKind: "LOCATARIO" | "LOCADOR" | null;
+  payerPersonId: string | null;
+  payerName: string | null;
+  months: number;
+  condoFeeCents: number;
+  condoTotalCents: number;
+  expenseShareCents: number;
+  totalCents: number;
+  /** Já existe cobrança deste imóvel nesta competência — não será gerada de novo. */
+  alreadyBilled: boolean;
+}
+
+export interface CondoBillingPreview {
+  condominiumId: string;
+  condominiumName: string;
+  periodStart: string;
+  periodEnd: string;
+  dueDate: string;
+  competence: string;
+  months: number;
+  unitCount: number;
+  expensesCount: number;
+  expensesTotalCents: number;
+  totalCents: number;
+  lines: CondoBillingLine[];
+}
+
+/** Resultado da geração: o que foi gravado e o que já existia. */
+export interface CondoBillingResult extends CondoBillingPreview {
+  created: number;
+  /** Linhas não gravadas: já cobradas na competência ou sem pagador definido. */
+  skipped: number;
+}

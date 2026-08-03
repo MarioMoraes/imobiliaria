@@ -307,6 +307,77 @@ export async function updateExpense(
   });
 }
 
+/**
+ * Total lançado no período (base do rateio da cobrança). Despesa sem data fica
+ * de fora: não há como dizer a que período ela pertence, e assumir "entra em
+ * todo período" faria a mesma despesa ser cobrada mês após mês.
+ */
+export async function sumExpensesInPeriod(
+  tenantId: string,
+  condominiumId: string,
+  from: string,
+  to: string,
+): Promise<{ totalCents: number; count: number }> {
+  return withTenant(tenantId, async (client) => {
+    const { rows } = await client.query<{ total: string; count: string }>(
+      `SELECT COALESCE(SUM(amount_cents), 0)::text AS total, COUNT(*)::text AS count
+         FROM condominium_expenses
+        WHERE condominium_id = $1
+          AND entry_date IS NOT NULL
+          AND entry_date BETWEEN $2::date AND $3::date`,
+      [condominiumId, from, to],
+    );
+    return { totalCents: Number(rows[0]!.total), count: Number(rows[0]!.count) };
+  });
+}
+
+/**
+ * Quanto cada condomínio já GASTOU: soma de todas as despesas lançadas (sem
+ * recorte de período — o saldo é acumulado, não do mês). É a saída do saldo.
+ */
+export async function sumExpensesByCondominium(
+  tenantId: string,
+  condominiumIds: string[],
+): Promise<Map<string, number>> {
+  if (condominiumIds.length === 0) return new Map();
+  return withTenant(tenantId, async (client) => {
+    const { rows } = await client.query<{ condominium_id: string; total: string }>(
+      `SELECT condominium_id, COALESCE(SUM(amount_cents), 0)::text AS total
+         FROM condominium_expenses
+        WHERE condominium_id = ANY($1::uuid[])
+        GROUP BY condominium_id`,
+      [condominiumIds],
+    );
+    return new Map(rows.map((r) => [r.condominium_id, Number(r.total)]));
+  });
+}
+
+/**
+ * As despesas que compõem o rateio, na ordem da data. É o detalhe que o
+ * relatório de conferência precisa mostrar: sem ele o rateio é um número solto,
+ * e conferir a cobrança exigiria abrir a tela de despesas em paralelo.
+ */
+export async function listExpensesInPeriod(
+  tenantId: string,
+  condominiumId: string,
+  from: string,
+  to: string,
+): Promise<CondominiumExpense[]> {
+  return withTenant(tenantId, async (client) => {
+    const { rows } = await client.query<ExpenseRow>(
+      `SELECT ${EXPENSE_COLS}
+         FROM condominium_expenses e
+         LEFT JOIN events ev ON ev.id = e.event_id
+        WHERE e.condominium_id = $1
+          AND e.entry_date IS NOT NULL
+          AND e.entry_date BETWEEN $2::date AND $3::date
+        ORDER BY e.entry_date ASC, e.seq ASC`,
+      [condominiumId, from, to],
+    );
+    return rows.map(toExpense);
+  });
+}
+
 /** Remove uma despesa do condomínio. Retorna true se algo foi removido. */
 export async function deleteExpense(
   tenantId: string,

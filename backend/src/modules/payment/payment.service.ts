@@ -9,6 +9,7 @@ import * as receivableService from "../receivable/receivable.service.js";
 import * as payableService from "../payable/payable.service.js";
 import * as repo from "./payment.repository.js";
 import * as asaas from "./asaas.client.js";
+import type { Receivable } from "../receivable/receivable.schema.js";
 import type {
   IssuedCharge,
   IssuedTransfer,
@@ -242,7 +243,7 @@ export async function issueCharge(
       dueDate: receivable.dueDate,
       description: receivable.description ?? "Aluguel",
       externalReference: receivable.id,
-      ...(await chargeTerms(tenantId, receivable.contractId)),
+      ...(await chargeTerms(tenantId, receivable)),
     },
   );
 
@@ -277,23 +278,51 @@ export async function issueCharge(
 }
 
 /**
- * Multa e juros por atraso saem do próprio contrato (campos Multa e Juros), em
- * percentual — é o Asaas que os aplica na compensação. Sem contrato ou sem os
- * percentuais, a cobrança sai sem encargos.
+ * Multa e juros por atraso, em percentual — é o Asaas que os aplica na
+ * compensação. A origem depende do que está sendo cobrado: parcela de aluguel
+ * usa os campos Multa/Juros do CONTRATO; cobrança de condomínio usa os do
+ * CONDOMÍNIO (que tem os seus próprios no cadastro).
+ *
+ * Sem nenhuma das duas origens, ou sem os percentuais, a cobrança sai sem
+ * encargos — atraso não é cobrado por conta própria.
+ *
+ * Exportada porque é a regra que decide o que o pagador deve a mais por atraso:
+ * dentro de `issueCharge` só seria alcançável com credenciais do Asaas, e
+ * emitir sem encargos um boleto de condomínio que tem multa cadastrada é um
+ * erro silencioso — dinheiro que a imobiliária deixa de cobrar.
  */
-async function chargeTerms(
+export async function chargeTerms(
   tenantId: string,
-  contractId: string | null,
+  receivable: Pick<Receivable, "contractId" | "condominiumId">,
 ): Promise<{ fine?: { value: number }; interest?: { value: number } }> {
-  if (!contractId) return {};
-  // Import tardio: evita um ciclo estático payment → contract → receivable.
-  const contractService = await import("../contract/contract.service.js");
-  const contract = await contractService.getById(tenantId, contractId).catch(() => null);
-  if (!contract) return {};
+  // Imports tardios: evitam ciclos estáticos (payment → contract → receivable e
+  // payment → condominium → receivable).
+  if (receivable.contractId) {
+    const contractService = await import("../contract/contract.service.js");
+    const contract = await contractService
+      .getById(tenantId, receivable.contractId)
+      .catch(() => null);
+    if (contract) return terms(contract.penaltyPercent, contract.interestPercent);
+  }
 
+  if (receivable.condominiumId) {
+    const condominiumService = await import("../condominium/condominium.service.js");
+    const condominium = await condominiumService
+      .getById(tenantId, receivable.condominiumId)
+      .catch(() => null);
+    if (condominium) return terms(condominium.penaltyPercent, condominium.interestPercent);
+  }
+
+  return {};
+}
+
+function terms(
+  penaltyPercent: number | null,
+  interestPercent: number | null,
+): { fine?: { value: number }; interest?: { value: number } } {
   return {
-    ...(contract.penaltyPercent ? { fine: { value: contract.penaltyPercent } } : {}),
-    ...(contract.interestPercent ? { interest: { value: contract.interestPercent } } : {}),
+    ...(penaltyPercent ? { fine: { value: penaltyPercent } } : {}),
+    ...(interestPercent ? { interest: { value: interestPercent } } : {}),
   };
 }
 

@@ -18,6 +18,7 @@ import {
   type WitnessNames,
 } from "./merge-fields.js";
 import { appendWitnessBlock, hasWitnessPlaceholder, toDocumentHtml } from "./document.js";
+import type { ActiveTenantRow } from "./contract.repository.js";
 import type { Property } from "../property/property.schema.js";
 import type {
   Contract,
@@ -43,6 +44,19 @@ export function list(tenantId: string): Promise<Contract[]> {
 export function search(tenantId: string, term: string, limit?: number): Promise<Contract[]> {
   return repo.searchContracts(tenantId, term, limit);
 }
+
+/**
+ * Locatário do contrato ativo de cada imóvel da lista. Porta pública para quem
+ * precisa saber "quem ocupa este imóvel" sem carregar o contrato inteiro (hoje:
+ * a cobrança de condomínio).
+ */
+export function findActiveTenants(
+  tenantId: string,
+  propertyIds: string[],
+): Promise<ActiveTenantRow[]> {
+  return repo.findActiveByPropertyIds(tenantId, propertyIds);
+}
+export type { ActiveTenantRow };
 
 export async function getById(tenantId: string, id: string): Promise<Contract> {
   const contract = await repo.findContract(tenantId, id);

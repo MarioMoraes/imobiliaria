@@ -550,7 +550,11 @@ CREATE TABLE IF NOT EXISTS condominiums (
   zip                   TEXT,
   city                  TEXT,
   state                 TEXT,                             -- UF (via CEP)
-  balance_cents         BIGINT NOT NULL DEFAULT 0,        -- Saldo (derivado)
+  -- Saldo: DERIVADO na leitura (recebido nas cobranças PAGAS menos as despesas
+  -- lançadas) — ver `withBalances` em condominium.service.ts. Esta coluna nunca
+  -- chegou a ser escrita e é ignorada na leitura; fica só para não exigir
+  -- migração destrutiva nos bancos já criados.
+  balance_cents         BIGINT NOT NULL DEFAULT 0,
   admin_fee_percent     NUMERIC(5,2) NOT NULL DEFAULT 0,  -- Taxa Adm %
   admin_fee_fixed_cents BIGINT NOT NULL DEFAULT 0,        -- Taxa Adm R$ (fixa)
   interest_percent      NUMERIC(5,2) NOT NULL DEFAULT 0,  -- Juros
@@ -1190,6 +1194,23 @@ ALTER TABLE receivables ADD COLUMN IF NOT EXISTS boleto_url      TEXT;  -- bankS
 ALTER TABLE receivables ADD COLUMN IF NOT EXISTS invoice_url     TEXT;  -- fatura/link de pagamento
 CREATE INDEX IF NOT EXISTS idx_receivables_asaas ON receivables (asaas_charge_id)
   WHERE asaas_charge_id IS NOT NULL;
+
+-- Cobrança de condomínio (kind = 'CONDOMINIO'): a conta nasce da tela
+-- /condominios/cobranca, que rateia as despesas do período entre as unidades e
+-- soma o valor de condomínio do imóvel. `condominium_id` é FK lógica → condominiums
+-- (o imóvel pode mudar de condomínio depois; a cobrança fica onde foi emitida).
+ALTER TABLE receivables ADD COLUMN IF NOT EXISTS condominium_id UUID;
+CREATE INDEX IF NOT EXISTS idx_receivables_condominium
+  ON receivables (condominium_id, competence)
+  WHERE condominium_id IS NOT NULL;
+-- Idempotência: um imóvel só é cobrado uma vez por competência. É o que faz a
+-- segunda geração do mesmo período criar 0 linhas em vez de duplicar a conta.
+-- Cobrança CANCELADA fica fora do índice de propósito: cancelar é justamente
+-- como se corrige um lote errado, e sem essa exceção o período ficaria travado.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_receivables_condo_charge
+  ON receivables (tenant_id, property_id, competence)
+  WHERE kind = 'CONDOMINIO' AND property_id IS NOT NULL AND competence IS NOT NULL
+    AND status <> 'CANCELADO';
 
 -- ═════════════════════════════════════════════════════════════════
 -- MOD-FIN / Asaas — cobrança bancária (financeiro_11 §2 e §8).

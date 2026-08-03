@@ -7,6 +7,7 @@ import { buildRentSchedule } from "./rent-schedule.js";
 import type {
   CashFlowPoint,
   CashFlowQuery,
+  CondoChargeRow,
   CreateReceivableInput,
   ListReceivablesQuery,
   PatchReceivableInput,
@@ -287,6 +288,48 @@ export async function generateRentSchedule(
     });
   }
   return created;
+}
+
+/* ------------------------------------ Cobrança de condomínio (MOD-CONDOMINIO) */
+
+/**
+ * Grava o lote de cobranças de condomínio. Quem calcula o rateio é o módulo
+ * `condominium` — aqui, como no aluguel, este módulo só persiste.
+ *
+ * Idempotente por imóvel + competência: gerar o mesmo período duas vezes
+ * devolve 0 na segunda. Retorna quantas foram criadas.
+ */
+export function generateCondoCharges(
+  tenantId: string,
+  condominiumId: string,
+  rows: CondoChargeRow[],
+): Promise<number> {
+  return repo.insertCondoCharges(tenantId, condominiumId, rows);
+}
+
+/** Cobranças de condomínio já emitidas por um condomínio (mais recentes antes). */
+export function listCondoCharges(
+  tenantId: string,
+  condominiumId: string,
+): Promise<Receivable[]> {
+  return repo.listCondoChargesByCondominium(tenantId, condominiumId);
+}
+
+/** Total efetivamente recebido em cada condomínio (entrada do saldo dele). */
+export function sumPaidByCondominium(
+  tenantId: string,
+  condominiumIds: string[],
+): Promise<Map<string, number>> {
+  return repo.sumPaidByCondominium(tenantId, condominiumIds);
+}
+
+/** Imóveis que já têm cobrança de condomínio (não cancelada) na competência. */
+export function listCondoBilled(
+  tenantId: string,
+  competence: string,
+  propertyIds: string[],
+): Promise<string[]> {
+  return repo.listCondoBilledPropertyIds(tenantId, competence, propertyIds);
 }
 
 /** Rescisão/encerramento: cancela as parcelas em aberto do contrato. */

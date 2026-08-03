@@ -440,6 +440,46 @@ export interface CondominiumExpense {
   updatedAt: string;
 }
 
+/**
+ * Uma unidade do condomínio na cobrança do período. O valor é o rateio das
+ * despesas lançadas mais o condomínio do imóvel × meses do período; quem paga é
+ * o locatário do contrato ativo ou, na falta dele, o proprietário.
+ */
+export interface CondoBillingLine {
+  propertyId: string;
+  propertyCode: number | null;
+  propertyAddress: string;
+  payerKind: "LOCATARIO" | "LOCADOR" | null;
+  payerPersonId: string | null;
+  payerName: string | null;
+  months: number;
+  condoFeeCents: number;
+  condoTotalCents: number;
+  expenseShareCents: number;
+  totalCents: number;
+  /** Já cobrado nesta competência — não será gerado de novo. */
+  alreadyBilled: boolean;
+}
+
+/** Prévia (ou resultado) da cobrança de um condomínio num período. */
+export interface CondoBillingPreview {
+  condominiumId: string;
+  condominiumName: string;
+  periodStart: string;
+  periodEnd: string;
+  dueDate: string;
+  competence: string;
+  months: number;
+  unitCount: number;
+  expensesCount: number;
+  expensesTotalCents: number;
+  totalCents: number;
+  lines: CondoBillingLine[];
+  /** Presentes só na resposta da geração. */
+  created?: number;
+  skipped?: number;
+}
+
 /** Parte de um contrato (locador/locatário/fiador). */
 export interface ContractParty {
   id: string;
@@ -595,6 +635,8 @@ export interface Contract {
 export interface Receivable {
   id: string;
   contractId: string | null;
+  /** Condomínio de origem, nas cobranças geradas pela tela de cobrança. */
+  condominiumId: string | null;
   propertyId: string | null;
   payerPersonId: string | null;
   payerName: string | null;
@@ -1005,6 +1047,41 @@ export function fetchCondominiumExpenses(
   condominiumId: string,
 ): Promise<CondominiumExpense[] | null> {
   return get<CondominiumExpense[]>(`/v1/condominiums/${condominiumId}/expenses`);
+}
+
+/**
+ * Prévia da cobrança do condomínio no período — calcula sem gravar nada. A
+ * gravação é o POST no mesmo caminho (ver a action da tela de cobrança).
+ */
+export function fetchCondoBilling(
+  condominiumId: string,
+  params: { periodStart: string; periodEnd: string; dueDate: string },
+): Promise<CondoBillingPreview | null> {
+  const qs = new URLSearchParams(params).toString();
+  return get<CondoBillingPreview>(`/v1/condominiums/${condominiumId}/billing?${qs}`);
+}
+
+/**
+ * Cobranças de condomínio já geradas — o que a lista de condôminos usa para
+ * oferecer o boleto de cada unidade. Vem da mais recente para a mais antiga.
+ */
+export function fetchCondoCharges(condominiumId: string): Promise<Receivable[] | null> {
+  return get<Receivable[]>(`/v1/condominiums/${condominiumId}/charges`);
+}
+
+/**
+ * Relatório de conferência da cobrança (PDF) — `Response` crua, como o laudo de
+ * vistoria: quem serve os bytes ao navegador é o Route Handler da tela.
+ */
+export async function fetchCondoBillingReport(
+  condominiumId: string,
+  params: { periodStart: string; periodEnd: string; dueDate: string },
+): Promise<Response> {
+  const qs = new URLSearchParams(params).toString();
+  return fetch(`${BACKEND_URL}/v1/condominiums/${condominiumId}/billing/report?${qs}`, {
+    headers: await authHeaders(),
+    cache: "no-store",
+  });
 }
 
 /** Contratos do tenant da sessão. */

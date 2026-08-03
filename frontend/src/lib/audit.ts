@@ -63,6 +63,7 @@ export const ACTION_LABEL: Record<string, string> = {
   "contract.receivables_generated": "Parcelas geradas",
   "contract.administration_issued": "Contrato de administração emitido",
   "inspection.recorded": "Vistoria registrada",
+  "condominium.charges_generated": "Cobrança de condomínio gerada",
   "role.changed": "Papel alterado",
   "user.invited": "Convite enviado",
   "user.activated": "Acesso ativado",

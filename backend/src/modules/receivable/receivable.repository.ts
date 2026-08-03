@@ -1,6 +1,7 @@
 import { withTenant } from "../../shared/db.js";
 import type {
   CashFlowPoint,
+  CondoChargeRow,
   CreateReceivableInput,
   ListReceivablesQuery,
   Receivable,
@@ -12,6 +13,7 @@ interface Row {
   id: string;
   tenant_id: string;
   contract_id: string | null;
+  condominium_id: string | null;
   property_id: string | null;
   payer_person_id: string | null;
   payer_name: string | null;
@@ -37,6 +39,7 @@ function toReceivable(row: Row): Receivable {
     id: row.id,
     tenantId: row.tenant_id,
     contractId: row.contract_id,
+    condominiumId: row.condominium_id,
     propertyId: row.property_id,
     payerPersonId: row.payer_person_id,
     payerName: row.payer_name,
@@ -249,6 +252,132 @@ export async function insertRentSchedule(
       ],
     );
     return rowCount ?? 0;
+  });
+}
+
+/**
+ * Grava em lote a cobrança de condomínio de um período (uma conta por imóvel).
+ *
+ * `ON CONFLICT DO NOTHING` cai no índice parcial `idx_receivables_condo_charge`
+ * (imóvel + competência). Retorna quantas foram criadas; a diferença para
+ * `rows.length` é o que já existia.
+ *
+ * A conta NÃO leva `contract_id`, mesmo quando o pagador é o locatário: isto é
+ * cobrança do condomínio, não parcela do contrato. Amarrá-la ao contrato a
+ * colocaria nas listagens por contrato e a faria ser cancelada junto na
+ * rescisão (`cancelOpenByContract`) — e ainda a sujeitaria ao índice
+ * `idx_receivables_competence`, que não abre exceção para cobrança cancelada.
+ */
+export async function insertCondoCharges(
+  tenantId: string,
+  condominiumId: string,
+  rows: CondoChargeRow[],
+): Promise<number> {
+  if (rows.length === 0) return 0;
+
+  return withTenant(tenantId, async (client) => {
+    const { rowCount } = await client.query(
+      `INSERT INTO receivables
+         (tenant_id, condominium_id, property_id, payer_person_id,
+          kind, description, competence, amount_cents, due_date)
+       SELECT $1, $2, r.property_id, r.payer_person_id,
+              'CONDOMINIO', r.description, r.competence, r.amount_cents, r.due_date::date
+         FROM jsonb_to_recordset($3::jsonb) AS r(
+              property_id     uuid,
+              payer_person_id uuid,
+              description     text,
+              competence      text,
+              amount_cents    bigint,
+              due_date        text)
+       ON CONFLICT DO NOTHING`,
+      [
+        tenantId,
+        condominiumId,
+        // As chaves do JSON precisam bater com as colunas de jsonb_to_recordset.
+        JSON.stringify(
+          rows.map((r) => ({
+            property_id: r.propertyId,
+            payer_person_id: r.payerPersonId,
+            description: r.description,
+            competence: r.competence,
+            amount_cents: r.amountCents,
+            due_date: r.dueDate,
+          })),
+        ),
+      ],
+    );
+    return rowCount ?? 0;
+  });
+}
+
+/**
+ * Imóveis que já têm cobrança de condomínio na competência. Alimenta o
+ * `alreadyBilled` da prévia — o usuário vê o que será pulado ANTES de gerar,
+ * em vez de descobrir pelo contador no fim.
+ */
+/**
+ * Todas as cobranças de condomínio emitidas por um condomínio, da mais recente
+ * para a mais antiga. Alimenta a coluna de cobrança da lista de condôminos —
+ * ordenada assim, a primeira de cada imóvel é a do último período gerado.
+ */
+export async function listCondoChargesByCondominium(
+  tenantId: string,
+  condominiumId: string,
+): Promise<Receivable[]> {
+  return withTenant(tenantId, async (client) => {
+    const { rows } = await client.query<Row>(
+      `${SELECT}
+        WHERE r.condominium_id = $1
+        ORDER BY r.due_date DESC, r.created_at DESC`,
+      [condominiumId],
+    );
+    return rows.map(toReceivable);
+  });
+}
+
+/**
+ * Quanto cada condomínio já RECEBEU: soma do que foi efetivamente pago nas
+ * cobranças de condomínio. É a entrada do saldo do condomínio.
+ *
+ * Soma `paid_amount_cents` (o que caiu) e não `amount_cents` (o que foi
+ * cobrado): pagamento com juros e multa entra pelo valor real, e cobrança em
+ * aberto não entra nenhum centavo.
+ */
+export async function sumPaidByCondominium(
+  tenantId: string,
+  condominiumIds: string[],
+): Promise<Map<string, number>> {
+  if (condominiumIds.length === 0) return new Map();
+  return withTenant(tenantId, async (client) => {
+    const { rows } = await client.query<{ condominium_id: string; total: string }>(
+      `SELECT condominium_id, COALESCE(SUM(paid_amount_cents), 0)::text AS total
+         FROM receivables
+        WHERE condominium_id = ANY($1::uuid[])
+          AND kind = 'CONDOMINIO'
+          AND status = 'PAGO'
+        GROUP BY condominium_id`,
+      [condominiumIds],
+    );
+    return new Map(rows.map((r) => [r.condominium_id, Number(r.total)]));
+  });
+}
+
+export async function listCondoBilledPropertyIds(
+  tenantId: string,
+  competence: string,
+  propertyIds: string[],
+): Promise<string[]> {
+  if (propertyIds.length === 0) return [];
+  return withTenant(tenantId, async (client) => {
+    const { rows } = await client.query<{ property_id: string }>(
+      `SELECT DISTINCT property_id FROM receivables
+        WHERE kind = 'CONDOMINIO'
+          AND competence = $1
+          AND property_id = ANY($2::uuid[])
+          AND status <> 'CANCELADO'`,
+      [competence, propertyIds],
+    );
+    return rows.map((r) => r.property_id);
   });
 }
 

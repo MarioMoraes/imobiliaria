@@ -1,58 +1,54 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { PageHeader, StatCard, Section, EmptyState } from "../../../../components/ui";
+import { PageHeader, StatCard } from "../../../../components/ui";
 import { Icon } from "../../../../components/Icon";
 import { BackendNotice } from "../../../../components/BackendNotice";
 import {
   backendNotice,
   fetchCondominium,
-  fetchContracts,
+  fetchCondominiumExpenses,
+  fetchCurrentUser,
   fetchPropertiesByCondominium,
-  type Contract,
+  formatPrice,
   type Property,
 } from "../../../../lib/api";
-
-/** Contratos que mantêm o imóvel ocupado (o locatário desses é o inquilino atual). */
-const ACTIVE_CONTRACT = new Set(["VIGENTE", "RENOVADO"]);
-
-/** Endereço estruturado do imóvel; cai no título quando não há logradouro. */
-function formatAddress(p: Property): string {
-  const line = [p.address, p.number].filter(Boolean).join(", ");
-  return line || p.title || "—";
-}
-
-/** Nome(s) do(s) proprietário(s) — locador(es) — do imóvel. */
-function ownersLabel(p: Property): string {
-  if (!p.owners || p.owners.length === 0) return "—";
-  return p.owners.map((o) => o.personName).join(", ");
-}
+import { BILLING_ROLES } from "../../../../lib/condo-billing";
 
 /**
- * Mapa imóvel → nome(s) do(s) locatário(s) do contrato vigente. Só considera
- * contratos ativos (VIGENTE/RENOVADO); o último encontrado por imóvel vence.
+ * O condomínio aberto — hub do que se faz nele: consultar os condôminos, lançar
+ * despesas e gerar a cobrança do período. Mesmo padrão de /financeiro,
+ * /auditoria e /corretores.
+ *
+ * A tela existe porque as três coisas viviam em lugares diferentes: as despesas
+ * atrás de um botão no cabeçalho de uma tela chamada "Condôminos", e a cobrança
+ * numa página da listagem que pedia o condomínio de novo. Aqui o condomínio é o
+ * contexto, e cada opção diz o que é.
  */
-function tenantsByProperty(contracts: Contract[]): Map<string, string> {
-  const map = new Map<string, string>();
-  for (const c of contracts) {
-    if (!c.propertyId || !ACTIVE_CONTRACT.has(c.status)) continue;
-    const names = c.parties
-      .filter((party) => party.role === "LOCATARIO")
-      .map((party) => party.personName);
-    if (names.length > 0) map.set(c.propertyId, names.join(", "));
-  }
-  return map;
+
+/** Formata percentual (0–100) no padrão pt-BR: 10 → "10,00%". */
+function formatPercent(n: number): string {
+  return `${n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
 }
 
-export default async function CondominosPage({
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export default async function CondominioPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [condominium, live, contracts] = await Promise.all([
+  // Id que não é UUID nunca foi um condomínio: 404 direto. Sem isto, as duas
+  // leituras falham com 400 e a tela renderiza um hub vazio com "o servidor
+  // respondeu com erro" — que manda investigar a infra por um link velho.
+  // `/condominios/cobranca` (a URL antiga da cobrança) cai exatamente aqui.
+  if (!UUID.test(id)) notFound();
+
+  const [condominium, live, expenses, me] = await Promise.all([
     fetchCondominium(id),
     fetchPropertiesByCondominium(id),
-    fetchContracts(),
+    fetchCondominiumExpenses(id),
+    fetchCurrentUser(),
   ]);
 
   // Condomínio inexistente (ou id inválido) com backend no ar → 404.
@@ -60,109 +56,110 @@ export default async function CondominosPage({
 
   const properties: Property[] = live ?? [];
   const notice = backendNotice();
-  const isLive = live !== null;
-  const tenants = tenantsByProperty(contracts ?? []);
+  // Gerar cobrança grava contas a receber: quem não pode escrever no financeiro
+  // nem vê o card (o backend recusaria o POST de qualquer forma).
+  const canBill = (me?.roles ?? []).some((role) => BILLING_ROLES.includes(role));
+
+  const rented = properties.filter((p) => p.status === "rented").length;
 
   return (
     <>
-      <PageHeader
-        title={condominium ? `Condôminos · ${condominium.name}` : "Condôminos"}
-        backHref="/condominios"
-        actions={
-          <Link
-            href={`/condominios/${id}/despesas`}
-            className="btn btn-premium btn-sm"
-            title="Lançamento de despesas do condomínio"
-          >
-            <Icon name="receipt" /> <span>Despesas</span>
+      <PageHeader title={condominium?.name ?? "Condomínio"} backHref="/condominios" />
+
+      {condominium && (
+        <div className="grid grid-3 mb-4">
+          <StatCard
+            icon="wallet"
+            label="Saldo"
+            value={formatPrice(condominium.balanceCents)}
+            tone="success"
+          />
+          <StatCard
+            icon="receipt"
+            label="Taxa de administração"
+            value={
+              formatPercent(condominium.adminFeePercent) +
+              (condominium.adminFeeFixedCents > 0
+                ? ` + ${formatPrice(condominium.adminFeeFixedCents)}`
+                : "")
+            }
+            tone="accent"
+          />
+          <StatCard
+            icon="building"
+            label="Total de Condôminos"
+            value={String(properties.length)}
+            tone="blue"
+          />
+        </div>
+      )}
+
+      <div className="grid grid-3">
+        <Link href={`/condominios/${id}/condominos`} className="lookup-card reveal">
+          <span className="stat-icon blue">
+            <Icon name="building" />
+          </span>
+          <div className="stack" style={{ gap: 4 }}>
+            <span className="lookup-card-title">Condôminos</span>
+            <span className="subtle text-sm">
+              Os imóveis do condomínio, quem paga cada um e o boleto da cobrança.
+            </span>
+          </div>
+          <div className="lookup-card-foot">
+            <span className="badge badge-slate">
+              {properties.length} {properties.length === 1 ? "imóvel" : "imóveis"}
+              {rented > 0 ? ` · ${rented} alugado(s)` : ""}
+            </span>
+            <span className="row gap-8 text-sm strong">
+              Abrir <Icon name="arrowRight" size={15} />
+            </span>
+          </div>
+        </Link>
+
+        <Link href={`/condominios/${id}/despesas`} className="lookup-card reveal">
+          <span className="stat-icon warning">
+            <Icon name="receipt" />
+          </span>
+          <div className="stack" style={{ gap: 4 }}>
+            <span className="lookup-card-title">Despesas</span>
+            <span className="subtle text-sm">
+              Lance os débitos do condomínio — são eles que formam o rateio da cobrança.
+            </span>
+          </div>
+          <div className="lookup-card-foot">
+            <span className="badge badge-slate">
+              {expenses === null
+                ? "Lançamentos"
+                : `${expenses.length} ${expenses.length === 1 ? "lançamento" : "lançamentos"}`}
+            </span>
+            <span className="row gap-8 text-sm strong">
+              Abrir <Icon name="arrowRight" size={15} />
+            </span>
+          </div>
+        </Link>
+
+        {canBill && (
+          <Link href={`/condominios/${id}/cobranca`} className="lookup-card reveal">
+            <span className="stat-icon accent">
+              <Icon name="banknote" />
+            </span>
+            <div className="stack" style={{ gap: 4 }}>
+              <span className="lookup-card-title">Cobrança</span>
+              <span className="subtle text-sm">
+                Gere as contas a receber de um período: rateio das despesas mais o condomínio.
+              </span>
+            </div>
+            <div className="lookup-card-foot">
+              <span className="badge badge-slate">Financeiro</span>
+              <span className="row gap-8 text-sm strong">
+                Abrir <Icon name="arrowRight" size={15} />
+              </span>
+            </div>
           </Link>
-        }
-      />
-
-      <div className="grid grid-3 mb-4">
-        <StatCard
-          icon="building"
-          label="Número de Apartamentos"
-          value={String(properties.length)}
-          tone="blue"
-        />
-        <StatCard
-          icon="key"
-          label="Alugados"
-          value={String(properties.filter((p) => p.status === "rented").length)}
-          tone="success"
-        />
-        <StatCard
-          icon="home"
-          label="Disponíveis"
-          value={String(properties.filter((p) => p.status !== "rented").length)}
-          tone="accent"
-        />
+        )}
       </div>
 
-      <div className="mt-4">
-        <Section title="Consulta Condôminos">
-          {properties.length === 0 ? (
-            <div className="card-pad">
-              <EmptyState
-                icon="building"
-                title={isLive ? "Nenhum imóvel neste condomínio" : "Não foi possível carregar"}
-                hint={
-                  isLive
-                    ? "Vincule imóveis a este condomínio pelo cadastro de Imóveis."
-                    : (notice ?? undefined)
-                }
-              />
-            </div>
-          ) : (
-            <div className="table-wrap">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th style={{ textAlign: "right" }}>Imóvel</th>
-                    <th>Endereço</th>
-                    <th>Alugado</th>
-                    <th>Proprietário / Inquilino</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {properties.map((p) => {
-                    const rented = p.status === "rented";
-                    // Alugado → inquilino (locatário do contrato vigente); senão
-                    // o proprietário (locador). Se não houver locatário no
-                    // contrato, cai no locador para não deixar a célula vazia.
-                    const tenant = tenants.get(p.id);
-                    const party = rented && tenant ? tenant : ownersLabel(p);
-                    return (
-                      <tr key={p.id}>
-                        <td style={{ textAlign: "right" }} className="strong num">
-                          {p.code ?? "—"}
-                        </td>
-                        <td>{formatAddress(p)}</td>
-                        <td>
-                          {rented ? (
-                            <span className="badge badge-green">Sim</span>
-                          ) : (
-                            <span className="badge badge-slate">Não</span>
-                          )}
-                        </td>
-                        <td>
-                          {party}
-                          {rented && tenant ? (
-                            <span className="subtle text-xs"> · inquilino</span>
-                          ) : null}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Section>
-      </div>
-
-      {!isLive && (
+      {notice && (
         <p className="text-xs subtle mt-4">
           <BackendNotice message={notice} />
         </p>

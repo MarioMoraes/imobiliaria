@@ -61,6 +61,11 @@ const OVERRIDES: Record<string, AuditAction | null> = {
   "POST /v1/payables/:id/sync-transfer": { action: "transfer.synced", entity: "payable" },
   "POST /v1/payables/:id/cancel": { action: "payable.canceled", entity: "payable" },
   "POST /v1/payables/generate": { action: "payable.generated", entity: "payable" },
+  // Emite as contas a receber do período — "billing_created" não diria o fato.
+  "POST /v1/condominiums/:id/billing": {
+    action: "condominium.charges_generated",
+    entity: "condominium",
+  },
 
   // Contratos (PRD 08).
   "POST /v1/contracts/:id/send-to-sign": { action: "contract.sent_to_sign", entity: "contract" },
