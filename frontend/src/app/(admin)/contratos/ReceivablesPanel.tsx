@@ -60,7 +60,13 @@ function BoletoButton({
     // depois do `await` o navegador já não considera a chamada uma ação do
     // usuário e o bloqueador de pop-up a barra em silêncio. Abrimos vazia e
     // navegamos quando a cobrança responde.
-    const tab = window.open("", "_blank", "noopener");
+    //
+    // Sem `noopener` aqui de propósito: com essa feature o `window.open` devolve
+    // `null` por especificação, e sem a referência da aba não há como navegá-la
+    // depois — era o que fazia o boleto abrir na PRÓPRIA aba. O desacoplamento
+    // é feito zerando o `opener` da aba nova.
+    const tab = window.open("", "_blank");
+    if (tab) tab.opener = null;
     setBusy(true);
     const res = await issueBoletoAction(receivable.id);
     setBusy(false);
@@ -74,9 +80,16 @@ function BoletoButton({
     // O backend devolve o PDF do boleto quando ele existe; a fatura (boleto +
     // PIX) é o fallback de quem cobra só por PIX.
     const url = res.boletoUrl ?? res.url;
-    if (tab) tab.location.href = url;
-    else window.location.href = url; // pop-up bloqueado: navega na própria aba
     if (!emitido) onIssued();
+
+    if (tab) {
+      tab.location.href = url;
+      return;
+    }
+    // Pop-up bloqueado de verdade: a cobrança já foi emitida e o link ficou
+    // salvo na parcela, então basta liberar o bloqueio e clicar de novo — não
+    // tiramos o usuário da tela do contrato.
+    onError("Libere os pop-ups deste site e clique novamente para abrir o boleto.");
   }
 
   return (
