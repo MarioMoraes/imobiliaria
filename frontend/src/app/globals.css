@@ -38,6 +38,14 @@
 
   /* Gradientes assinatura */
   --grad-brand: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%);
+  /* Plataforma (Super Admin): parte do `--dark` (#0f172a) da barra lateral de
+     /superadmin, para o botão de entrada anunciar a área pela cor dela — e não
+     pelo azul de marca, que é do painel da imobiliária. O fim é o blue-900
+     (#1e3a8a) e não o `--dark-text`: numa pílula pequena o #0f172a puro lê como
+     preto (é o mesmo tom que na barra lateral lê como azul, mas lá são 260px de
+     área e texto claro por cima dando o contexto). O azul saturado no fim do
+     degradê devolve a leitura de "azul escuro" no tamanho do botão. */
+  --grad-platform: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
   --grad-hero: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
   --grad-card: linear-gradient(to bottom right, #ffffff, #f8fafc);
 
@@ -542,6 +550,22 @@ a {
 .icon-btn svg {
   width: 18px;
   height: 18px;
+}
+/* Botão com rótulo na barra do topo (ex.: "Super Admin"), ao lado dos
+   `icon-btn`. O `.btn` é dimensionado por padding, então na mesma linha de um
+   controle de 38px ele fica alguns pixels mais baixo — a altura vem daqui, e o
+   padding vertical zera para não competir com ela. */
+.topbar-btn {
+  height: 38px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+/* Entrada da área de plataforma. Continua sendo um `.btn-primary` (herda o
+   sheen no hover e a elevação); só a superfície troca para o escuro da barra
+   lateral de /superadmin. O seletor leva `.btn` junto porque `.btn-primary`
+   vem depois no arquivo — com uma classe só, o gradiente de marca venceria. */
+.btn.topbar-btn--platform {
+  background: var(--grad-platform);
 }
 .dot-notify {
   position: absolute;

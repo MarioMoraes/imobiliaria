@@ -19,6 +19,19 @@ interface TopbarProps {
    * ícone não aparece (a área de plataforma não tem configurações de tenant).
    */
   settingsHref?: string;
+  /**
+   * Destino da área de plataforma (Super Admin). Ausente → o botão não aparece.
+   * Quem decide é o layout, com `isPlatformAdmin()`: para os demais usuários a
+   * área não existe (o layout de lá devolve 404), então anunciá-la seria expor
+   * um caminho que não leva a lugar nenhum.
+   */
+  platformHref?: string;
+  /**
+   * Caminho de volta da plataforma para o painel da imobiliária. Contrapartida
+   * de `platformHref`: sem ele, entrar em /superadmin vira beco sem saída (a
+   * navegação de lá só tem itens de plataforma).
+   */
+  tenantHref?: string;
 }
 
 export function Topbar({
@@ -29,6 +42,8 @@ export function Topbar({
   userRole,
   accountSlot,
   settingsHref,
+  platformHref,
+  tenantHref,
 }: TopbarProps) {
   return (
     <header className="topbar">
@@ -47,6 +62,29 @@ export function Topbar({
       <GlobalSearch placeholder={searchPlaceholder} />
 
       <div className="right row gap-8">
+        {/* Troca de área (imobiliária → plataforma). Leva rótulo, e não só
+            ícone, porque não é um utilitário da barra: é a saída para OUTRO
+            painel. Usa o botão padrão do sistema (`btn btn-primary btn-sm`, o
+            mesmo das ações principais de todas as telas), na cor da área de
+            destino — ver `.topbar-btn--platform`. */}
+        {platformHref && (
+          <Link
+            href={platformHref}
+            className="btn btn-primary btn-sm topbar-btn topbar-btn--platform"
+            title="Administração da plataforma"
+          >
+            <Icon name="shield" /> Super Admin
+          </Link>
+        )}
+        {tenantHref && (
+          <Link
+            href={tenantHref}
+            className="btn btn-outline btn-sm topbar-btn"
+            title="Voltar ao painel da imobiliária"
+          >
+            <Icon name="arrowLeft" /> Imobiliária
+          </Link>
+        )}
         {/* Mesma moldura das notificações (`icon-btn`): são os dois utilitários
             da barra, e um botão com borda ao lado de um sem borda leria como
             estados diferentes do mesmo controle. */}

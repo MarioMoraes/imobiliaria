@@ -36,6 +36,7 @@ export default async function SuperadminLayout({
           searchPlaceholder="Buscar tenants, planos, logs…"
           userName="Equipe Offices AI"
           userRole="Super Admin"
+          tenantHref="/dashboard"
         />
         <div className="content">{children}</div>
       </div>
