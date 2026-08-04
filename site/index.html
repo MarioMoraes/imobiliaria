@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Offices Tecnologia — Aplicativos, sistemas e sites sob medida</title>
+<meta name="description" content="A Offices Tecnologia desenvolve aplicativos, sistemas e sites sob medida, e mantém o Offices AI Imobiliária, plataforma SaaS de gestão para imobiliárias.">
+
+<link rel="icon" type="image/svg+xml" href="assets/logo-offices.svg">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://code.iconify.design/3/3.1.0/iconify.min.js"></script>
+
+<style>
+  /* Animation Keyframe */
+  @keyframes fadeSlideIn {
+    0% {
+      opacity: 0;
+      transform: translateY(30px);
+      filter: blur(8px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+      filter: blur(0px);
+    }
+  }
+
+  /* Border gradient shared style */
+  .border-gradient {
+    position: relative;
+  }
+  .border-gradient::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    background: linear-gradient(225deg, rgba(255, 255, 255, 0.0) 0%, rgba(255, 255, 255, 0.2) 50%, rgba(255, 255, 255, 0.0) 100%);
+    pointer-events: none;
+  }
+</style>
+
+<script>
+/* Animation on Scroll */
+(function () {
+  const style = document.createElement("style");
+  style.textContent = `
+    .animate-on-scroll { animation-play-state: paused !important; }
+    .animate-on-scroll.animate { animation-play-state: running !important; }
+  `;
+  document.head.appendChild(style);
+  const once = true;
+  if (!window.__inViewIO) {
+    window.__inViewIO = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("animate");
+          if (once) window.__inViewIO.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.2, rootMargin: "0px 0px -10% 0px" });
+  }
+  window.initInViewAnimations = function (selector = ".animate-on-scroll") {
+    document.querySelectorAll(selector).forEach((el) => {
+      window.__inViewIO.observe(el);
+    });
+  };
+  document.addEventListener("DOMContentLoaded", () => initInViewAnimations());
+})();
+</script>
+</head>
+
+<body class="min-h-screen bg-neutral-950 text-white antialiased" style="font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;">
+
+<!-- Background: aurora animada -->
+<div class="top-0 w-full h-screen z-0 brightness-50 saturate-50 fixed blur-sm pointer-events-none" style="mask-image: linear-gradient(to bottom, black 0%, black 80%, transparent); -webkit-mask-image: linear-gradient(to bottom, black 0%, black 80%, transparent)">
+  <div class="fixed inset-0 -z-10 bg-black">
+    <canvas id="auroraCanvas" class="absolute inset-0 w-full h-full"></canvas>
+  </div>
+</div>
+
+<!-- Background: malha -->
+<div class="fixed inset-0 -z-10">
+  <div class="absolute inset-0 opacity-[0.03]">
+    <svg class="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <pattern id="grid" width="64" height="64" patternUnits="userSpaceOnUse">
+          <path d="M64 0H0v64" fill="none" stroke="white" stroke-width="0.5"></path>
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#grid)"></rect>
+    </svg>
+  </div>
+</div>
+
+<!-- Header -->
+<header class="relative [animation:fadeSlideIn_0.8s_ease-out_0s_both] animate-on-scroll z-10 animate">
+  <nav class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-5 flex items-center justify-between">
+    <a href="#" class="flex items-center gap-3">
+      <img src="assets/logo-offices.svg" alt="" width="36" height="36" class="w-9 h-9 shrink-0">
+      <span class="text-lg font-semibold tracking-tight">Offices Tecnologia</span>
+    </a>
+    <div class="hidden md:flex items-center gap-8 text-sm text-neutral-300">
+      <a class="hover:text-white transition-colors font-medium" href="#servicos">Serviços</a>
+      <a class="hover:text-white transition-colors font-medium" href="#produto">Produto</a>
+      <a class="hover:text-white transition-colors font-medium" href="#processo">Processo</a>
+      <a class="hover:text-white transition-colors font-medium" href="#contato">Contato</a>
+    </div>
+    <div class="flex items-center gap-3">
+      <div class="hidden sm:flex items-center gap-2 rounded-full border-gradient bg-white/5 px-3 py-1.5" style="border-radius: 9999px;">
+        <span class="h-2 w-2 rounded-full bg-blue-400"></span>
+        <span class="text-xs text-neutral-300 font-medium">Disponível</span>
+      </div>
+      <a href="#contato" class="inline-flex items-center gap-2 rounded-full border-gradient bg-white/5 backdrop-blur-xl px-4 py-2.5 text-sm font-medium text-white/80 hover:text-white transition-all hover:-translate-y-0.5" style="border-radius: 9999px;">
+        Contato
+        <span class="iconify" data-icon="solar:arrow-right-linear" data-width="16" data-height="16"></span>
+      </a>
+    </div>
+  </nav>
+</header>
+
+<!-- Hero -->
+<main class="relative z-10">
+  <section class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-8 pb-24 md:pt-16 md:pb-32 lg:pt-28 lg:pb-40">
+    <!-- Pill -->
+    <div class="mx-auto w-fit mb-6 [animation:fadeSlideIn_0.8s_ease-out_0.1s_both] animate-on-scroll">
+      <a href="https://imobiliaria.officestecnologia.com.br" target="_blank" rel="noopener" class="inline-flex items-center gap-2 rounded-full border-gradient bg-white/5 px-3 py-1.5 text-xs text-neutral-300 hover:text-white transition-colors" style="border-radius: 9999px;">
+        <span class="inline-flex items-center justify-center rounded-full bg-blue-400/20 text-blue-300 px-2 py-0.5">
+          Novo
+        </span>
+        <span class="font-medium">Offices AI Imobiliária</span>
+        <span class="iconify text-blue-400" data-icon="solar:star-fall-minimalistic-2-bold-duotone" data-width="14" data-height="14"></span>
+      </a>
+    </div>
+
+    <!-- Heading -->
+    <div class="[animation:fadeSlideIn_0.8s_ease-out_0.2s_both] animate-on-scroll text-center">
+      <h1 class="mx-auto max-w-4xl text-4xl sm:text-5xl md:text-6xl lg:text-7xl tracking-tighter">
+        Tecnologia sob medida para o próximo passo do seu negócio
+      </h1>
+      <p class="mx-auto mt-5 max-w-2xl text-base sm:text-lg text-neutral-300">
+        A Offices desenvolve aplicativos, sistemas e sites — e mantém tudo no ar com infraestrutura confiável e design centrado em quem usa.
+      </p>
+
+      <!-- CTAs -->
+      <div class="flex flex-col sm:flex-row gap-3 mt-8 items-center justify-center">
+        <a href="#contato" class="inline-flex items-center gap-2 rounded-full bg-white text-neutral-900 px-6 py-3 text-sm font-semibold shadow-[0_1px_0_0_rgba(255,255,255,0.4)_inset,0_1px_2px_rgba(0,0,0,0.2)] hover:-translate-y-0.5 transition-all" style="border-radius: 9999px;">
+          Falar com um especialista
+        </a>
+
+        <div class="inline-block group relative">
+          <a href="#servicos" class="inline-flex gap-2 border-gradient hover:text-white transition-all hover:-translate-y-0.5 text-sm font-medium text-white/80 bg-white/5 rounded-full pt-3 pr-5 pb-3 pl-5 backdrop-blur-xl gap-x-2 gap-y-2 items-center" style="border-radius: 9999px">
+            <span class="iconify" data-icon="solar:play-circle-bold-duotone" data-width="16" data-height="16"></span>
+            Ver serviços
+          </a>
+          <span class="pointer-events-none absolute -bottom-3 left-1/2 z-0 h-6 w-44 -translate-x-1/2 rounded-full opacity-0 transition-opacity duration-300 ease-out group-hover:opacity-100" style="background: radial-gradient(60% 100% at 50% 50%, rgba(59,130,246,.55), rgba(59,130,246,.28) 35%, transparent 70%); filter: blur(10px) saturate(120%);" aria-hidden="true"></span>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- Serviços -->
+  <section id="servicos" class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-8 pb-20 relative">
+    <div class="overflow-hidden rounded-3xl ring-white/10 ring-1 p-6 sm:p-8 relative backdrop-blur border-gradient" style="background:linear-gradient(225deg,rgba(255,255,255,0.0) 0%,rgba(255,255,255,0.05) 50%,rgba(255,255,255,0.0) 100%); border-radius: 24px;">
+      <div class="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl"></div>
+
+      <!-- Header -->
+      <div class="[animation:fadeSlideIn_0.8s_ease-out_0.1s_both] animate-on-scroll mb-12">
+        <div class="mb-6">
+          <div class="flex items-center justify-between text-[13px] sm:text-sm font-medium uppercase tracking-tight text-blue-400">
+            <span>SERVIÇOS</span>
+            <span>(01)</span>
+          </div>
+          <div class="mt-2 h-px w-full bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <h2 class="text-3xl sm:text-4xl md:text-5xl text-white text-left tracking-tighter">
+            O que a Offices faz
+          </h2>
+          <p class="text-sm sm:text-base text-slate-300 text-left max-w-[42ch]">Do primeiro protótipo à operação em escala: produto, engenharia e sustentação sob um mesmo time.</p>
+        </div>
+      </div>
+
+      <!-- Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+
+        <article class="group rounded-[24px] border-gradient p-6 hover:-translate-y-1 transition-transform duration-300 [animation:fadeSlideIn_0.8s_ease-out_0.2s_both] animate-on-scroll" style="background:linear-gradient(225deg,rgba(255,255,255,0.0) 0%,rgba(255,255,255,0.05) 50%,rgba(255,255,255,0.0) 100%);">
+          <span class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-blue-400/15 ring-1 ring-white/10">
+            <span class="iconify text-blue-300" data-icon="solar:smartphone-2-bold-duotone" data-width="22" data-height="22"></span>
+          </span>
+          <h3 class="mt-5 text-xl tracking-tight text-white font-semibold">Aplicativos mobile</h3>
+          <p class="mt-3 text-sm text-neutral-400 leading-relaxed">Apps iOS e Android com a mesma base de código, publicação nas lojas e atualização contínua.</p>
+          <div class="mt-5 flex flex-wrap gap-2">
+            <span class="rounded-full bg-white/5 ring-1 ring-white/10 px-2.5 py-1 text-[11px] text-neutral-300">React Native</span>
+            <span class="rounded-full bg-white/5 ring-1 ring-white/10 px-2.5 py-1 text-[11px] text-neutral-300">Push</span>
+            <span class="rounded-full bg-white/5 ring-1 ring-white/10 px-2.5 py-1 text-[11px] text-neutral-300">Offline</span>
+          </div>
+        </article>
+
+        <article class="group rounded-[24px] border-gradient p-6 hover:-translate-y-1 transition-transform duration-300 [animation:fadeSlideIn_0.8s_ease-out_0.3s_both] animate-on-scroll" style="background:linear-gradient(225deg,rgba(255,255,255,0.0) 0%,rgba(255,255,255,0.05) 50%,rgba(255,255,255,0.0) 100%);">
+          <span class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-blue-400/15 ring-1 ring-white/10">
+            <span class="iconify text-blue-300" data-icon="solar:widget-add-bold-duotone" data-width="22" data-height="22"></span>
+          </span>
+          <h3 class="mt-5 text-xl tracking-tight text-white font-semibold">Sistemas corporativos</h3>
+          <p class="mt-3 text-sm text-neutral-400 leading-relaxed">ERPs, portais e back-offices que refletem o seu processo — com controle de acesso, auditoria e relatórios.</p>
+          <div class="mt-5 flex flex-wrap gap-2">
+            <span class="rounded-full bg-white/5 ring-1 ring-white/10 px-2.5 py-1 text-[11px] text-neutral-300">Multiempresa</span>
+            <span class="rounded-full bg-white/5 ring-1 ring-white/10 px-2.5 py-1 text-[11px] text-neutral-300">Permissões</span>
+            <span class="rounded-full bg-white/5 ring-1 ring-white/10 px-2.5 py-1 text-[11px] text-neutral-300">BI</span>
+          </div>
+        </article>
+
+        <article class="group rounded-[24px] border-gradient p-6 hover:-translate-y-1 transition-transform duration-300 [animation:fadeSlideIn_0.8s_ease-out_0.4s_both] animate-on-scroll" style="background:linear-gradient(225deg,rgba(255,255,255,0.0) 0%,rgba(255,255,255,0.05) 50%,rgba(255,255,255,0.0) 100%);">
+          <span class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-blue-400/15 ring-1 ring-white/10">
+            <span class="iconify text-blue-300" data-icon="solar:global-bold-duotone" data-width="22" data-height="22"></span>
+          </span>
+          <h3 class="mt-5 text-xl tracking-tight text-white font-semibold">Sites e landing pages</h3>
+          <p class="mt-3 text-sm text-neutral-400 leading-relaxed">Sites institucionais e páginas de campanha rápidos, responsivos e prontos para busca orgânica.</p>
+          <div class="mt-5 flex flex-wrap gap-2">
+            <span class="rounded-full bg-white/5 ring-1 ring-white/10 px-2.5 py-1 text-[11px] text-neutral-300">SEO</span>
+            <span class="rounded-full bg-white/5 ring-1 ring-white/10 px-2.5 py-1 text-[11px] text-neutral-300">CMS</span>
+            <span class="rounded-full bg-white/5 ring-1 ring-white/10 px-2.5 py-1 text-[11px] text-neutral-300">Analytics</span>
+          </div>
+        </article>
+
+        <article class="group rounded-[24px] border-gradient p-6 hover:-translate-y-1 transition-transform duration-300 [animation:fadeSlideIn_0.8s_ease-out_0.5s_both] animate-on-scroll" style="background:linear-gradient(225deg,rgba(255,255,255,0.0) 0%,rgba(255,255,255,0.05) 50%,rgba(255,255,255,0.0) 100%);">
+          <span class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-blue-400/15 ring-1 ring-white/10">
+            <span class="iconify text-blue-300" data-icon="solar:cloud-bold-duotone" data-width="22" data-height="22"></span>
+          </span>
+          <h3 class="mt-5 text-xl tracking-tight text-white font-semibold">Plataformas SaaS</h3>
+          <p class="mt-3 text-sm text-neutral-400 leading-relaxed">Produtos multi-inquilino com isolamento de dados, cobrança recorrente e onboarding automático.</p>
+          <div class="mt-5 flex flex-wrap gap-2">
+            <span class="rounded-full bg-white/5 ring-1 ring-white/10 px-2.5 py-1 text-[11px] text-neutral-300">Multi-tenant</span>
+            <span class="rounded-full bg-white/5 ring-1 ring-white/10 px-2.5 py-1 text-[11px] text-neutral-300">Assinaturas</span>
+            <span class="rounded-full bg-white/5 ring-1 ring-white/10 px-2.5 py-1 text-[11px] text-neutral-300">LGPD</span>
+          </div>
+        </article>
+
+        <article class="group rounded-[24px] border-gradient p-6 hover:-translate-y-1 transition-transform duration-300 [animation:fadeSlideIn_0.8s_ease-out_0.6s_both] animate-on-scroll" style="background:linear-gradient(225deg,rgba(255,255,255,0.0) 0%,rgba(255,255,255,0.05) 50%,rgba(255,255,255,0.0) 100%);">
+          <span class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-blue-400/15 ring-1 ring-white/10">
+            <span class="iconify text-blue-300" data-icon="solar:transfer-horizontal-bold-duotone" data-width="22" data-height="22"></span>
+          </span>
+          <h3 class="mt-5 text-xl tracking-tight text-white font-semibold">Integrações e APIs</h3>
+          <p class="mt-3 text-sm text-neutral-400 leading-relaxed">Conecte ERP, meios de pagamento, WhatsApp e o que mais sua operação usa — sem digitação dupla.</p>
+          <div class="mt-5 flex flex-wrap gap-2">
+            <span class="rounded-full bg-white/5 ring-1 ring-white/10 px-2.5 py-1 text-[11px] text-neutral-300">Webhooks</span>
+            <span class="rounded-full bg-white/5 ring-1 ring-white/10 px-2.5 py-1 text-[11px] text-neutral-300">Pagamentos</span>
+            <span class="rounded-full bg-white/5 ring-1 ring-white/10 px-2.5 py-1 text-[11px] text-neutral-300">WhatsApp</span>
+          </div>
+        </article>
+
+        <article class="group rounded-[24px] border-gradient p-6 hover:-translate-y-1 transition-transform duration-300 [animation:fadeSlideIn_0.8s_ease-out_0.7s_both] animate-on-scroll" style="background:linear-gradient(225deg,rgba(59,130,246,0.10) 0%,rgba(59,130,246,0.05) 50%,rgba(59,130,246,0.10) 100%);">
+          <span class="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-blue-400/20 ring-1 ring-blue-400/25">
+            <span class="iconify text-blue-300" data-icon="solar:cpu-bolt-bold-duotone" data-width="22" data-height="22"></span>
+          </span>
+          <h3 class="mt-5 text-xl tracking-tight text-white font-semibold">IA e automação</h3>
+          <p class="mt-3 text-sm text-neutral-400 leading-relaxed">Copilotos, atendimento automatizado e análise de documentos aplicados ao seu contexto, não a um caso genérico.</p>
+          <div class="mt-5 flex flex-wrap gap-2">
+            <span class="rounded-full bg-blue-400/15 ring-1 ring-blue-400/20 px-2.5 py-1 text-[11px] text-blue-200">Copiloto</span>
+            <span class="rounded-full bg-blue-400/15 ring-1 ring-blue-400/20 px-2.5 py-1 text-[11px] text-blue-200">RAG</span>
+            <span class="rounded-full bg-blue-400/15 ring-1 ring-blue-400/20 px-2.5 py-1 text-[11px] text-blue-200">Agentes</span>
+          </div>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Produto: Offices AI Imobiliária -->
+  <section id="produto" class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-8 mb-24 relative">
+    <div class="pointer-events-none absolute -z-10 inset-0">
+      <div class="absolute -top-10 -left-10 h-80 w-80 rounded-full bg-blue-500/10 blur-3xl"></div>
+      <div class="absolute bottom-0 right-1/3 h-64 w-64 rounded-full bg-blue-400/10 blur-3xl"></div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+      <!-- Visual: painel do sistema -->
+      <div class="[animation:fadeSlideIn_0.5s_ease-out_0s_both] animate-on-scroll border-gradient bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-blue-300/10 rounded-[28px] p-2">
+        <div class="overflow-hidden rounded-[22px] bg-black/40 ring-1 ring-white/10">
+          <!-- Barra superior -->
+          <div class="flex items-center justify-between px-4 py-3 border-b border-white/10">
+            <div class="flex items-center gap-2">
+              <span class="inline-flex items-center justify-center h-7 w-7 rounded-lg bg-blue-500/15 ring-1 ring-white/10">
+                <span class="iconify text-blue-300" data-icon="solar:buildings-3-bold-duotone" data-width="16" data-height="16"></span>
+              </span>
+              <div>
+                <p class="text-xs font-semibold text-white leading-none">Carteira de locação</p>
+                <p class="text-[10px] text-emerald-400 mt-1">Offices AI Imobiliária · Ao vivo</p>
+              </div>
+            </div>
+            <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 ring-1 ring-emerald-400/20 px-2.5 py-1 text-[10px] font-medium text-emerald-300">
+              <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              Conectado
+            </span>
+          </div>
+
+          <!-- Painel -->
+          <div class="relative h-[280px] md:h-[440px] w-full p-4 sm:p-6 flex flex-col justify-between">
+            <!-- KPIs -->
+            <div class="grid grid-cols-3 gap-3">
+              <div class="rounded-xl bg-white/5 ring-1 ring-white/10 p-3">
+                <p class="text-[10px] text-neutral-400">Recebido no mês</p>
+                <p class="mt-1 text-lg sm:text-xl text-white tracking-tighter">R$ 482 mil</p>
+                <p class="mt-1 text-[10px] text-emerald-400">+8,2%</p>
+              </div>
+              <div class="rounded-xl bg-white/5 ring-1 ring-white/10 p-3">
+                <p class="text-[10px] text-neutral-400">Contratos ativos</p>
+                <p class="mt-1 text-lg sm:text-xl text-white tracking-tighter">318</p>
+                <p class="mt-1 text-[10px] text-blue-300">12 renovações</p>
+              </div>
+              <div class="rounded-xl bg-white/5 ring-1 ring-white/10 p-3">
+                <p class="text-[10px] text-neutral-400">Inadimplência</p>
+                <p class="mt-1 text-lg sm:text-xl text-white tracking-tighter">2,4%</p>
+                <p class="mt-1 text-[10px] text-rose-300">9 em atraso</p>
+              </div>
+            </div>
+
+            <!-- Marcadores -->
+            <div class="flex items-center justify-between gap-2">
+              <div class="inline-flex items-center gap-2 rounded-lg bg-emerald-500/15 ring-1 ring-emerald-400/25 px-3 py-1.5 backdrop-blur">
+                <span class="iconify text-emerald-400" data-icon="solar:course-up-bold-duotone" data-width="14" data-height="14"></span>
+                <span class="text-[11px] font-semibold text-emerald-300">Repasse gerado · R$ 61.940</span>
+              </div>
+              <div class="inline-flex items-center gap-2 rounded-lg bg-blue-500/15 ring-1 ring-blue-400/25 px-3 py-1.5 backdrop-blur">
+                <span class="iconify text-blue-300" data-icon="solar:bill-check-bold-duotone" data-width="14" data-height="14"></span>
+                <span class="text-[11px] font-semibold text-blue-200">128 boletos emitidos</span>
+              </div>
+            </div>
+
+            <!-- Barras -->
+            <div class="flex items-end justify-center gap-2 sm:gap-3 h-24 sm:h-40">
+              <div class="flex-1 rounded-t-md bg-blue-400/35" style="height:38%"></div>
+              <div class="flex-1 rounded-t-md bg-blue-400/45" style="height:52%"></div>
+              <div class="flex-1 rounded-t-md bg-blue-400/55" style="height:44%"></div>
+              <div class="flex-1 rounded-t-md bg-blue-400/70" style="height:68%"></div>
+              <div class="flex-1 rounded-t-md bg-blue-400/80" style="height:58%"></div>
+              <div class="flex-1 rounded-t-md bg-blue-400" style="height:84%"></div>
+              <div class="flex-1 rounded-t-md bg-blue-300" style="height:100%"></div>
+              <div class="hidden sm:block flex-1 rounded-t-md bg-blue-400/60" style="height:72%"></div>
+              <div class="hidden sm:block flex-1 rounded-t-md bg-blue-400/50" style="height:62%"></div>
+            </div>
+
+            <!-- Lista -->
+            <div class="space-y-2">
+              <div class="flex items-center justify-between rounded-lg bg-white/[0.04] border border-white/10 px-3 py-2">
+                <div class="flex items-center gap-2">
+                  <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+                  <span class="text-[11px] text-neutral-300">Apto 302 · Ed. Aurora</span>
+                </div>
+                <span class="text-[11px] text-neutral-400">Pago · R$ 2.480</span>
+              </div>
+              <div class="flex items-center justify-between rounded-lg bg-white/[0.04] border border-white/10 px-3 py-2">
+                <div class="flex items-center gap-2">
+                  <span class="h-1.5 w-1.5 rounded-full bg-amber-400"></span>
+                  <span class="text-[11px] text-neutral-300">Sala 12 · Centro</span>
+                </div>
+                <span class="text-[11px] text-neutral-400">Vence hoje · R$ 1.150</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Copy -->
+      <div class="[animation:fadeSlideIn_0.5s_ease-out_0.1s_both] animate-on-scroll">
+        <div class="inline-flex items-center gap-2 text-sm text-blue-200/80">
+          <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-500/15 ring-1 ring-white/10">
+            <span class="iconify" data-icon="solar:star-fall-minimalistic-2-bold-duotone" data-width="14" data-height="14"></span>
+          </span>
+          <span>Produto próprio · Offices AI</span>
+        </div>
+
+        <h2 class="mt-4 text-4xl sm:text-5xl md:text-6xl text-white tracking-tighter">
+          Offices AI Imobiliária — a gestão inteira em um lugar só.
+        </h2>
+
+        <p class="mt-5 text-base md:text-lg leading-relaxed text-white/70 max-w-2xl">
+          Plataforma SaaS para imobiliárias: imóveis, contratos, cobrança, repasse ao proprietário e prestação de contas — com uma camada de agentes de IA que responde às perguntas do dia a dia e adianta o trabalho manual.
+        </p>
+
+        <div class="mt-8 flex flex-wrap items-center gap-3">
+          <a href="https://imobiliaria.officestecnologia.com.br" target="_blank" rel="noopener" class="group inline-flex items-center gap-2 hover:opacity-90 transition-opacity border-gradient text-sm font-medium text-black bg-gradient-to-r from-blue-400 via-blue-400 to-blue-300 rounded-full pt-2.5 pr-5 pb-2.5 pl-5 shadow-[0_8px_30px_rgba(59,130,246,0.25)]" style="border-radius: 9999px">
+            Conhecer o sistema
+            <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-black/10 text-black">
+              <span class="iconify" data-icon="solar:arrow-right-up-linear" data-width="14" data-height="14"></span>
+            </span>
+          </a>
+          <a href="https://imobiliaria.officestecnologia.com.br" target="_blank" rel="noopener" class="text-sm text-neutral-400 hover:text-white transition-colors">imobiliaria.officestecnologia.com.br</a>
+        </div>
+
+        <!-- Feature cards -->
+        <div class="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-4 [animation:fadeSlideIn_0.5s_ease-out_0.2s_both] animate-on-scroll">
+          <div class="rounded-2xl bg-white/5 ring-1 ring-white/10 p-5 border-gradient">
+            <span class="iconify text-blue-300 mb-3 block" data-icon="solar:bill-list-bold-duotone" data-width="18" data-height="18"></span>
+            <h3 class="text-base tracking-tight text-white font-semibold leading-none">Cobrança automática</h3>
+            <p class="mt-3 text-sm text-neutral-400">Boleto e PIX emitidos e baixados sem planilha.</p>
+          </div>
+
+          <div class="rounded-2xl bg-white/5 ring-1 ring-white/10 p-5 border-gradient">
+            <span class="iconify text-blue-300 mb-3 block" data-icon="solar:hand-money-bold-duotone" data-width="18" data-height="18"></span>
+            <h3 class="text-base tracking-tight text-white font-semibold leading-none">Repasse ao locador</h3>
+            <p class="mt-3 text-sm text-neutral-400">Rateio, recibo e prestação de contas prontos.</p>
+          </div>
+
+          <div class="rounded-2xl bg-white/5 ring-1 ring-white/10 p-5 border-gradient">
+            <span class="iconify text-blue-300 mb-3 block" data-icon="solar:chat-square-code-bold-duotone" data-width="18" data-height="18"></span>
+            <h3 class="text-base tracking-tight text-white font-semibold leading-none">Copiloto de IA</h3>
+            <p class="mt-3 text-sm text-neutral-400">Pergunte em português e receba o dado da carteira.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- O desafio -->
+  <section class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-24 relative">
+    <div class="rounded-3xl border-gradient p-6 sm:p-8 relative backdrop-blur" style="background:linear-gradient(225deg,rgba(255,255,255,0.0) 0%,rgba(255,255,255,0.05) 50%,rgba(255,255,255,0.0) 100%); border-radius: 24px;">
+      <!-- Header -->
+      <div class="flex gap-6 pr-1 pl-1 items-center [animation:fadeSlideIn_0.8s_ease-out_0.1s_both] animate-on-scroll">
+        <h2 class="text-[44px] sm:text-6xl lg:text-7xl xl:text-8xl leading-[0.9] text-white tracking-tighter">O desafio.</h2>
+        <span aria-hidden="true" role="separator" aria-orientation="vertical" class="w-px bg-white/20 h-10"></span>
+        <p class="sm:text-base text-sm text-slate-300 mt-1 tracking-tight">Como a Offices resolve o que trava a operação</p>
+      </div>
+      <div class="h-px bg-white/20 mt-4"></div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 sm:gap-10 mt-6 sm:mt-8 relative items-stretch">
+        <!-- PROBLEMA 1 -->
+        <div class="lg:col-span-4 border-gradient rounded-[28px] p-6 sm:p-8 relative h-full flex flex-col [animation:fadeSlideIn_0.8s_ease-out_0.2s_both] animate-on-scroll" style="background:linear-gradient(225deg,rgba(255,255,255,0.0) 0%,rgba(255,255,255,0.05) 50%,rgba(255,255,255,0.0) 100%);">
+          <span class="absolute -top-4 left-6 inline-flex items-center px-4 py-1.5 rounded-full border border-rose-400/30 bg-neutral-950 text-xs sm:text-sm text-rose-300 tracking-tight" style="border-radius: 9999px;">PROBLEMA</span>
+          <div class="relative h-48 sm:h-56 rounded-2xl bg-white/5 border border-white/10 overflow-hidden flex items-center justify-center">
+            <div class="absolute inset-0 p-4 sm:p-6 flex items-center justify-center">
+              <div class="bg-neutral-900/90 border border-rose-400/20 rounded-xl p-5 w-full shadow-2xl">
+                <div class="flex items-center gap-2 mb-3">
+                  <span class="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-rose-500/15 ring-1 ring-rose-400/25">
+                    <span class="iconify text-rose-400" data-icon="solar:danger-triangle-bold-duotone" data-width="16" data-height="16"></span>
+                  </span>
+                  <div class="h-2 w-28 bg-white/60 rounded"></div>
+                </div>
+                <div class="space-y-2">
+                  <div class="h-2 w-full bg-rose-400/20 rounded"></div>
+                  <div class="h-2 w-4/5 bg-rose-400/15 rounded"></div>
+                  <div class="h-2 w-3/4 bg-rose-400/10 rounded"></div>
+                </div>
+                <div class="mt-4 inline-flex items-center gap-1.5 rounded-full bg-rose-500/15 ring-1 ring-rose-400/25 px-2.5 py-1 text-[10px] font-medium text-rose-300">
+                  <span class="h-1.5 w-1.5 rounded-full bg-rose-400"></span>
+                  Retrabalho: 14h/semana
+                </div>
+              </div>
+            </div>
+          </div>
+          <h3 class="mt-6 text-3xl sm:text-4xl text-white tracking-tighter">Software que não acompanha</h3>
+          <p class="mt-2 text-sm sm:text-base text-neutral-300 max-w-[52ch] tracking-tight">Sistema de prateleira que obriga a empresa a mudar o processo — e uma fila de planilhas paralelas para cobrir o que ele não faz.</p>
+        </div>
+
+        <!-- PROBLEMA 2 -->
+        <div class="lg:col-span-4 border-gradient rounded-[28px] p-6 sm:p-8 relative h-full flex flex-col [animation:fadeSlideIn_0.8s_ease-out_0.3s_both] animate-on-scroll" style="background:linear-gradient(225deg,rgba(255,255,255,0.0) 0%,rgba(255,255,255,0.05) 50%,rgba(255,255,255,0.0) 100%);">
+          <span class="absolute -top-4 left-6 inline-flex items-center px-4 py-1.5 rounded-full border border-amber-400/30 bg-neutral-950 text-xs sm:text-sm text-amber-300 tracking-tight" style="border-radius: 9999px;">DESAFIO</span>
+          <div class="relative h-48 sm:h-56 rounded-2xl border border-white/10 overflow-hidden bg-gradient-to-br from-white/5 to-white/0 p-4 flex items-center justify-center">
+            <div class="grid grid-cols-2 gap-3 w-full">
+              <div class="bg-neutral-900/80 border border-white/10 rounded-lg p-3 shadow-sm">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="iconify text-amber-400" data-icon="solar:clock-circle-bold-duotone" data-width="14" data-height="14"></span>
+                  <div class="h-1.5 w-12 bg-amber-400/60 rounded"></div>
+                </div>
+                <div class="space-y-1">
+                  <div class="h-1 w-full bg-white/20 rounded"></div>
+                  <div class="h-1 w-4/5 bg-white/20 rounded"></div>
+                </div>
+              </div>
+              <div class="bg-neutral-900/80 border border-white/10 rounded-lg p-3 shadow-sm">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="iconify text-amber-400" data-icon="solar:database-bold-duotone" data-width="14" data-height="14"></span>
+                  <div class="h-1.5 w-10 bg-amber-400/60 rounded"></div>
+                </div>
+                <div class="space-y-1">
+                  <div class="h-1 w-full bg-white/20 rounded"></div>
+                  <div class="h-1 w-5/6 bg-white/20 rounded"></div>
+                </div>
+              </div>
+              <div class="bg-neutral-900/80 border border-white/10 rounded-lg p-3 shadow-sm">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="iconify text-amber-400" data-icon="solar:link-broken-bold-duotone" data-width="14" data-height="14"></span>
+                  <div class="h-1.5 w-14 bg-amber-400/60 rounded"></div>
+                </div>
+                <div class="space-y-1">
+                  <div class="h-1 w-full bg-white/20 rounded"></div>
+                  <div class="h-1 w-4/5 bg-white/20 rounded"></div>
+                </div>
+              </div>
+              <div class="bg-neutral-900/80 border border-white/10 rounded-lg p-3 shadow-sm">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="iconify text-amber-400" data-icon="solar:bolt-bold-duotone" data-width="14" data-height="14"></span>
+                  <div class="h-1.5 w-8 bg-amber-400/60 rounded"></div>
+                </div>
+                <div class="space-y-1">
+                  <div class="h-1 w-full bg-white/20 rounded"></div>
+                  <div class="h-1 w-3/4 bg-white/20 rounded"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <h3 class="mt-6 text-3xl sm:text-4xl text-white tracking-tighter">Dados espalhados demais</h3>
+          <p class="mt-2 text-sm sm:text-base text-neutral-300 max-w-[52ch] tracking-tight">Cada setor com a sua ferramenta, nenhuma conversando com a outra. O relatório chega tarde e ninguém confia no número.</p>
+        </div>
+
+        <!-- SOLUÇÃO -->
+        <div class="lg:col-span-4 border-gradient rounded-[28px] p-6 sm:p-8 relative h-full flex flex-col [animation:fadeSlideIn_0.8s_ease-out_0.4s_both] animate-on-scroll" style="background:linear-gradient(225deg,rgba(59,130,246,0.10) 0%,rgba(59,130,246,0.05) 50%,rgba(59,130,246,0.10) 100%);">
+          <span class="absolute -top-4 left-6 inline-flex items-center px-4 py-1.5 rounded-full border border-blue-400/30 bg-neutral-950 text-xs sm:text-sm text-blue-300 tracking-tight" style="border-radius: 9999px;">SOLUÇÃO OFFICES</span>
+          <div class="relative h-48 sm:h-56 rounded-2xl bg-white/5 border border-blue-400/20 overflow-hidden p-4 flex items-center justify-center">
+            <div class="w-full h-full rounded-xl overflow-hidden bg-neutral-900/80 border border-blue-400/10 p-3 flex flex-col justify-between">
+              <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2">
+                  <div class="w-7 h-7 bg-blue-400/20 rounded-lg flex items-center justify-center">
+                    <span class="iconify text-blue-300" data-icon="solar:course-up-bold-duotone" data-width="14" data-height="14"></span>
+                  </div>
+                  <div class="h-2 w-20 bg-white/70 rounded"></div>
+                </div>
+                <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 ring-1 ring-emerald-400/25 px-2 py-0.5 text-[9px] font-medium text-emerald-300">
+                  <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+                  no ar
+                </span>
+              </div>
+              <div class="flex items-end justify-center gap-1.5 h-20">
+                <div class="w-3 rounded-sm bg-blue-400/40" style="height:35%"></div>
+                <div class="w-3 rounded-sm bg-blue-400/55" style="height:55%"></div>
+                <div class="w-3 rounded-sm bg-blue-400/70" style="height:45%"></div>
+                <div class="w-3 rounded-sm bg-blue-400/80" style="height:70%"></div>
+                <div class="w-3 rounded-sm bg-blue-400/90" style="height:60%"></div>
+                <div class="w-3 rounded-sm bg-blue-400" style="height:90%"></div>
+                <div class="w-3 rounded-sm bg-blue-300" style="height:100%"></div>
+              </div>
+              <div class="grid grid-cols-3 gap-2 mt-2">
+                <div class="bg-blue-400/10 border border-blue-400/20 rounded p-1.5 text-center">
+                  <div class="h-1 w-8 bg-blue-400 rounded mx-auto"></div>
+                </div>
+                <div class="bg-blue-400/10 border border-blue-400/20 rounded p-1.5 text-center">
+                  <div class="h-1 w-6 bg-blue-400 rounded mx-auto"></div>
+                </div>
+                <div class="bg-blue-400/10 border border-blue-400/20 rounded p-1.5 text-center">
+                  <div class="h-1 w-10 bg-blue-400 rounded mx-auto"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <h3 class="mt-6 text-3xl sm:text-4xl text-white tracking-tighter">Como a Offices resolve</h3>
+          <p class="mt-2 text-sm sm:text-base text-neutral-300 max-w-[52ch] tracking-tight">Um sistema desenhado a partir do seu processo, integrado ao que já existe e entregue por etapas — com o time acompanhando depois que entra no ar.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Processo -->
+  <section id="processo" class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-24 relative">
+    <div class="rounded-3xl border-gradient p-6 sm:p-8 backdrop-blur" style="background:linear-gradient(225deg,rgba(255,255,255,0.0) 0%,rgba(255,255,255,0.05) 50%,rgba(255,255,255,0.0) 100%); border-radius: 24px;">
+      <!-- Header -->
+      <div class="flex gap-6 pr-1 pl-1 items-center [animation:fadeSlideIn_0.8s_ease-out_0.1s_both] animate-on-scroll">
+        <span class="text-4xl text-white tracking-tighter">Processo</span>
+        <span aria-hidden="true" role="separator" aria-orientation="vertical" class="w-px bg-white/10 h-10"></span>
+        <span class="text-sm text-neutral-300">Do diagnóstico ao go-live</span>
+      </div>
+      <div class="h-px bg-white/10 mt-4"></div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 items-center gap-8 sm:gap-10 mt-6 sm:mt-8">
+        <!-- Conteúdo -->
+        <div class="lg:col-span-6 [animation:fadeSlideIn_0.8s_ease-out_0.2s_both] animate-on-scroll">
+          <h2 class="text-[44px] sm:text-6xl md:text-7xl leading-[1.05] text-zinc-100 tracking-tighter">Projeto sob medida</h2>
+
+          <div class="mt-6 flex items-center gap-3 flex-wrap">
+            <span class="inline-flex items-center rounded-full px-4 py-1.5 text-sm font-medium text-black bg-gradient-to-r from-blue-400 via-blue-400 to-blue-300 shadow-[0_8px_30px_rgba(59,130,246,0.25)]" style="border-radius: 9999px;">Escopo fechado</span>
+            <span class="inline-flex items-center rounded-full px-3 py-1 text-sm text-zinc-200 bg-white/5 ring-1 ring-white/10" style="border-radius: 9999px;">4 a 12 semanas</span>
+          </div>
+
+          <p class="text-zinc-400 text-sm sm:text-base mt-4">Começamos por um diagnóstico do processo atual, desenhamos o escopo em conjunto e entregamos em ciclos curtos — com uma versão utilizável desde as primeiras semanas, não só no final.</p>
+
+          <div class="h-px bg-white/10 mt-6"></div>
+
+          <!-- O que está incluso -->
+          <div class="mt-6">
+            <h3 class="text-2xl sm:text-3xl text-zinc-100 tracking-tighter mb-4">O que está incluso</h3>
+            <ul class="space-y-3">
+              <li class="flex items-start gap-3">
+                <span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-400/15 ring-1 ring-blue-400/25 mt-0.5">
+                  <span class="iconify text-blue-300" data-icon="solar:check-read-linear" data-width="14" data-height="14"></span>
+                </span>
+                <p class="text-zinc-300 text-sm sm:text-base">Descoberta, escopo e <span class="text-white font-medium">protótipo navegável</span> antes do desenvolvimento.</p>
+              </li>
+              <li class="flex items-start gap-3">
+                <span class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-400/15 ring-1 ring-blue-400/25 mt-0.5">
+                  <span class="iconify text-blue-300" data-icon="solar:check-read-linear" data-width="14" data-height="14"></span>
+                </span>
+                <p class="text-zinc-300 text-sm sm:text-base">Publicação, monitoramento e <span class="text-white font-medium">suporte</span> após o go-live.</p>
+              </li>
+            </ul>
+          </div>
+
+          <div class="flex gap-6 mt-8 items-center flex-wrap">
+            <a href="#contato" class="group inline-flex items-center gap-2 hover:opacity-90 transition-opacity border-gradient text-sm font-medium text-black bg-gradient-to-r from-blue-400 via-blue-400 to-blue-300 rounded-full pt-2.5 pr-5 pb-2.5 pl-5 shadow-[0_8px_30px_rgba(59,130,246,0.25)]" style="border-radius: 9999px">Solicitar diagnóstico</a>
+            <a href="#servicos" class="inline-flex border-gradient hover:text-white transition-all hover:-translate-y-0.5 text-sm font-medium text-white/80 bg-white/5 rounded-full pt-3 pr-5 pb-3 pl-5 backdrop-blur-xl gap-x-2 gap-y-2 items-center" style="border-radius: 9999px">
+              <span class="iconify" data-icon="solar:play-circle-bold-duotone" data-width="16" data-height="16"></span>
+              Ver detalhes
+            </a>
+          </div>
+        </div>
+
+        <!-- Showcase -->
+        <div class="lg:col-span-6 [animation:fadeSlideIn_0.8s_ease-out_0.3s_both] animate-on-scroll">
+          <div class="relative mx-auto w-full max-w-[860px]" style="filter: drop-shadow(0 20px 60px rgba(0,0,0,0.6));">
+            <div class="rounded-[28px] bg-neutral-900/60 ring-1 ring-white/10 p-3">
+              <div class="relative overflow-hidden rounded-[22px] bg-neutral-950 border border-white/10">
+                <div class="flex items-center gap-2 px-4 py-3 border-b border-white/10">
+                  <span class="h-3 w-3 rounded-full bg-zinc-700"></span>
+                  <span class="h-3 w-3 rounded-full bg-zinc-700/70"></span>
+                  <span class="h-3 w-3 rounded-full bg-zinc-700/50"></span>
+                </div>
+
+                <div class="p-6 sm:p-8 space-y-5">
+                  <div class="rounded-2xl bg-white/5 ring-1 ring-white/10 p-5 border-gradient hover:scale-[1.02] transition-transform duration-300">
+                    <div class="flex items-center gap-3">
+                      <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-blue-400/15 ring-1 ring-white/10">
+                        <span class="iconify text-blue-300" data-icon="solar:magnifer-zoom-in-bold-duotone" data-width="20" data-height="20"></span>
+                      </span>
+                      <div>
+                        <p class="text-white font-semibold tracking-tight leading-none">1 · Descoberta</p>
+                        <p class="text-xs text-neutral-400 mt-1.5">Entendemos o processo antes da tela.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="rounded-2xl bg-white/5 ring-1 ring-white/10 p-5 border-gradient hover:scale-[1.02] transition-transform duration-300">
+                    <div class="flex items-center gap-3">
+                      <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-blue-400/15 ring-1 ring-white/10">
+                        <span class="iconify text-blue-300" data-icon="solar:palette-bold-duotone" data-width="20" data-height="20"></span>
+                      </span>
+                      <div>
+                        <p class="text-white font-semibold tracking-tight leading-none">2 · Design</p>
+                        <p class="text-xs text-neutral-400 mt-1.5">Protótipo navegável para validar cedo.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="rounded-2xl bg-white/5 ring-1 ring-white/10 p-5 border-gradient hover:scale-[1.02] transition-transform duration-300">
+                    <div class="flex items-center gap-3">
+                      <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-blue-400/15 ring-1 ring-white/10">
+                        <span class="iconify text-blue-300" data-icon="solar:code-square-bold-duotone" data-width="20" data-height="20"></span>
+                      </span>
+                      <div>
+                        <p class="text-white font-semibold tracking-tight leading-none">3 · Desenvolvimento</p>
+                        <p class="text-xs text-neutral-400 mt-1.5">Entregas quinzenais, sempre utilizáveis.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="rounded-2xl bg-gradient-to-r from-blue-500/15 to-blue-300/10 ring-1 ring-blue-400/20 p-5 border-gradient">
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <p class="text-xs text-blue-200/80 tracking-tight">4 · Sustentação</p>
+                        <p class="text-2xl text-white font-semibold tracking-tighter mt-1">Suporte contínuo</p>
+                      </div>
+                      <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 ring-1 ring-emerald-400/20 px-2.5 py-1 text-[10px] font-medium text-emerald-300">
+                        <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        Agenda aberta
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="pointer-events-none absolute -right-24 bottom-0 w-72 h-72 rounded-full bg-white/10 blur-3xl"></div>
+                <div class="pointer-events-none absolute -left-24 -top-24 w-80 h-80 rounded-full bg-white/5 blur-3xl"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Contato -->
+  <section id="contato" class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-24 relative">
+    <div class="relative overflow-hidden rounded-3xl border-gradient p-8 sm:p-12 backdrop-blur text-center [animation:fadeSlideIn_0.8s_ease-out_0.1s_both] animate-on-scroll" style="background:linear-gradient(225deg,rgba(255,255,255,0.0) 0%,rgba(255,255,255,0.05) 50%,rgba(255,255,255,0.0) 100%); border-radius: 24px;">
+      <div class="pointer-events-none absolute left-1/2 -top-24 h-72 w-72 -translate-x-1/2 rounded-full bg-blue-500/15 blur-3xl"></div>
+      <div class="relative">
+        <div class="mx-auto w-fit mb-6">
+          <div class="inline-flex items-center gap-2 rounded-full border-gradient bg-white/5 px-3 py-1.5 text-xs text-neutral-300" style="border-radius: 9999px;">
+            <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span class="font-medium">Respondemos em até 1 dia útil</span>
+          </div>
+        </div>
+        <h2 class="mx-auto max-w-3xl text-3xl sm:text-4xl md:text-5xl text-white tracking-tighter">Vamos conversar sobre o seu projeto</h2>
+        <p class="mx-auto mt-4 max-w-xl text-sm sm:text-base text-neutral-300">Conte o que a sua empresa precisa resolver. Retornamos com um diagnóstico e uma proposta de escopo.</p>
+        <div class="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <a href="mailto:contato@office-cloud.ia" class="inline-flex items-center gap-2 rounded-full bg-white text-neutral-900 px-6 py-3 text-sm font-semibold shadow-[0_1px_0_0_rgba(255,255,255,0.4)_inset,0_1px_2px_rgba(0,0,0,0.2)] hover:-translate-y-0.5 transition-all" style="border-radius: 9999px;">
+            <span class="iconify" data-icon="solar:letter-bold-duotone" data-width="16" data-height="16"></span>
+            contato@office-cloud.ia
+          </a>
+          <a href="https://wa.me/5535992527113" class="inline-flex items-center gap-2 border-gradient hover:text-white transition-all hover:-translate-y-0.5 text-sm font-medium text-white/80 bg-white/5 rounded-full pt-3 pr-5 pb-3 pl-5 backdrop-blur-xl" style="border-radius: 9999px;">
+            <span class="iconify" data-icon="solar:chat-round-dots-bold-duotone" data-width="16" data-height="16"></span>
+            (35) 99252-7113
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-24 mb-16">
+    <div class="rounded-3xl border-gradient p-8 sm:p-12 backdrop-blur" style="background:linear-gradient(225deg,rgba(255,255,255,0.0) 0%,rgba(255,255,255,0.05) 50%,rgba(255,255,255,0.0) 100%); border-radius: 24px;">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <!-- Marca -->
+        <div class="md:col-span-1">
+          <a href="#" class="flex items-center gap-3 mb-4">
+            <img src="assets/logo-offices.svg" alt="" width="36" height="36" class="w-9 h-9 shrink-0">
+            <span class="text-lg font-semibold tracking-tight">Offices Tecnologia</span>
+          </a>
+          <p class="text-sm text-neutral-400 max-w-xs">Offices Tecnologia — aplicativos, sistemas e sites sob medida.</p>
+        </div>
+
+        <!-- Links -->
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-4">Serviços</h4>
+          <ul class="space-y-3 text-sm text-neutral-400">
+            <li><a href="#servicos" class="hover:text-white transition-colors">Aplicativos</a></li>
+            <li><a href="#servicos" class="hover:text-white transition-colors">Sistemas</a></li>
+            <li><a href="#servicos" class="hover:text-white transition-colors">Sites</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-4">Produtos</h4>
+          <ul class="space-y-3 text-sm text-neutral-400">
+            <li><a href="https://imobiliaria.officestecnologia.com.br" target="_blank" rel="noopener" class="hover:text-white transition-colors">Offices AI Imobiliária</a></li>
+            <li><a href="#servicos" class="hover:text-white transition-colors">Integrações</a></li>
+            <li><a href="#servicos" class="hover:text-white transition-colors">IA e automação</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-4">Empresa</h4>
+          <ul class="space-y-3 text-sm text-neutral-400">
+            <li><a href="#processo" class="hover:text-white transition-colors">Processo</a></li>
+            <li><a href="#contato" class="hover:text-white transition-colors">Contato</a></li>
+            <li><a href="#" class="hover:text-white transition-colors">Trabalhe conosco</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="h-px bg-white/10 my-8"></div>
+
+      <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+        <p class="text-sm text-neutral-400">© <span id="ano"></span> Offices Tecnologia. Todos os direitos reservados.</p>
+        <div class="flex items-center gap-6">
+          <a href="https://instagram.com/offices_aplicativos" target="_blank" rel="noopener" aria-label="Instagram @offices_aplicativos" class="text-neutral-400 hover:text-white transition-colors">
+            <span class="iconify" data-icon="mdi:instagram" data-width="20" data-height="20"></span>
+          </a>
+          <a href="https://wa.me/5535992527113" target="_blank" rel="noopener" aria-label="WhatsApp (35) 99252-7113" class="text-neutral-400 hover:text-white transition-colors">
+            <span class="iconify" data-icon="mdi:whatsapp" data-width="20" data-height="20"></span>
+          </a>
+          <a href="mailto:contato@office-cloud.ia" aria-label="E-mail contato@office-cloud.ia" class="text-neutral-400 hover:text-white transition-colors">
+            <span class="iconify" data-icon="mdi:email-outline" data-width="20" data-height="20"></span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </footer>
+</main>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('ano').textContent = new Date().getFullYear();
+
+  /* ---------- Fundo animado (aurora) ----------
+     Substitui o fundo WebGL de terceiros do template de referência por
+     blobs radiais em canvas — mesmo efeito visual, sem dependência externa. */
+  const canvas = document.getElementById('auroraCanvas');
+  if (canvas && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const ctx2d = canvas.getContext('2d');
+    let w = 0, h = 0, dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    const blobs = [
+      { x: 0.22, y: 0.30, r: 0.55, cor: [59, 130, 246],  vel: 0.00007, fase: 0.0 },
+      { x: 0.72, y: 0.22, r: 0.45, cor: [96, 165, 250],  vel: 0.00011, fase: 1.7 },
+      { x: 0.50, y: 0.70, r: 0.60, cor: [30, 64, 175],   vel: 0.00009, fase: 3.1 },
+      { x: 0.85, y: 0.62, r: 0.38, cor: [147, 197, 253], vel: 0.00013, fase: 4.6 },
+      { x: 0.10, y: 0.78, r: 0.42, cor: [37, 99, 235],   vel: 0.00008, fase: 5.9 },
+    ];
+
+    function resize() {
+      w = canvas.clientWidth; h = canvas.clientHeight;
+      canvas.width = Math.floor(w * dpr);
+      canvas.height = Math.floor(h * dpr);
+      ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function frame(t) {
+      ctx2d.clearRect(0, 0, w, h);
+      ctx2d.fillStyle = '#000';
+      ctx2d.fillRect(0, 0, w, h);
+      ctx2d.globalCompositeOperation = 'lighter';
+
+      const base = Math.max(w, h);
+      for (const b of blobs) {
+        const ang = t * b.vel + b.fase;
+        const cx = (b.x + Math.cos(ang) * 0.10) * w;
+        const cy = (b.y + Math.sin(ang * 1.3) * 0.08) * h;
+        const raio = b.r * base * (0.85 + 0.15 * Math.sin(ang * 0.9));
+
+        const g = ctx2d.createRadialGradient(cx, cy, 0, cx, cy, raio);
+        const [r, gr, bl] = b.cor;
+        g.addColorStop(0,    `rgba(${r},${gr},${bl},0.42)`);
+        g.addColorStop(0.45, `rgba(${r},${gr},${bl},0.13)`);
+        g.addColorStop(1,    `rgba(${r},${gr},${bl},0)`);
+        ctx2d.fillStyle = g;
+        ctx2d.beginPath();
+        ctx2d.arc(cx, cy, raio, 0, Math.PI * 2);
+        ctx2d.fill();
+      }
+
+      ctx2d.globalCompositeOperation = 'source-over';
+      requestAnimationFrame(frame);
+    }
+
+    resize();
+    window.addEventListener('resize', resize);
+    requestAnimationFrame(frame);
+  }
+});
+</script>
+
+</body>
+</html>
