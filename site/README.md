@@ -66,7 +66,7 @@ produção, vale trocar o Tailwind CDN por um CSS compilado.
 
 | Canal | Valor |
 | --- | --- |
-| E-mail | contato@office-cloud.ia |
+| E-mail | contato@offices-ia.cloud |
 | WhatsApp | (35) 99252-7113 → `wa.me/5535992527113` |
 | Instagram | [@offices_aplicativos](https://instagram.com/offices_aplicativos) |
 | SaaS | https://imobiliaria.officestecnologia.com.br |
