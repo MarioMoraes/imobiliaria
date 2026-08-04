@@ -76,6 +76,17 @@ export interface Credits {
 }
 
 /**
+ * Recarga de créditos (Super Admin). O teto não é burocracia: `balance` é
+ * BIGINT e a leitura faz `Number(...)` — um valor absurdo passaria do inteiro
+ * seguro do JavaScript e o saldo começaria a mentir. 100 milhões de créditos
+ * são 100 bilhões de tokens, folgado para qualquer pacote real.
+ */
+export const grantCreditsSchema = z.object({
+  amount: z.number().int().positive().max(100_000_000),
+});
+export type GrantCreditsInput = z.infer<typeof grantCreditsSchema>;
+
+/**
  * Mídia que acompanha a resposta — hoje, fotos de imóvel.
  *
  * Vem num campo estruturado, e não no texto: o modelo teria de reproduzir uma

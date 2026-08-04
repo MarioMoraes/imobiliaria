@@ -36,7 +36,7 @@ import { districtRoutes } from "../modules/district/district.routes.js";
 import { eventRoutes } from "../modules/event/event.routes.js";
 import { bankRoutes } from "../modules/bank/bank.routes.js";
 import { dashboardRoutes } from "../modules/dashboard/dashboard.routes.js";
-import { aiRoutes } from "../modules/ai/ai.routes.js";
+import { aiPlatformRoutes, aiRoutes } from "../modules/ai/ai.routes.js";
 import { adminAuditRoutes, auditRoutes } from "../modules/audit/audit.routes.js";
 import { authContextHook } from "./auth-context.hook.js";
 import { auditCaptureHook, auditRecordHook } from "./audit.hook.js";
@@ -72,6 +72,9 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     async (admin) => {
       admin.addHook("onRequest", platformAdminHook);
       await admin.register(tenantRoutes, { prefix: "/tenants" });
+      // Créditos de IA do tenant (consulta e recarga). Compartilha o prefixo
+      // /tenants — os paths são distintos (/:id/credits).
+      await admin.register(aiPlatformRoutes, { prefix: "/tenants" });
       // Auditoria global cross-tenant (MOD-SADMIN-04 / SPEC 9.4).
       await admin.register(adminAuditRoutes, { prefix: "/audit" });
     },

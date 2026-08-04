@@ -172,6 +172,19 @@ export function getCredits(tenantId: string): Promise<Credits> {
   return credits.getCredits(tenantId);
 }
 
+/**
+ * Recarrega o pacote de créditos de uma imobiliária (Super Admin).
+ *
+ * É operação de PLATAFORMA: os créditos são a cota que a plataforma vende, e o
+ * tenant não compra a própria — por isso o id vem da URL de `/admin/tenants`, e
+ * não do contexto da sessão. Some, não substitui: recarga é adição ao que
+ * sobrou, como um pacote pré-pago.
+ */
+export async function grantCredits(tenantId: string, amount: number): Promise<Credits> {
+  await credits.grant(tenantId, amount);
+  return credits.getCredits(tenantId);
+}
+
 /** Backfill do índice (rota `ai:admin`). */
 export async function reindex(
   tenantId: string,

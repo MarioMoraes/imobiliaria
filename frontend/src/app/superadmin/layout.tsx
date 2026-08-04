@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { AppDialogs } from "../../components/AppDialogs";
 import { Sidebar } from "../../components/Sidebar";
 import { Topbar } from "../../components/Topbar";
 import { superadminNav } from "../../lib/nav";
@@ -23,23 +24,28 @@ export default async function SuperadminLayout({
   await requireSession();
   if (!(await isPlatformAdmin())) notFound();
 
+  // `AppDialogs` (confirmação + toast) também aqui: a área de plataforma não os
+  // tinha, e `useConfirm`/`useToast` lançam sem o provider acima na árvore —
+  // recarregar créditos precisa dos dois (`window.confirm`/`alert` são proibidos).
   return (
-    <div className="app-shell">
-      <Sidebar
-        variant="platform"
-        brandName="Offices AI"
-        brandSub="Super Admin"
-        groups={superadminNav}
-      />
-      <div className="main">
-        <Topbar
-          searchPlaceholder="Buscar tenants, planos, logs…"
-          userName="Equipe Offices AI"
-          userRole="Super Admin"
-          tenantHref="/dashboard"
+    <AppDialogs>
+      <div className="app-shell">
+        <Sidebar
+          variant="platform"
+          brandName="Offices AI"
+          brandSub="Super Admin"
+          groups={superadminNav}
         />
-        <div className="content">{children}</div>
+        <div className="main">
+          <Topbar
+            searchPlaceholder="Buscar tenants, planos, logs…"
+            userName="Equipe Offices AI"
+            userRole="Super Admin"
+            tenantHref="/dashboard"
+          />
+          <div className="content">{children}</div>
+        </div>
       </div>
-    </div>
+    </AppDialogs>
   );
 }

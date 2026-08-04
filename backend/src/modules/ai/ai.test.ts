@@ -175,6 +175,26 @@ test("créditos: reserva falha sem saldo disponível", async () => {
   assert.equal(after.reserved, before.reserved, "uma reserva recusada não pode empenhar nada");
 });
 
+test("recarga (Super Admin): tenant sem linha ganha saldo e a recarga soma", async () => {
+  const { grantCredits } = await import("./ai.service.js");
+  const { createTestTenant } = await import("../../testing/tenants.js");
+  const novo = (await createTestTenant("credits-grant")).id;
+
+  // Todo tenant nasce SEM linha em ai_credits — é o estado em que o assistente
+  // responde "créditos insuficientes", e até existir a recarga não havia saída.
+  const zerado = await credits.getCredits(novo);
+  assert.equal(zerado.available, 0, "tenant novo começa sem crédito nenhum");
+
+  const primeira = await grantCredits(novo, 10_000);
+  assert.equal(primeira.balance, 10_000);
+  assert.equal(primeira.available, 10_000, "o saldo vale na hora");
+
+  // Recarga SOMA ao que sobrou (pacote pré-pago), não substitui — trocar seria
+  // apagar o saldo que a imobiliária ainda tinha.
+  const segunda = await grantCredits(novo, 5_000);
+  assert.equal(segunda.balance, 15_000);
+});
+
 test("créditos: reserva → commit debita o consumo real", async () => {
   await credits.grant(TENANT, 500);
   const before = await credits.getCredits(TENANT);

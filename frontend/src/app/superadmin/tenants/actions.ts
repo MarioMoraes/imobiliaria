@@ -53,3 +53,27 @@ export async function saveTenantAction(input: TenantInput): Promise<FormState> {
   revalidatePath("/superadmin/tenants");
   return { ok: true };
 }
+
+/**
+ * Recarrega o pacote de créditos de IA de uma imobiliária.
+ *
+ * Some ao que sobrou (pacote pré-pago), não substitui. É a única forma de um
+ * tenant ganhar créditos: até existir esta tela, só o seed concedia, e toda
+ * imobiliária criada depois ficava com saldo zero — o assistente respondia
+ * "Créditos de IA insuficientes" desde o primeiro dia.
+ */
+export async function grantCreditsAction(
+  tenantId: string,
+  amount: number,
+): Promise<FormState> {
+  if (!tenantId) return { ok: false, error: "Imobiliária inválida." };
+  if (!Number.isInteger(amount) || amount <= 0) {
+    return { ok: false, error: "Informe uma quantidade de créditos maior que zero." };
+  }
+
+  const res = await postJson(`/admin/tenants/${tenantId}/credits`, { amount });
+  if (!res.ok) return { ok: false, error: res.error };
+
+  revalidatePath("/superadmin/tenants");
+  return { ok: true };
+}

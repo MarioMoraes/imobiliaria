@@ -990,6 +990,14 @@ export function fetchAiCredits(): Promise<AiCredits | null> {
   return get<AiCredits>("/v1/ai/credits");
 }
 
+/**
+ * Créditos de um tenant qualquer (Super Admin). Vai por `/admin`, que é gateado
+ * pela allowlist de administradores da plataforma — não pelo RBAC do tenant.
+ */
+export function fetchTenantCredits(tenantId: string): Promise<AiCredits | null> {
+  return get<AiCredits>(`/admin/tenants/${tenantId}/credits`);
+}
+
 /** Conversas do copiloto (mais recentes primeiro). */
 export function fetchAiConversations(): Promise<AiConversation[] | null> {
   return get<AiConversation[]>("/v1/ai/conversations");

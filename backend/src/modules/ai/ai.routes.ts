@@ -2,7 +2,8 @@ import type { FastifyInstance } from "fastify";
 import { AppError } from "../../shared/errors.js";
 import { getAuthUser, getTenantId } from "../../shared/tenant-context.js";
 import { requirePermission } from "../rbac/authorize.js";
-import { aiChatSchema, reindexSchema } from "./ai.schema.js";
+import { aiChatSchema, grantCreditsSchema, reindexSchema } from "./ai.schema.js";
+import { record } from "../audit/audit.service.js";
 import * as service from "./ai.service.js";
 
 /**
@@ -60,5 +61,44 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       throw new AppError("ERR_AI_002", 422, "Parâmetros de reindexação inválidos", parsed.error.flatten());
     }
     return { data: await service.reindex(getTenantId(), parsed.data.entityId) };
+  });
+}
+
+/**
+ * Créditos de IA vistos pela PLATAFORMA (Super Admin). Montado sob
+ * /admin/tenants, fora do escopo /v1 — compartilha o prefixo com
+ * `tenantRoutes` porque os paths são distintos (`/:id/credits`).
+ *
+ * A autorização é a do `platformAdminHook` (allowlist
+ * `PLATFORM_ADMIN_CLERK_IDS`), não o RBAC de tenant: crédito é a cota que a
+ * plataforma vende, e nenhum papel de imobiliária pode se autorrecarregar.
+ *
+ * Sem estas rotas a recarga não existia em lugar nenhum — `grant()` só era
+ * chamada pelo seed, e um tenant novo ficava com saldo zero para sempre.
+ */
+export async function aiPlatformRoutes(app: FastifyInstance): Promise<void> {
+  app.get<{ Params: { id: string } }>("/:id/credits", async (req) => {
+    return { data: await service.getCredits(req.params.id) };
+  });
+
+  app.post<{ Params: { id: string } }>("/:id/credits", async (req) => {
+    const parsed = grantCreditsSchema.safeParse(req.body);
+    if (!parsed.success) {
+      throw AppError.badRequest("Valor de recarga inválido", parsed.error.flatten());
+    }
+    const credits = await service.grantCredits(req.params.id, parsed.data.amount);
+
+    // Fora de /v1 a captura automática do gateway não vale (ver
+    // audit.actions.ts), então o registro é explícito. `tenantId` vem da URL: a
+    // trilha é do tenant recarregado, não de quem recarregou.
+    await record({
+      tenantId: req.params.id,
+      action: "ai.credits_granted",
+      entity: "ai",
+      entityId: req.params.id,
+      payload: { amount: parsed.data.amount, balance: credits.balance },
+    });
+
+    return { data: credits };
   });
 }

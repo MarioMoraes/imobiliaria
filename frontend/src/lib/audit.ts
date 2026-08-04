@@ -74,6 +74,7 @@ export const ACTION_LABEL: Record<string, string> = {
   "document.purged": "Documento expurgado",
   "webhook.processed": "Retorno do provedor",
   "ai.reindexed": "Índice do copiloto reconstruído",
+  "ai.credits_granted": "Créditos de IA recarregados",
 };
 
 const VERB_LABEL: Record<string, string> = {
