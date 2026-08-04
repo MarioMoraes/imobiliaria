@@ -60,6 +60,32 @@ export async function findBrokerById(
   });
 }
 
+/**
+ * Corretor já cadastrado com o mesmo CPF (escopado por RLS). Compara só os
+ * dígitos: o CPF é gravado como veio da tela, e a mesma pessoa digitada com e
+ * sem máscara não pode virar dois corretores.
+ *
+ * `exceptId` deixa a edição salvar o próprio CPF sem se acusar de duplicata.
+ */
+export async function findBrokerByCpf(
+  tenantId: string,
+  cpf: string,
+  exceptId?: string,
+): Promise<{ id: string } | null> {
+  const digits = cpf.replace(/\D/g, "");
+  if (!digits) return null;
+  return withTenant(tenantId, async (client) => {
+    const { rows } = await client.query<{ id: string }>(
+      `SELECT id FROM brokers
+        WHERE regexp_replace(coalesce(cpf, ''), '\\D', '', 'g') = $1
+          AND ($2::uuid IS NULL OR id <> $2::uuid)
+        LIMIT 1`,
+      [digits, exceptId ?? null],
+    );
+    return rows[0] ?? null;
+  });
+}
+
 export async function insertBroker(
   tenantId: string,
   input: CreateBrokerInput,

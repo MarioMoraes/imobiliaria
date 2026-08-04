@@ -17,6 +17,22 @@ async function freshTenant(name: string) {
   return createTestTenant(name);
 }
 
+/**
+ * CPF válido e diferente a cada chamada — o banco de teste não é recriado entre
+ * rodadas e o documento é único por tenant. Dígitos verificadores calculados
+ * aqui de propósito: um CPF fixo no arquivo colidiria consigo mesmo.
+ */
+function newCpf(): string {
+  const base = Array.from({ length: 9 }, () => Math.floor(Math.random() * 10));
+  const dv = (digits: number[]): number => {
+    const sum = digits.reduce((acc, d, i) => acc + d * (digits.length + 1 - i), 0);
+    const r = (sum * 10) % 11;
+    return r === 10 ? 0 : r;
+  };
+  const d1 = dv(base);
+  return [...base, d1, dv([...base, d1])].join("");
+}
+
 function newPerson(overrides: Partial<CreatePersonInput> = {}): CreatePersonInput {
   const uniq = randomUUID().slice(0, 8);
   return {
@@ -92,18 +108,44 @@ test("sem contato (email/telefone) gera 422 ERR_PESSOA_002", async () => {
   );
 });
 
-test("dedup por telefone gera 409 ERR_PESSOA_004 com existingId", async () => {
+test("dedup por CPF gera 409 ERR_PESSOA_004 com existingId", async () => {
   const t = await freshTenant("Pes-Dedup");
-  const first = newPerson();
-  const created = await service.create(t.id, first);
+  const cpf = newCpf();
+  const created = await service.create(t.id, newPerson({ cpfCnpj: cpf }));
 
   await assert.rejects(
-    () => service.create(t.id, newPerson({ phone: first.phone })),
+    () => service.create(t.id, newPerson({ cpfCnpj: cpf })),
     (err) =>
       err instanceof AppError &&
       err.code === "ERR_PESSOA_004" &&
       (err.details as { existingId: string }).existingId === created.id,
   );
+});
+
+/**
+ * Só o documento identifica a pessoa. Telefone e e-mail já barravam o cadastro
+ * aqui (e no índice único do banco), e o que caía nessa rede era gente
+ * legítima: casal com o mesmo celular, fiador que repete o e-mail do inquilino.
+ */
+test("telefone e e-mail repetidos NÃO barram o cadastro", async () => {
+  const t = await freshTenant("Pes-DedupContato");
+  const contato = { phone: "11999990000", email: "familia@example.com" };
+  await service.create(t.id, newPerson({ ...contato, fullName: "Primeiro da Casa" }));
+
+  const segundo = await service.create(
+    t.id,
+    newPerson({ ...contato, fullName: "Segundo da Casa" }),
+  );
+  assert.equal(segundo.phone, contato.phone);
+  assert.equal(segundo.email, contato.email);
+});
+
+/** Sem documento não há como afirmar duplicata — o cadastro passa. */
+test("pessoas sem CPF não são tratadas como duplicata", async () => {
+  const t = await freshTenant("Pes-SemDoc");
+  await service.create(t.id, newPerson({ fullName: "Sem Documento Um" }));
+  const outra = await service.create(t.id, newPerson({ fullName: "Sem Documento Dois" }));
+  assert.equal(outra.cpfCnpj, null);
 });
 
 test("transição manual para INQUILINO é bloqueada (422 ERR_PESSOA_005)", async () => {

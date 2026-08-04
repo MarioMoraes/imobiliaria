@@ -349,6 +349,30 @@ export async function listAvailableForIndex(
 }
 
 /**
+ * Imóveis do Relatório de Imóveis a Alugar: locação/temporada (`purpose` ≠
+ * sale) com situação **disponível**. Alugado, reservado, vendido e inativo
+ * ficam de fora — a relação é o que se pode oferecer hoje a quem procura, e um
+ * imóvel já locado na lista gera visita marcada para porta fechada.
+ *
+ * Sem `LIMIT`: `listProperties` corta em 100 porque serve a uma tela, e um
+ * relatório truncado em silêncio omitiria bairros inteiros do fim da lista.
+ * A ordenação por bairro está aqui só para o PDF sair estável; o agrupamento
+ * de fato é feito em `rental-report.ts` (função pura, testável sem banco).
+ */
+export async function listForRentalReport(tenantId: string): Promise<Property[]> {
+  return withTenant(tenantId, async (client) => {
+    const { rows } = await client.query<Row>(
+      `SELECT ${SELECT_COLS} FROM properties p ${OWNERS_LATERAL}
+        WHERE p.purpose <> 'sale' AND p.status = 'available'
+        ORDER BY btrim(coalesce(p.district, '')) = '' ASC,
+                 upper(btrim(coalesce(p.district, ''))) ASC,
+                 p.code ASC NULLS LAST`,
+    );
+    return rows.map(toProperty);
+  });
+}
+
+/**
  * Imóveis de um condomínio (tela "Consulta Condôminos"). Ordena pelo código
  * sequencial — os apartamentos aparecem na ordem em que foram cadastrados.
  */

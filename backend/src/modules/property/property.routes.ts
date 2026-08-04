@@ -29,6 +29,22 @@ export async function propertyRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
+  /**
+   * Relatório de Imóveis a Alugar em PDF. Responde os BYTES (application/pdf),
+   * e não o envelope `{ data }` das demais rotas — quem chama abre/imprime o
+   * arquivo. Dois segmentos (`/report/rental`) para não disputar com `/:id`.
+   */
+  app.get("/report/rental", { preHandler: requirePermission("property:read") }, async (_req, reply) => {
+    const { pdf, fileName } = await service.rentalReport(getTenantId());
+
+    // `inline` abre no visualizador do navegador; o nome é o que o "salvar
+    // como" sugere — sem ele o arquivo herdaria o nome da rota ("rental.pdf").
+    reply
+      .header("Content-Type", "application/pdf")
+      .header("Content-Disposition", `inline; filename="${fileName}"`);
+    return reply.send(pdf);
+  });
+
   app.get("/:id", { preHandler: requirePermission("property:read") }, async (req) => {
     const { id } = req.params as { id: string };
     return { data: await service.getById(getTenantId(), id) };

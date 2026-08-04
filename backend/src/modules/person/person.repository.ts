@@ -276,32 +276,29 @@ export function findPerson(tenantId: string, id: string): Promise<Person | null>
 }
 
 /**
- * Deduplicação (MOD-CLIENTE-04): procura pessoa já existente por QUALQUER
- * documento/contato fornecido (CPF-CNPJ/telefone/email), escopado por RLS.
+ * Deduplicação (MOD-CLIENTE-04): procura pessoa já existente pelo **documento**
+ * (CPF/CNPJ), escopado por RLS.
+ *
+ * Só o documento identifica a pessoa. Telefone e e-mail também entravam nesta
+ * busca, e barravam cadastro legítimo: marido e mulher com o mesmo celular,
+ * fiador que repete o e-mail do inquilino, contato da imobiliária usado como
+ * e-mail do locador — todos viravam "pessoa já cadastrada".
+ *
+ * Compara só os dígitos: o mesmo CPF digitado com e sem máscara é a mesma
+ * pessoa, e a máscara varia conforme a tela por onde o cadastro entrou.
  */
-export function findDuplicate(
+export function findByDocument(
   tenantId: string,
-  contacts: { cpfCnpj?: string; phone?: string; email?: string },
+  cpfCnpj: string,
 ): Promise<{ id: string } | null> {
+  const digits = cpfCnpj.replace(/\D/g, "");
+  if (!digits) return Promise.resolve(null);
   return withTenant(tenantId, async (client) => {
-    const conds: string[] = [];
-    const params: unknown[] = [];
-    if (contacts.cpfCnpj) {
-      params.push(contacts.cpfCnpj);
-      conds.push(`cpf_cnpj = $${params.length}`);
-    }
-    if (contacts.phone) {
-      params.push(contacts.phone);
-      conds.push(`phone = $${params.length}`);
-    }
-    if (contacts.email) {
-      params.push(contacts.email);
-      conds.push(`lower(email) = lower($${params.length})`);
-    }
-    if (conds.length === 0) return null;
     const { rows } = await client.query<{ id: string }>(
-      `SELECT id FROM persons WHERE ${conds.join(" OR ")} LIMIT 1`,
-      params,
+      `SELECT id FROM persons
+        WHERE regexp_replace(coalesce(cpf_cnpj, ''), '\\D', '', 'g') = $1
+        LIMIT 1`,
+      [digits],
     );
     return rows[0] ?? null;
   });

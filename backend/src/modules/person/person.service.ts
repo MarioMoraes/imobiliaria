@@ -49,14 +49,11 @@ export async function create(tenantId: string, input: CreatePersonInput): Promis
     );
   }
 
-  // Deduplicação (MOD-CLIENTE-04): não cria pessoa duplicada.
-  const dup = await repo.findDuplicate(tenantId, {
-    cpfCnpj: input.cpfCnpj,
-    phone: input.phone,
-    email: input.email,
-  });
+  // Deduplicação (MOD-CLIENTE-04): só o CPF/CNPJ identifica a pessoa — ver
+  // `findByDocument`. Sem documento informado, não há como afirmar duplicata.
+  const dup = input.cpfCnpj ? await repo.findByDocument(tenantId, input.cpfCnpj) : null;
   if (dup) {
-    throw new AppError("ERR_PESSOA_004", 409, "Pessoa já cadastrada (CPF/CNPJ/telefone/email)", {
+    throw new AppError("ERR_PESSOA_004", 409, "Pessoa já cadastrada com este CPF/CNPJ", {
       existingId: dup.id,
     });
   }

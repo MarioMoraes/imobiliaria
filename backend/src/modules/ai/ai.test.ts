@@ -359,8 +359,9 @@ test("grafo: a ferramenta de fotos anexa as imagens à resposta", async () => {
 test("ferramentas: o imóvel não entrega o proprietário, nem para ADMIN", async () => {
   await credits.grant(TENANT, 1000);
 
-  // E-mail único por execução: o banco de teste não é recriado entre rodadas e
-  // `person.create` recusa contato repetido (ERR_PESSOA_004).
+  // E-mail único por execução só para o dado não se confundir entre rodadas —
+  // o banco de teste não é recriado. Contato repetido não barra mais o cadastro
+  // (a duplicata é só por CPF/CNPJ).
   const email = `fulano.dono.${randomUUID()}@example.com`;
   const owner = await personService.create(
     TENANT,

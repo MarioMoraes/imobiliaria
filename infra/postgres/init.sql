@@ -697,10 +697,13 @@ CREATE TABLE IF NOT EXISTS persons (
 CREATE INDEX        IF NOT EXISTS idx_persons_tenant ON persons (tenant_id);
 CREATE INDEX        IF NOT EXISTS idx_persons_stage  ON persons (tenant_id, stage);
 CREATE INDEX        IF NOT EXISTS idx_persons_roles  ON persons USING GIN (roles);
--- Deduplicação por documento/contato, por tenant (só quando presente).
+-- Deduplicação por DOCUMENTO, por tenant (só quando presente). Telefone e
+-- e-mail já foram únicos aqui e barravam cadastro legítimo — marido e mulher
+-- com o mesmo celular, fiador que repete o e-mail do inquilino. Só o CPF/CNPJ
+-- identifica a pessoa; contato se repete no mundo real.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_persons_doc   ON persons (tenant_id, cpf_cnpj)      WHERE cpf_cnpj IS NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS idx_persons_phone ON persons (tenant_id, phone)         WHERE phone    IS NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS idx_persons_email ON persons (tenant_id, lower(email))  WHERE email    IS NOT NULL;
+DROP INDEX IF EXISTS idx_persons_phone;
+DROP INDEX IF EXISTS idx_persons_email;
 
 -- Endereços (1:N) — residencial/comercial (compat. "Dados Residenciais/Comerciais").
 CREATE TABLE IF NOT EXISTS person_addresses (

@@ -904,6 +904,18 @@ export async function fetchInspectionReport(propertyId: string): Promise<Respons
 }
 
 /**
+ * Relatório de Imóveis a Alugar em PDF (relação por bairro) — `Response` crua,
+ * como o laudo de vistoria. Não leva parâmetro: o recorte (locação/temporada
+ * ainda ofertada) é do backend.
+ */
+export async function fetchRentalReport(): Promise<Response> {
+  return fetch(`${BACKEND_URL}/v1/properties/report/rental`, {
+    headers: await authHeaders(),
+    cache: "no-store",
+  });
+}
+
+/**
  * Contrato de administração do imóvel em PDF — `Response` crua, como o laudo de
  * vistoria. As testemunhas são digitadas na emissão (popup) e vão na query.
  */

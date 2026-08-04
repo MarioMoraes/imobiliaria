@@ -7,7 +7,7 @@
 **Serviço Backend:** customer-service (`backend/src/modules/customer`, monólito porta 3001)
 **Tabelas Principais:** customers, customer_search_profiles, customer_interactions, customer_documents, customer_consents
 **Data:** 2026-07-10
-**Status:** Em implementação — MOD-CLIENTE-01 (CRUD unificado + soft delete), 02 (perfil de busca), 03 (interações append-only + timeline) e 04 (deduplicação por CPF/telefone/email → 409 com `existingId`) concluídos (2026-07-12). Transição para INQUILINO/COMPRADOR bloqueada manualmente (RN-05). Pendentes: 05 (consentimento LGPD), 06 (documentos), 07 (ficha cadastral de locatário/cônjuge/endereços). Merge-200 do fluxo de IA (AC-01 dedup) é TODO (depende do MOD-AI).
+**Status:** Em implementação — MOD-CLIENTE-01 (CRUD unificado + soft delete), 02 (perfil de busca), 03 (interações append-only + timeline) e 04 (deduplicação **por CPF/CNPJ** → 409 com `existingId`) concluídos (2026-07-12; telefone/e-mail saíram do critério em 2026-08-04). Transição para INQUILINO/COMPRADOR bloqueada manualmente (RN-05). Pendentes: 05 (consentimento LGPD), 06 (documentos), 07 (ficha cadastral de locatário/cônjuge/endereços). Merge-200 do fluxo de IA (AC-01 dedup) é TODO (depende do MOD-AI).
 
 ---
 
@@ -17,7 +17,7 @@
 
 **Integração sistêmica.** Upstream de `crm-service` (o lead vira deal no funil), `ai-orchestrator-service` (recomendação usa `customer_search_profiles`; conversas gravam `customer_interactions`), `contract-service` (cliente é parte). Publica `customer.created`, `customer.profile_updated`, `customer.stage_changed`.
 
-**Escopo desta fase.** MVP: CRUD unificado, perfil de busca estruturado, histórico de interações (append-only), documentos, consentimento LGPD, deduplicação por CPF/telefone/email. **Fora desta fase:** enriquecimento externo (bureau de dados), o "perfil inteligente por IA" (propensão à conversão) fica no MOD-AI (8.8), consumindo os dados daqui.
+**Escopo desta fase.** MVP: CRUD unificado, perfil de busca estruturado, histórico de interações (append-only), documentos, consentimento LGPD, deduplicação por CPF/CNPJ. **Fora desta fase:** enriquecimento externo (bureau de dados), o "perfil inteligente por IA" (propensão à conversão) fica no MOD-AI (8.8), consumindo os dados daqui.
 
 ## 2. Sub-Features
 
@@ -26,7 +26,7 @@
 | MOD-CLIENTE-01 | CRUD cliente unificado | Lead/cliente/inquilino no mesmo registro, com `stage` | Must Have ✅ |
 | MOD-CLIENTE-02 | Perfil de busca | Preferências estruturadas (tipo, faixa, região, quartos) | Must Have ✅ |
 | MOD-CLIENTE-03 | Histórico de interações | Timeline append-only (humano + IA + canal) | Must Have ✅ |
-| MOD-CLIENTE-04 | Deduplicação | Detecta duplicata por CPF/telefone/email na criação | Must Have ✅ |
+| MOD-CLIENTE-04 | Deduplicação | Detecta duplicata por CPF/CNPJ na criação | Must Have ✅ |
 | MOD-CLIENTE-05 | Consentimento LGPD | Consentimento e canais de contato permitidos | Must Have |
 | MOD-CLIENTE-06 | Documentos | Vínculo com MOD-DOC (RG, comprovante de renda) | Should Have |
 | MOD-CLIENTE-07 | Ficha cadastral de locatário | Ficha PF/PJ completa (cônjuge, RG, estado civil, endereços, banco) exigida para virar INQUILINO | Must Have |
@@ -43,9 +43,9 @@
 
 ### [MOD-CLIENTE-04] — Deduplicação
 
-**AC-01 (Happy Path)** — **Dado** um cliente existente com telefone `X`, **Quando** o agente de IA cria lead com o mesmo telefone, **Então** o sistema **retorna o cliente existente** (merge de interação, não duplica) e adiciona a nova interação à timeline (200, não 201).
-**AC-02 (Validação)** — **Dado** CPF já existente com dados divergentes, **Quando** cria via API interna, **Então** `409` `ERR_CLIENTE_004` com `existingId` para decisão de merge.
-**AC-03 (Edge Case — concorrência)** — **Dado** duas conversas simultâneas do mesmo telefone (WhatsApp + Instagram), **Quando** ambas criam, **Então** lock por telefone garante **um único** cliente; ambas as interações anexam ao mesmo perfil.
+**AC-01 (Happy Path)** — **Dado** um cliente existente com CPF `X`, **Quando** se cria outro com o mesmo CPF (com ou sem máscara), **Então** `409` `ERR_PESSOA_004` com `existingId` para decisão de merge.
+**AC-02 (Validação)** — **Dado** um cadastro **sem** CPF/CNPJ, **Quando** cria, **Então** o cadastro é aceito: sem documento não há como afirmar duplicata.
+**AC-03 (Edge Case — contato repetido)** — **Dado** um cliente com telefone/e-mail `Y`, **Quando** se cadastra outra pessoa com o mesmo telefone/e-mail, **Então** o cadastro é aceito. Contato **não** identifica pessoa (casal com o mesmo celular, fiador que usa o e-mail do inquilino) — só o documento identifica.
 
 ## 4. Modelo de Dados
 
@@ -152,7 +152,7 @@ LEAD ──(qualificado pelo CRM/IA)──► CLIENTE ──(assina contrato loc
 
 | # | Cenário | Comportamento | Módulos |
 |---|---|---|---|
-| RN-01 | Dedup por telefone/CPF/email | Merge não-destrutivo; nunca duplica pessoa | MOD-AI, MOD-CRM |
+| RN-01 | Dedup **por CPF/CNPJ** | Merge não-destrutivo; nunca duplica pessoa. Telefone e e-mail NÃO deduplicam: se repetem legitimamente (casal com o mesmo celular, fiador que usa o e-mail do inquilino) | MOD-AI, MOD-CRM |
 | RN-02 | Interações são imutáveis (append-only) | Nunca editar/apagar; correção = nova interação | MOD-AI |
 | RN-03 | Inativação automática por inatividade | Job cron 90 dias sem interação | MOD-CRON |
 | RN-04 | AI_AGENT pode criar/ler/atualizar, nunca deletar | RBAC restrito | MOD-AI |

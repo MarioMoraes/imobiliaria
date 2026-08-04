@@ -12,7 +12,22 @@ export async function getById(tenantId: string, id: string): Promise<Broker> {
   return found;
 }
 
-export function create(tenantId: string, input: CreateBrokerInput): Promise<Broker> {
+/**
+ * Duplicidade de corretor é só pelo CPF — é ele que identifica a pessoa.
+ * Telefone e e-mail se repetem no mundo real (a linha da imobiliária, o casal
+ * que trabalha junto) e não dizem nada sobre ser o mesmo corretor.
+ */
+async function assertCpfLivre(tenantId: string, cpf: string, exceptId?: string): Promise<void> {
+  const dup = await repo.findBrokerByCpf(tenantId, cpf, exceptId);
+  if (dup) {
+    throw new AppError("CONFLICT", 409, "Corretor já cadastrado com este CPF", {
+      existingId: dup.id,
+    });
+  }
+}
+
+export async function create(tenantId: string, input: CreateBrokerInput): Promise<Broker> {
+  if (input.cpf) await assertCpfLivre(tenantId, input.cpf);
   return repo.insertBroker(tenantId, input);
 }
 
@@ -21,6 +36,7 @@ export async function update(
   id: string,
   input: UpdateBrokerInput,
 ): Promise<Broker> {
+  if (input.cpf) await assertCpfLivre(tenantId, input.cpf, id);
   const updated = await repo.updateBroker(tenantId, id, input);
   if (!updated) throw AppError.notFound("Corretor não encontrado");
   return updated;

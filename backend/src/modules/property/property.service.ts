@@ -1,9 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { AppError } from "../../shared/errors.js";
 import { publish } from "../../shared/events.js";
+import { htmlToPdf } from "../../shared/pdf.js";
 import { deleteObject, presignGetUrl, putObject } from "../../shared/storage.js";
 import * as repo from "./property.repository.js";
 import * as personService from "../person/person.service.js";
+import * as tenantService from "../tenant/tenant.service.js";
+import { toRentalReportHtml } from "./rental-report.js";
 import type {
   AddPhotoInput,
   CreatePropertyInput,
@@ -291,4 +294,29 @@ export async function removePhoto(
     occurredAt: new Date().toISOString(),
     payload: { propertyId, photoId },
   });
+}
+
+/**
+ * Relatório de Imóveis a Alugar em PDF — a relação por bairro (código,
+ * endereço, dependências e aluguel) que se entrega a quem procura imóvel.
+ *
+ * O recorte (locação/temporada ainda ofertada) vive no repositório; aqui só se
+ * junta o nome da imobiliária ao cabeçalho e se converte o HTML.
+ */
+export async function rentalReport(
+  tenantId: string,
+): Promise<{ pdf: Buffer; fileName: string }> {
+  const [properties, tenant] = await Promise.all([
+    repo.listForRentalReport(tenantId),
+    tenantService.getById(tenantId),
+  ]);
+
+  const html = toRentalReportHtml({
+    tenantName: tenant.name,
+    properties,
+    generatedAt: new Date(),
+  });
+
+  const hoje = new Date().toISOString().slice(0, 10);
+  return { pdf: await htmlToPdf(html), fileName: `imoveis-a-alugar-${hoje}.pdf` };
 }
