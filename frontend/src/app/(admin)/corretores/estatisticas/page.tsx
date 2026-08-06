@@ -33,13 +33,13 @@ export default async function CorretoresEstatisticasPage() {
       <PageHeader title="Estatísticas de Corretores" backHref="/corretores" />
 
       <div className="grid grid-4 mb-4">
-        <StatCard icon="broker" label="Corretores cadastrados" value={String(count)} tone="blue" />
-        <StatCard icon="receipt" label="Comissão média" value={count ? pct(avgCommission) : "—"} tone="accent" />
-        <StatCard icon="trendingUp" label="Maior comissão" value={count ? pct(maxCommission) : "—"} tone="success" />
-        <StatCard icon="mapPin" label="Cidades atendidas" value={String(cities)} tone="warning" />
+        <StatCard icon="broker" label="Corretores Cadastrados" value={String(count)} tone="blue" />
+        <StatCard icon="receipt" label="Comissão Média" value={count ? pct(avgCommission) : "—"} tone="accent" />
+        <StatCard icon="trendingUp" label="Maior Comissão" value={count ? pct(maxCommission) : "—"} tone="success" />
+        <StatCard icon="mapPin" label="Cidades Atendidas" value={String(cities)} tone="warning" />
       </div>
 
-      <Section title="Corretores · por comissão">
+      <Section title="Corretores · por Comissão">
         {ranked.length === 0 ? (
           <EmptyState
             icon="broker"

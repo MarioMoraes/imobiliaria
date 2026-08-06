@@ -149,7 +149,7 @@ function ToastCard({ item, onDismiss }: { item: ToastItem; onDismiss: (id: numbe
         type="button"
         className="toast-close"
         onClick={() => onDismiss(item.id)}
-        aria-label="Dispensar aviso"
+        aria-label="Dispensar Aviso"
       >
         <Icon name="close" size={14} />
       </button>

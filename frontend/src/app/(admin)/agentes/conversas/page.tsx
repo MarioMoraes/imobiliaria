@@ -32,7 +32,7 @@ export default async function ConversasPage() {
                   <th>Assunto</th>
                   <th>Canal</th>
                   <th>Situação</th>
-                  <th>Última atividade</th>
+                  <th>Última Atividade</th>
                 </tr>
               </thead>
               <tbody>

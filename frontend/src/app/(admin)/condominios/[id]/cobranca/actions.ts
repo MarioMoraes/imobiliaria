@@ -58,6 +58,8 @@ export async function generateBillingAction(input: BillingFormInput): Promise<Bi
   });
   if (!res.ok) return { ok: false, error: res.error };
 
-  revalidatePath("/financeiro/gestao");
+  // As contas geradas aparecem na consulta de condôminos (uma linha por
+  // unidade), que é onde o boleto é emitido.
+  revalidatePath(`/condominios/${input.condominiumId}/condominos`);
   return { ok: true, preview: res.data as CondoBillingPreview };
 }

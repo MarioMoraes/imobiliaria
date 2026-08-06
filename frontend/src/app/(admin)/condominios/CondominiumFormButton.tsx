@@ -210,7 +210,7 @@ export function CondominiumFormButton({
                 style={{ padding: "2px 8px" }}
                 onClick={() => setLocked({})}
               >
-                <Icon name="edit" size={12} /> editar
+                <Icon name="edit" size={12} /> Editar
               </button>
             )}
           </div>
@@ -288,17 +288,17 @@ export function CondominiumFormButton({
           <span className="text-sm strong">Cobrança</span>
           <div className="grid grid-2" style={{ gap: 12 }}>
             <div className="field">
-              <label>Taxa de administração (%)</label>
+              <label>Taxa de Administração (%)</label>
               <input className="input" value={form.adminFeePercent} onChange={(e) => set({ adminFeePercent: e.target.value })} inputMode="decimal" placeholder="10" />
             </div>
             <div className="field">
-              <label>Taxa de administração (R$)</label>
+              <label>Taxa de Administração (R$)</label>
               <input className="input" value={form.adminFeeFixedReais} onChange={(e) => set({ adminFeeFixedReais: e.target.value })} inputMode="decimal" placeholder="0,00" />
             </div>
           </div>
           <div className="grid grid-2" style={{ gap: 12 }}>
             <div className="field">
-              <label>Juros ao mês (%)</label>
+              <label>Juros ao Mês (%)</label>
               <input className="input" value={form.interestPercent} onChange={(e) => set({ interestPercent: e.target.value })} inputMode="decimal" placeholder="1" />
             </div>
             <div className="field">

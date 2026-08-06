@@ -19,8 +19,8 @@ export default function PlanosPage() {
 
       <div className="grid grid-4 mb-4">
         <StatCard icon="wallet" label="MRR" value="R$ 128,4k" trend="+8,1%" feature />
-        <StatCard icon="receipt" label="Faturas em aberto" value="R$ 12,3k" tone="warning" />
-        <StatCard icon="building" label="Assinaturas ativas" value="169" tone="blue" />
+        <StatCard icon="receipt" label="Faturas em Aberto" value="R$ 12,3k" tone="warning" />
+        <StatCard icon="building" label="Assinaturas Ativas" value="169" tone="blue" />
         <StatCard icon="trendingDown" label="Inadimplência" value="2,1%" trendDir="down" tone="success" />
       </div>
 
@@ -42,7 +42,7 @@ export default function PlanosPage() {
         ))}
       </div>
 
-      <Section title="Faturas da plataforma">
+      <Section title="Faturas da Plataforma">
         <div className="table-wrap">
           <table className="table">
             <thead><tr><th>Tenant</th><th>Plano</th><th>Valor</th><th>Vencimento</th><th>Status</th></tr></thead>

@@ -149,7 +149,7 @@ export function ExpenseFormButton({
             value={form.eventId}
             onChange={(e) => set({ eventId: e.target.value })}
           >
-            <option value="">— selecione —</option>
+            <option value="">— Selecione —</option>
             {events.map((ev) => (
               <option key={ev.id} value={ev.id}>
                 {ev.name} ({ev.kind === "DEBITO" ? "Débito" : "Crédito"})

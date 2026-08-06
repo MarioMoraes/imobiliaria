@@ -10,7 +10,7 @@ export default function FlagsPage() {
         actions={<button className="btn btn-primary btn-sm"><Icon name="plus" /> Nova Flag</button>}
       />
 
-      <Section title="Flags da plataforma">
+      <Section title="Flags da Plataforma">
         <div className="table-wrap">
           <table className="table">
             <thead><tr><th>Funcionalidade</th><th>Chave</th><th>Escopo</th><th>Estado</th></tr></thead>

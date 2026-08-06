@@ -178,7 +178,7 @@ export function SignaturePanel({
           disabled={pending || linking || envelope?.status === "ASSINADO"}
           onChange={(e) => selectTemplate(e.target.value)}
         >
-          <option value="">Padrão do tenant (primeiro modelo ativo)</option>
+          <option value="">Padrão do Tenant (primeiro modelo ativo)</option>
           {templates.map((t) => (
             <option key={t.id} value={t.id}>
               {t.label}
@@ -331,7 +331,7 @@ export function SignaturePanel({
             disabled={pending || loading}
             onClick={() => run(syncSignatureAction)}
           >
-            <Icon name="refresh" size={14} /> Sincronizar status
+            <Icon name="refresh" size={14} /> Sincronizar Status
           </button>
         )}
       </div>

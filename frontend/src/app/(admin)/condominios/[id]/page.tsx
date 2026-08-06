@@ -76,7 +76,7 @@ export default async function CondominioPage({
           />
           <StatCard
             icon="receipt"
-            label="Taxa de administração"
+            label="Taxa de Administração"
             value={
               formatPercent(condominium.adminFeePercent) +
               (condominium.adminFeeFixedCents > 0

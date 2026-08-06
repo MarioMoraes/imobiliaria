@@ -1696,3 +1696,140 @@ CREATE POLICY audit_purge ON audit_logs FOR DELETE
 
 -- Sem UPDATE: nem no GRANT, nem em policy. A trilha só cresce.
 GRANT SELECT, INSERT, DELETE ON audit_logs TO app_user;
+
+-- ═════════════════════════════════════════════════════════════════
+-- MOD-FIN / Fluxo de caixa (financeiro_11 §4) — comissões, categorias e
+-- lançamentos manuais.
+--
+-- O fluxo de caixa em si NÃO tem tabela: ele é um read model que compõe as
+-- origens que já existem (aluguel recebido em `receivables`, repasse pago e
+-- taxa de administração em `payables`) com as duas tabelas abaixo. Copiar o
+-- movimento para um ledger criaria a segunda fonte de verdade que o cabeçalho
+-- de `payables` já rejeitou: cancelar um repasse tem que apagar a taxa junto,
+-- e só o derivado faz isso sozinho.
+--
+-- Ganham tabela apenas os fatos que não têm casa em lugar nenhum: a comissão
+-- (cujo módulo de venda ainda não existe) e a despesa avulsa do escritório.
+-- ═════════════════════════════════════════════════════════════════
+
+-- ── Comissões (MOD-FIN-05) ───────────────────────────────────────
+-- UMA LINHA POR PARTE, e não uma linha com o líquido: a comissão que a
+-- imobiliária recebe é receita e a que o corretor recebe é despesa. São dois
+-- movimentos de caixa em datas possivelmente diferentes (o cliente paga hoje, o
+-- corretor recebe no fechamento do mês) — guardar só o líquido apagaria a
+-- despesa e faria a margem da venda parecer o valor cheio.
+--
+-- `percent_snapshot` congela o percentual do fechamento (RN-04): mudar a
+-- comissão do corretor amanhã não pode reescrever o que já foi apurado — mesma
+-- postura de `payables.admin_fee_percent`.
+--
+-- `sale_id` nasce nulo e sem FK: a venda do imóvel é um módulo futuro, e é ele
+-- que vai preencher a coluna ao chamar `commissionService.createForSale`.
+CREATE TABLE IF NOT EXISTS commissions (
+  id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id            UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  kind                 TEXT NOT NULL DEFAULT 'VENDA',   -- VENDA|LOCACAO
+  party                TEXT NOT NULL,                   -- IMOBILIARIA (receita) | CORRETOR (despesa)
+  property_id          UUID,                            -- FK lógica → properties
+  contract_id          UUID,                            -- FK lógica → contracts (comissão de locação)
+  sale_id              UUID,                            -- FK lógica → (venda, módulo futuro)
+  broker_id            UUID,                            -- FK lógica → brokers (obrigatório se party=CORRETOR)
+  description          TEXT,
+  base_cents           BIGINT NOT NULL DEFAULT 0,       -- valor da venda (base do percentual)
+  percent_snapshot     NUMERIC(5,2) NOT NULL DEFAULT 0, -- % congelado no fechamento
+  amount_cents         BIGINT NOT NULL,                 -- valor da comissão desta parte
+  due_date             DATE NOT NULL,
+  status               TEXT NOT NULL DEFAULT 'ABERTO',  -- ABERTO|QUITADO|CANCELADO
+  settled_at           DATE,                            -- data do caixa (recebimento ou pagamento)
+  settled_amount_cents BIGINT,
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_commissions_tenant_status ON commissions (tenant_id, status, due_date);
+CREATE INDEX IF NOT EXISTS idx_commissions_broker        ON commissions (tenant_id, broker_id, status);
+-- O fluxo de caixa varre por data de quitação; sem este índice o mês vira
+-- seq scan na tabela inteira à medida que o histórico cresce.
+CREATE INDEX IF NOT EXISTS idx_commissions_settled       ON commissions (tenant_id, settled_at)
+  WHERE status = 'QUITADO';
+-- Idempotência do módulo de venda: reprocessar o fechamento não pode pagar o
+-- corretor duas vezes. Uma venda tem no máximo uma comissão por parte.
+--
+-- `NULLS NOT DISTINCT` (PG15+) é obrigatório aqui: a parte da IMOBILIARIA tem
+-- `broker_id` nulo, e no comportamento padrão dois nulos são distintos entre si
+-- — o único deixaria passar uma segunda linha idêntica justamente na parte que
+-- sempre existe.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_commissions_sale
+  ON commissions (sale_id, party, broker_id) NULLS NOT DISTINCT
+  WHERE sale_id IS NOT NULL;
+
+ALTER TABLE commissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE commissions FORCE  ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON commissions;
+CREATE POLICY tenant_isolation ON commissions
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON commissions TO app_user;
+
+-- ── Categorias do lançamento manual ──────────────────────────────
+-- Lookup por tenant, no mesmo padrão de `districts`/`events`: o seed abaixo é
+-- só do tenant demo, e o onboarding não popula lookup nenhum. Por isso
+-- `cash_flow_entries.category_id` é NULO-permitido — uma imobiliária recém
+-- criada precisa conseguir lançar a primeira despesa antes de montar a lista.
+CREATE TABLE IF NOT EXISTS cash_flow_categories (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id  UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  code       INTEGER NOT NULL DEFAULT 0,       -- sequencial por tenant
+  name       TEXT NOT NULL,
+  direction  TEXT NOT NULL,                    -- ENTRADA|SAIDA
+  active     BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_cash_flow_categories_tenant ON cash_flow_categories (tenant_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_cash_flow_categories_code
+  ON cash_flow_categories (tenant_id, code);
+
+ALTER TABLE cash_flow_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cash_flow_categories FORCE  ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON cash_flow_categories;
+CREATE POLICY tenant_isolation ON cash_flow_categories
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON cash_flow_categories TO app_user;
+
+INSERT INTO cash_flow_categories (tenant_id, code, name, direction)
+VALUES
+  ('00000000-0000-0000-0000-000000000001', 1, 'Aluguel do escritório',   'SAIDA'),
+  ('00000000-0000-0000-0000-000000000001', 2, 'Salários e encargos',     'SAIDA'),
+  ('00000000-0000-0000-0000-000000000001', 3, 'Tarifas bancárias',       'SAIDA'),
+  ('00000000-0000-0000-0000-000000000001', 4, 'Marketing e publicidade', 'SAIDA'),
+  ('00000000-0000-0000-0000-000000000001', 5, 'Impostos e taxas',        'SAIDA'),
+  ('00000000-0000-0000-0000-000000000001', 6, 'Outras receitas',         'ENTRADA')
+ON CONFLICT DO NOTHING;
+
+-- ── Lançamento manual (receita/despesa avulsa) ───────────────────
+-- O que o sistema não apura sozinho: aluguel do escritório, salário, tarifa.
+-- Sem isto o fluxo de caixa só mostraria receita e nunca fecharia com o extrato.
+CREATE TABLE IF NOT EXISTS cash_flow_entries (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  entry_date  DATE NOT NULL,
+  direction   TEXT NOT NULL,                   -- ENTRADA|SAIDA
+  category_id UUID,                            -- FK lógica → cash_flow_categories (nulo = "Sem categoria")
+  bank_id     UUID,                            -- FK lógica → banks
+  amount_cents BIGINT NOT NULL,                -- sempre positivo; o sinal vem de `direction`
+  description TEXT NOT NULL,
+  notes       TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_cash_flow_entries_tenant_date
+  ON cash_flow_entries (tenant_id, entry_date);
+
+ALTER TABLE cash_flow_entries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cash_flow_entries FORCE  ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON cash_flow_entries;
+CREATE POLICY tenant_isolation ON cash_flow_entries
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON cash_flow_entries TO app_user;

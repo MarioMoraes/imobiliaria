@@ -40,6 +40,24 @@ export function formatDate(iso: string): string {
   });
 }
 
+const MONTH_NAMES = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
+
+/**
+ * "2026-08" → "Agosto/2026".
+ *
+ * Escrito à mão e não por `toLocaleDateString`: o pt-BR devolve "agosto de
+ * 2026" — minúsculo e por extenso — e o painel usa a forma capitalizada com
+ * barra. Sem `new Date()` no meio, porque YYYY-MM não tem fuso.
+ */
+export function formatMonth(month: string): string {
+  const index = Number(month.slice(5, 7)) - 1;
+  const name = MONTH_NAMES[index];
+  return name ? `${name}/${month.slice(0, 4)}` : month;
+}
+
 /** "YYYY-MM-DD" → "dd/mm/aaaa". Sem passar por Date, para não mudar de fuso. */
 export function formatDay(iso: string | null): string {
   if (!iso) return "—";

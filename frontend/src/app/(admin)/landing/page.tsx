@@ -25,14 +25,14 @@ export default function LandingPage() {
       />
 
       <div className="grid grid-4 mb-4">
-        <StatCard icon="eye" label="Visitas (mês)" value="8.240" trend="+18%" tone="blue" />
-        <StatCard icon="target" label="Leads capturados" value="132" tone="accent" />
+        <StatCard icon="eye" label="Visitas (Mês)" value="8.240" trend="+18%" tone="blue" />
+        <StatCard icon="target" label="Leads Capturados" value="132" tone="accent" />
         <StatCard icon="trendingUp" label="Conversão" value="1,6%" tone="success" />
-        <StatCard icon="shield" label="Spam bloqueado" value="41" tone="warning" />
+        <StatCard icon="shield" label="Spam Bloqueado" value="41" tone="warning" />
       </div>
 
       <div className="grid" style={{ gridTemplateColumns: "1fr 340px" }}>
-        <Section title="Editor por blocos">
+        <Section title="Editor por Blocos">
           <div className="card-pad stack" style={{ gap: 10 }}>
             {blocks.map((b) => (
               <div key={b.name} className="card card-pad row-between" style={{ padding: 14 }}>
@@ -50,17 +50,17 @@ export default function LandingPage() {
           </div>
         </Section>
 
-        <Section title="Domínio & branding" pad>
+        <Section title="Domínio & Branding" pad>
           <div className="field mb-4">
             <label>Subdomínio</label>
             <input className="input" defaultValue={tenantSubdomain("demo")} readOnly />
           </div>
           <div className="field mb-4">
-            <label>Domínio próprio</label>
+            <label>Domínio Próprio</label>
             <input className="input" placeholder="www.suaimobiliaria.com.br" />
           </div>
           <div className="field">
-            <label>Cor primária</label>
+            <label>Cor Primária</label>
             <div className="row gap-8">
               <span style={{ width: 34, height: 34, borderRadius: 8, background: "var(--primary)", border: "1px solid var(--border)" }} />
               <input className="input" defaultValue="#2563EB" />

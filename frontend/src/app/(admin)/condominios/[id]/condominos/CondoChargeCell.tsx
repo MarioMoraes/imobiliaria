@@ -21,8 +21,8 @@ function displayStatus(charge: Receivable, today: string): string {
  * unidade, com o botão de boleto.
  *
  * Mostra só a última porque a lista é de condôminos, não de cobranças — uma
- * linha por imóvel. Períodos anteriores continuam na Gestão Financeira, e a
- * contagem avisa quando existem.
+ * linha por imóvel. Períodos anteriores não entram na célula; a contagem avisa
+ * quando existem.
  */
 export function CondoChargeCell({
   condominiumId,

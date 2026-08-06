@@ -45,9 +45,9 @@ export const sampleEmployees = [
 ];
 
 export const dealStages = [
-  { key: "novo", label: "Novo lead", color: "var(--muted)" },
-  { key: "contato", label: "Em contato", color: "var(--primary)" },
-  { key: "visita", label: "Visita agendada", color: "var(--accent)" },
+  { key: "novo", label: "Novo Lead", color: "var(--muted)" },
+  { key: "contato", label: "Em Contato", color: "var(--primary)" },
+  { key: "visita", label: "Visita Agendada", color: "var(--accent)" },
   { key: "proposta", label: "Proposta", color: "var(--warning)" },
   { key: "ganho", label: "Ganho", color: "var(--success)" },
 ];
@@ -141,9 +141,9 @@ export const sampleHealth = [
 
 export const sampleFlags = [
   { flag: "ai_agents", label: "Agentes de IA", scope: "Plano Pro+", enabled: true },
-  { flag: "portal_publishing", label: "Publicação em portais", scope: "Global", enabled: true },
-  { flag: "custom_domain", label: "Domínio próprio (landing)", scope: "Plano Pro+", enabled: true },
-  { flag: "electronic_signature", label: "Assinatura eletrônica", scope: "Beta", enabled: false },
+  { flag: "portal_publishing", label: "Publicação em Portais", scope: "Global", enabled: true },
+  { flag: "custom_domain", label: "Domínio Próprio (Landing)", scope: "Plano Pro+", enabled: true },
+  { flag: "electronic_signature", label: "Assinatura Eletrônica", scope: "Beta", enabled: false },
   { flag: "instagram_channel", label: "Canal Instagram", scope: "Add-on", enabled: false },
 ];
 

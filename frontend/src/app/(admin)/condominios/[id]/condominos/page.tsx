@@ -141,7 +141,7 @@ export default async function CondominosPage({
                     <th>Alugado</th>
                     <th>Proprietário / Inquilino</th>
                     <th>Vencimento</th>
-                    <th style={{ textAlign: "right" }}>Cobrança do condomínio</th>
+                    <th style={{ textAlign: "right" }}>Cobrança do Condomínio</th>
                   </tr>
                 </thead>
                 <tbody>

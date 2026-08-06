@@ -139,7 +139,7 @@ export function BankFormButton({ bank, disabled }: { bank?: Bank; disabled?: boo
             />
           </div>
           <div className="field">
-            <label>Conta nº</label>
+            <label>Conta Nº</label>
             <input
               className="input"
               value={form.accountNumber}

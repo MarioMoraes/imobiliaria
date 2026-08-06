@@ -26,9 +26,9 @@ const PAGE_SIZE = 30;
 
 /** Um período em dias vira o `from` que o backend entende. */
 const PERIODS = [
-  { key: "1", label: "24 horas" },
-  { key: "7", label: "7 dias" },
-  { key: "30", label: "30 dias" },
+  { key: "1", label: "24 Horas" },
+  { key: "7", label: "7 Dias" },
+  { key: "30", label: "30 Dias" },
   { key: "", label: "Tudo" },
 ] as const;
 
@@ -93,7 +93,7 @@ export default async function AuditoriaTenantPage({
 
   return (
     <>
-      <PageHeader title="Trilha de auditoria" backHref="/auditoria" />
+      <PageHeader title="Trilha de Auditoria" backHref="/auditoria" />
 
       <FilterNotice
         term={params.q ?? ""}
@@ -116,13 +116,13 @@ export default async function AuditoriaTenantPage({
           href={hrefWith(params, { status: "", pagina: "" })}
           className={`btn btn-sm ${params.status ? "btn-ghost" : "btn-outline"}`}
         >
-          Todas as ações
+          Todas as Ações
         </Link>
         <Link
           href={hrefWith(params, { status: "DENIED", pagina: "" })}
           className={`btn btn-sm ${params.status === "DENIED" ? "btn-outline" : "btn-ghost"}`}
         >
-          Só as recusadas
+          Só as Recusadas
         </Link>
       </div>
 

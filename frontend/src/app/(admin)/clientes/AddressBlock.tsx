@@ -75,7 +75,7 @@ export function AddressBlock({
         <span className="text-sm strong">{title}</span>
         {anyLocked && (
           <button type="button" className="btn btn-ghost btn-sm" style={{ padding: "2px 8px" }} onClick={() => setLocked({})}>
-            <Icon name="edit" size={12} /> editar
+            <Icon name="edit" size={12} /> Editar
           </button>
         )}
       </div>

@@ -1296,6 +1296,20 @@ select.input {
   animation: modal-fade 0.18s ease both;
   overflow-y: auto;
 }
+/* Variante centralizada (`<Modal centered>`) — para popup curto de leitura, que
+   ancorado no topo fica solto no meio do nada.
+
+   A centralização é `margin: auto` no filho, e NÃO `align-items: center` no
+   overlay: com o overlay rolando (`overflow-y: auto`), o alinhamento central
+   torna o topo do diálogo inalcançável quando ele passa da altura da janela.
+   `margin: auto` distribui a folga quando ela existe e se comporta como
+   `flex-start` quando não existe. */
+.modal-overlay.is-centered {
+  padding: 20px;
+}
+.modal-overlay.is-centered > .modal {
+  margin: auto;
+}
 .modal {
   width: min(640px, 100%);
   max-height: 88vh;

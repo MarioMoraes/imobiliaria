@@ -17,10 +17,10 @@ export default function ManutencaoPage() {
       />
 
       <div className="grid grid-4 mb-4">
-        <StatCard icon="wrench" label="Chamados abertos" value="9" tone="blue" />
-        <StatCard icon="clock" label="Aguardando aprovação" value="3" tone="warning" />
-        <StatCard icon="activity" label="Em execução" value="4" tone="accent" />
-        <StatCard icon="check" label="Resolvidos (mês)" value="21" tone="success" />
+        <StatCard icon="wrench" label="Chamados Abertos" value="9" tone="blue" />
+        <StatCard icon="clock" label="Aguardando Aprovação" value="3" tone="warning" />
+        <StatCard icon="activity" label="Em Execução" value="4" tone="accent" />
+        <StatCard icon="check" label="Resolvidos (Mês)" value="21" tone="success" />
       </div>
 
       <Section title="Chamados">

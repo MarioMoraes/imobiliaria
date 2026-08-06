@@ -228,7 +228,7 @@ function SettleButton({
         onClick={() => setOpen(true)}
         disabled={disabled}
       >
-        Dar baixa
+        Dar Baixa
       </button>
     );
   }
@@ -250,7 +250,7 @@ function SettleButton({
         type="button"
         disabled={disabled || !paidAt}
         onClick={() => onSettle(receivable.id, paidAt)}
-        aria-label="Confirmar baixa"
+        aria-label="Confirmar Baixa"
         title="Confirmar a baixa nesta data"
       >
         <Icon name="check" size={15} />
@@ -260,7 +260,7 @@ function SettleButton({
         style={{ width: 30, height: 30 }}
         type="button"
         onClick={() => setOpen(false)}
-        aria-label="Cancelar baixa"
+        aria-label="Cancelar Baixa"
       >
         <Icon name="x" size={15} />
       </button>

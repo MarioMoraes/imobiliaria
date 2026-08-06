@@ -104,11 +104,14 @@ const statusMap: Record<string, { cls: string; label: string; dot?: boolean }> =
   sold: { cls: "badge-dark", label: "Vendido" },
   inactive: { cls: "badge-slate", label: "Inativo" },
   // contas a receber (MOD-FIN)
-  ABERTO: { cls: "badge-amber", label: "Em aberto" },
+  ABERTO: { cls: "badge-amber", label: "Em Aberto" },
   // Repasse (contas a pagar): a transferência PIX já saiu daqui, mas o banco
   // ainda não confirmou. Não é "pago" — o dinheiro está em trânsito.
   PROCESSANDO: { cls: "badge-cyan", label: "Processando" },
   PAGO: { cls: "badge-green", label: "Pago" },
+  // Comissão (MOD-FIN-05): um estado só para os dois sentidos — recebida do
+  // cliente ou paga ao corretor. Quem dá o sentido é a coluna "parte".
+  QUITADO: { cls: "badge-green", label: "Quitada" },
   VENCIDO: { cls: "badge-red", label: "Vencido" },
   CANCELADO: { cls: "badge-slate", label: "Cancelado" },
   ESTORNADO: { cls: "badge-slate", label: "Estornado" },
@@ -121,11 +124,11 @@ const statusMap: Record<string, { cls: string; label: string; dot?: boolean }> =
   paid: { cls: "badge-green", label: "Pago" },
   pending: { cls: "badge-amber", label: "Pendente" },
   vigente: { cls: "badge-green", label: "Vigente", dot: true },
-  signing: { cls: "badge-cyan", label: "Em assinatura" },
+  signing: { cls: "badge-cyan", label: "Em Assinatura" },
   draft: { cls: "badge-slate", label: "Rascunho" },
   ok: { cls: "badge-green", label: "Operacional", dot: true },
   degraded: { cls: "badge-amber", label: "Degradado" },
-  down: { cls: "badge-red", label: "Fora do ar" },
+  down: { cls: "badge-red", label: "Fora do Ar" },
 };
 
 export function StatusBadge({ status, label }: { status: string; label?: string }) {
@@ -269,9 +272,7 @@ export function FilterNotice({
         {count === 0 ? "Nenhum resultado para" : `${count} resultado${count > 1 ? "s" : ""} para`}{" "}
         <strong>“{term}”</strong>
       </span>
-      <a href={clearHref} className="btn btn-ghost btn-sm">
-        Limpar filtro
-      </a>
+      <a href={clearHref} className="btn btn-ghost btn-sm">Limpar Filtro</a>
     </div>
   );
 }

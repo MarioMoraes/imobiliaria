@@ -6,7 +6,7 @@ export default function CrmPage() {
   return (
     <>
       <PageHeader
-        title="CRM — Funil de negócios"
+        title="CRM — Funil de Negócios"
         actions={
           <>
             <button className="btn btn-outline btn-sm"><Icon name="settings" /> Configurar Funil</button>
@@ -16,9 +16,9 @@ export default function CrmPage() {
       />
 
       <div className="grid grid-4 mb-4">
-        <StatCard icon="target" label="Negócios abertos" value="41" tone="blue" />
-        <StatCard icon="clock" label="1ª resposta média" value="9 min" trend="-3 min" tone="success" />
-        <StatCard icon="trendingUp" label="Conversão do funil" value="18%" tone="accent" />
+        <StatCard icon="target" label="Negócios Abertos" value="41" tone="blue" />
+        <StatCard icon="clock" label="1ª Resposta Média" value="9 min" trend="-3 min" tone="success" />
+        <StatCard icon="trendingUp" label="Conversão do Funil" value="18%" tone="accent" />
         <StatCard icon="bot" label="Leads via IA" value="62%" tone="blue" />
       </div>
 

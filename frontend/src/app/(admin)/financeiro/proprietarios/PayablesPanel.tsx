@@ -69,7 +69,7 @@ function SettleButton({
         onClick={() => setOpen(true)}
         disabled={disabled}
       >
-        Dar baixa
+        Dar Baixa
       </button>
     );
   }
@@ -91,7 +91,7 @@ function SettleButton({
         type="button"
         disabled={disabled || !paidAt}
         onClick={() => onSettle(payable.id, paidAt)}
-        aria-label="Confirmar baixa"
+        aria-label="Confirmar Baixa"
         title="Confirmar o repasse nesta data"
       >
         <Icon name="check" size={15} />
@@ -101,7 +101,7 @@ function SettleButton({
         style={{ width: 30, height: 30 }}
         type="button"
         onClick={() => setOpen(false)}
-        aria-label="Cancelar baixa"
+        aria-label="Cancelar Baixa"
       >
         <Icon name="x" size={15} />
       </button>
@@ -322,7 +322,7 @@ export function PayablesPanel({
                 rel="noopener"
                 title="Recibo em PDF com os lançamentos selecionados, para o proprietário assinar"
               >
-                <Icon name="printer" size={14} /> Emitir recibo
+                <Icon name="printer" size={14} /> Emitir Recibo
               </a>
             )}
             <button className="btn btn-ghost btn-sm" type="button" onClick={clearSelection}>
@@ -442,7 +442,7 @@ export function PayablesPanel({
                             onClick={() => transfer(p.id)}
                             title="Enviar o repasse por PIX para a chave do proprietário (Asaas)"
                           >
-                            <Icon name="banknote" size={14} /> Gerar pagamento
+                            <Icon name="banknote" size={14} /> Gerar Pagamento
                           </button>
                           {/* O cancelar (X) saiu da linha por ora — a decisão de
                               se ele volta é para depois. A rota

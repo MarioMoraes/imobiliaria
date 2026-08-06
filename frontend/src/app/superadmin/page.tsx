@@ -16,20 +16,20 @@ export default async function SuperadminHome() {
   return (
     <>
       <PageHeader
-        title="Visão geral da plataforma"
+        title="Visão Geral da Plataforma"
         actions={<button className="btn btn-primary btn-sm"><Icon name="plus" /> Novo Tenant</button>}
       />
 
       <div className="grid grid-4 mb-4">
         <StatCard icon="building" label={live ? "Tenants ativos (ao vivo)" : "Tenants ativos"} value={String(active)} trend="+3 no mês" feature />
         <StatCard icon="wallet" label="MRR" value="R$ 128,4k" trend="+8,1%" tone="success" />
-        <StatCard icon="bot" label="Mensagens de IA (mês)" value="482k" tone="accent" />
+        <StatCard icon="bot" label="Mensagens de IA (Mês)" value="482k" tone="accent" />
         <StatCard icon="trendingDown" label="Churn" value="1,2%" trendDir="down" trend="-0,3pp" tone="blue" />
       </div>
 
       <div className="grid" style={{ gridTemplateColumns: "1.4fr 1fr" }}>
         <Section
-          title="Tenants recentes"
+          title="Tenants Recentes"
           action={<a href="/superadmin/tenants" className="btn btn-ghost btn-sm">Ver todos <Icon name="arrowRight" size={14} /></a>}
         >
           <div className="table-wrap">
@@ -58,7 +58,7 @@ export default async function SuperadminHome() {
         </Section>
 
         <div className="stack">
-          <Section title="Saúde da plataforma" action={<a href="/superadmin/saude" className="btn btn-ghost btn-sm">Detalhes</a>} pad>
+          <Section title="Saúde da Plataforma" action={<a href="/superadmin/saude" className="btn btn-ghost btn-sm">Detalhes</a>} pad>
             <div className="stack" style={{ gap: 10 }}>
               {sampleHealth.slice(0, 4).map((h) => (
                 <div key={h.name} className="row-between">
@@ -72,7 +72,7 @@ export default async function SuperadminHome() {
             </div>
           </Section>
 
-          <Section title="Auditoria global" action={<a href="/superadmin/auditoria" className="btn btn-ghost btn-sm">Tudo</a>}>
+          <Section title="Auditoria Global" action={<a href="/superadmin/auditoria" className="btn btn-ghost btn-sm">Tudo</a>}>
             <div className="card-pad timeline">
               {(audit?.items ?? []).length === 0 && (
                 <div className="text-sm subtle">Nenhuma ação registrada ainda.</div>

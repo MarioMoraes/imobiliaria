@@ -458,7 +458,7 @@ export function ContractFormButton({
                         onClick={() => void terminate("DISTRATADO")}
                         disabled={terminating}
                       >
-                        Registrar distrato
+                        Registrar Distrato
                       </button>
                     </div>
                   )}
@@ -501,8 +501,8 @@ export function ContractFormButton({
                   <option value="INPC">INPC</option>
                   <option value="FIXO">Fixo</option>
                 </Select>
-                <Text label="Periodicidade (meses)" value={form.readjustPeriodMonths} onChange={(v) => set({ readjustPeriodMonths: v })} inputMode="numeric" />
-                <Text label="Último reajuste" value={form.lastReadjustAt} onChange={(v) => set({ lastReadjustAt: v })} type="date" />
+                <Text label="Periodicidade (Meses)" value={form.readjustPeriodMonths} onChange={(v) => set({ readjustPeriodMonths: v })} inputMode="numeric" />
+                <Text label="Último Reajuste" value={form.lastReadjustAt} onChange={(v) => set({ lastReadjustAt: v })} type="date" />
                 <Text label="Dia Prop." value={form.ownerPayDay} onChange={(v) => set({ ownerPayDay: v })} inputMode="numeric" placeholder="1–31" />
                 <Text label="Dia Inq." value={form.tenantPayDay} onChange={(v) => set({ tenantPayDay: v })} inputMode="numeric" placeholder="1–31" />
               </div>
@@ -529,7 +529,7 @@ export function ContractFormButton({
                   <option value="LOCATARIO">Locatário</option>
                   <option value="LOCADOR">Locador</option>
                 </Select>
-                <Text label="Tipo de comissão" value={form.commissionType} onChange={(v) => set({ commissionType: v })} placeholder="Ex.: 1º Mês de Aluguel" />
+                <Text label="Tipo de Comissão" value={form.commissionType} onChange={(v) => set({ commissionType: v })} placeholder="Ex.: 1º Mês de Aluguel" />
               </div>
               <div className="row" style={{ gap: 20, paddingTop: 12, flexWrap: "wrap" }}>
                 <Check label="Administração" checked={form.isAdministration} onChange={(v) => set({ isAdministration: v })} />
@@ -545,9 +545,9 @@ export function ContractFormButton({
                   <option value="FIADOR">Fiador</option>
                   <option value="CAUCAO">Caução</option>
                   <option value="SEGURO_FIANCA">Seguro-fiança</option>
-                  <option value="TITULO_CAP">Título de capitalização</option>
+                  <option value="TITULO_CAP">Título de Capitalização</option>
                 </Select>
-                <Text label="Descrição do seguro" value={form.insuranceDescription} onChange={(v) => set({ insuranceDescription: v })} />
+                <Text label="Descrição do Seguro" value={form.insuranceDescription} onChange={(v) => set({ insuranceDescription: v })} />
                 <Text label="Seguro (R$)" value={form.insuranceValueReais} onChange={(v) => set({ insuranceValueReais: v })} inputMode="decimal" />
               </div>
               <div className="row" style={{ paddingTop: 12 }}>

@@ -93,7 +93,7 @@ export default async function DocumentosPage({
         />
         <StatCard
           icon="clock"
-          label="A vencer em 30 dias"
+          label="A Vencer em 30 Dias"
           value={String(counts?.expiring30 ?? 0)}
           tone="warning"
         />
@@ -105,7 +105,7 @@ export default async function DocumentosPage({
         />
       </div>
 
-      <Section title="Biblioteca documental">
+      <Section title="Biblioteca Documental">
         {documents.length === 0 ? (
           <EmptyState
             icon="folder"

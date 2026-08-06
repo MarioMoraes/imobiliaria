@@ -146,11 +146,11 @@ export function GlobalSearch({ placeholder }: { placeholder?: string }) {
           onFocus={() => setOpen(true)}
           onKeyDown={onKeyDown}
           placeholder={placeholder ?? "Buscar imóveis, clientes, contratos…"}
-          aria-label="Buscar no sistema"
+          aria-label="Buscar no Sistema"
           autoComplete="off"
         />
         {q && (
-          <button className="search-clear" type="button" onClick={() => setQ("")} aria-label="Limpar busca">
+          <button className="search-clear" type="button" onClick={() => setQ("")} aria-label="Limpar Busca">
             <Icon name="close" size={13} />
           </button>
         )}

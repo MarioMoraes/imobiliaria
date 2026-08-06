@@ -81,7 +81,7 @@ function SessaoNaoReconhecida({ onSair }: { onSair: () => void }) {
       </ul>
 
       <button type="button" className="btn btn-primary" onClick={onSair} style={{ width: "100%" }}>
-        Sair e tentar de novo
+        Sair e Tentar de Novo
       </button>
     </div>
   );

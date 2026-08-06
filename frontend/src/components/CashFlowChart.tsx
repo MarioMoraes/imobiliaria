@@ -5,10 +5,9 @@ import type { CashFlowPoint } from "../lib/api";
  * Barras de recebido (caixa realizado) x previsto (o que vencia no mês), com a
  * série já agregada pelo backend (`GET /v1/receivables/cash-flow`).
  *
- * Mora aqui, e não dentro de uma página, porque **duas telas mostram este mesmo
- * gráfico**: o painel inicial e a Gestão Financeira. Enquanto cada uma tinha a
- * própria versão, elas divergiam — a do painel só desenhava a barra de recebido
- * e lia outra consulta do backend.
+ * Hoje só o painel inicial o usa, mas mora aqui porque já foi duplicado dentro
+ * de duas páginas e as versões divergiram — uma delas só desenhava a barra de
+ * recebido e lia outra consulta do backend.
  *
  * As duas barras dividem a mesma escala — a do maior valor da janela — senão
  * meses de porte diferente pareceriam iguais.

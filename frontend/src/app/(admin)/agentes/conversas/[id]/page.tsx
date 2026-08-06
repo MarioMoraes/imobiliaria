@@ -40,7 +40,7 @@ export default async function ConversaPage({
         </div>
       </Section>
 
-      <Section title="Consultas executadas">
+      <Section title="Consultas Executadas">
         {conversation.toolCalls.length === 0 ? (
           <p className="subtle text-sm card-pad">
             O agente respondeu sem consultar o cadastro.

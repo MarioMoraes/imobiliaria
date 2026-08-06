@@ -12,10 +12,10 @@ import { disconnectSignatureAction, saveSignatureSettingsAction } from "./action
  * obrigatório no cadastro das partes (e-mail, celular ou certificado).
  */
 const AUTH_MODES: { value: string; label: string }[] = [
-  { value: "assinaturaTela-tokenEmail", label: "Assinatura em tela + token por e-mail" },
-  { value: "assinaturaTela-tokenWhatsApp", label: "Assinatura em tela + token por WhatsApp" },
-  { value: "assinaturaTela-tokenSms", label: "Assinatura em tela + token por SMS" },
-  { value: "certificadoDigital", label: "Certificado digital (ICP-Brasil)" },
+  { value: "assinaturaTela-tokenEmail", label: "Assinatura em Tela + Token por E-mail" },
+  { value: "assinaturaTela-tokenWhatsApp", label: "Assinatura em Tela + Token por WhatsApp" },
+  { value: "assinaturaTela-tokenSms", label: "Assinatura em Tela + Token por SMS" },
+  { value: "certificadoDigital", label: "Certificado Digital (ICP-Brasil)" },
 ];
 
 /**
@@ -97,7 +97,7 @@ export function SignatureSettingsCard({
       </div>
 
       <div className="field">
-        <label>Modo de assinatura</label>
+        <label>Modo de Assinatura</label>
         <select className="input" value={authMode} onChange={(e) => setAuthMode(e.target.value)}>
           {AUTH_MODES.map((m) => (
             <option key={m.value} value={m.value}>
@@ -113,7 +113,7 @@ export function SignatureSettingsCard({
       </label>
 
       <div className="field">
-        <label>URL do webhook</label>
+        <label>URL do Webhook</label>
         <input className="input" readOnly value={settings?.webhookUrl ?? "—"} />
       </div>
 

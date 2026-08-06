@@ -64,14 +64,13 @@ function compactPrice(cents: number): string {
   return formatPrice(cents);
 }
 
-/** Janela do gráfico: 6 meses para trás, incluindo o corrente (igual à Gestão Financeira). */
+/** Janela do gráfico: 6 meses para trás, incluindo o corrente. */
 const CASH_FLOW_MONTHS = 6;
 
 export default async function DashboardPage() {
-  // O fluxo de caixa vem do MESMO endpoint que alimenta a Gestão Financeira
-  // (`/v1/receivables/cash-flow`) para as duas telas não poderem divergir.
-  // Quem não tem `finance:read` recebe null aqui e também `summary.finance`
-  // nulo — o gráfico simplesmente não entra.
+  // A série do gráfico é agregada pelo backend (`/v1/receivables/cash-flow`), e
+  // não somada aqui. Quem não tem `finance:read` recebe null aqui e também
+  // `summary.finance` nulo — o gráfico simplesmente não entra.
   const [summary, properties, propertyTypes, credits, cashFlow, clerkUser] =
     await Promise.all([
       fetchDashboardSummary(),
@@ -93,7 +92,7 @@ export default async function DashboardPage() {
         title={`${greeting()}, ${firstName} 👋`}
         actions={
           <Link href="/imoveis" className="btn btn-primary btn-sm">
-            <Icon name="plus" /> Novo imóvel
+            <Icon name="plus" /> Novo Imóvel
           </Link>
         }
       />
@@ -119,10 +118,10 @@ export default async function DashboardPage() {
             <div className="stack">
               {summary.finance && (
                 <>
-                  {/* Os mesmos aluguéis que a lista de contas a receber do
-                      Financeiro mostra no mês corrente — inclusive os já pagos,
-                      senão as duas telas divergiriam. Por isso o título fala em
-                      "vencimentos do mês", não em "próximos". */}
+                  {/* Os aluguéis que vencem no mês corrente — inclusive os já
+                      pagos, senão o total do mês não fecharia com o fluxo de
+                      caixa. Por isso o título fala em "vencimentos do mês", não
+                      em "próximos". */}
                   <ReceivablesList
                     title="Vencimentos do mês"
                     items={summary.finance.upcoming}
@@ -163,7 +162,7 @@ function Stats({
     <div className="grid grid-4 mb-4">
       <StatCard
         icon="building"
-        label="Imóveis disponíveis"
+        label="Imóveis Disponíveis"
         value={String(properties.available)}
         trend={
           properties.createdLast30Days > 0
@@ -174,7 +173,7 @@ function Stats({
       />
       <StatCard
         icon="contract"
-        label="Contratos vigentes"
+        label="Contratos Vigentes"
         value={String(contracts.active)}
         trend={
           contracts.endingSoon > 0
@@ -187,7 +186,7 @@ function Stats({
       {finance ? (
         <StatCard
           icon="clock"
-          label="Em atraso"
+          label="Em Atraso"
           value={compactPrice(finance.overdueCents)}
           trend={
             finance.overdueCount > 0
@@ -200,7 +199,7 @@ function Stats({
       ) : (
         <StatCard
           icon="key"
-          label="Imóveis alugados"
+          label="Imóveis Alugados"
           value={String(properties.rented)}
           tone="success"
         />
@@ -227,10 +226,9 @@ function Stats({
 /* ---------------------------------------------------------------- Gráfico */
 
 /**
- * Mesmo gráfico da Gestão Financeira — mesmo componente, mesma série do
- * backend. O painel tinha uma versão própria, só com a barra de recebido e
- * lendo outra consulta; a duplicação era o que fazia as duas telas mostrarem
- * números diferentes para o mesmo mês.
+ * Usa o componente compartilhado `CashFlowChart`. O painel já teve uma versão
+ * própria, só com a barra de recebido e lendo outra consulta; a duplicação era o
+ * que fazia duas telas mostrarem números diferentes para o mesmo mês.
  */
 function RevenueChart({ points }: { points: CashFlowPoint[] }) {
   return (
@@ -257,7 +255,7 @@ function RecentProperties({
   const typeName = new Map((types ?? []).map((t) => [t.id, t.name]));
   return (
     <Section
-      title="Imóveis recentes"
+      title="Imóveis Recentes"
       action={
         <Link href="/imoveis" className="btn btn-ghost btn-sm">
           Ver todos <Icon name="arrowRight" size={14} />
@@ -271,7 +269,7 @@ function RecentProperties({
           hint="Cadastre o primeiro imóvel para começar a acompanhar a carteira por aqui."
           action={
             <Link href="/imoveis" className="btn btn-primary btn-sm">
-              <Icon name="plus" /> Cadastrar imóvel
+              <Icon name="plus" /> Cadastrar Imóvel
             </Link>
           }
         />
@@ -365,16 +363,7 @@ function ReceivablesList({
 }) {
   const today = new Date().toISOString().slice(0, 10);
   return (
-    <Section
-      title={title}
-      action={
-        items.length > 0 ? (
-          <Link href="/financeiro/gestao" className="btn btn-ghost btn-sm">
-            Ver todas <Icon name="arrowRight" size={14} />
-          </Link>
-        ) : undefined
-      }
-    >
+    <Section title={title}>
       {items.length === 0 ? (
         <EmptyState icon="receipt" title={emptyTitle} hint={emptyHint} />
       ) : (
@@ -416,12 +405,12 @@ function Carteira({
 }) {
   const { properties, contracts, persons } = summary;
   const linhas: { icon: string; label: string; value: number; href: string }[] = [
-    { icon: "building", label: "Imóveis na carteira", value: properties.total, href: "/imoveis" },
+    { icon: "building", label: "Imóveis na Carteira", value: properties.total, href: "/imoveis" },
     { icon: "key", label: "Alugados", value: properties.rented, href: "/imoveis" },
     { icon: "user", label: "Locadores", value: persons.landlords, href: "/proprietarios" },
     { icon: "users", label: "Locatários", value: persons.tenants, href: "/clientes" },
     { icon: "shield", label: "Fiadores", value: persons.guarantors, href: "/fiadores" },
-    { icon: "edit", label: "Contratos em assinatura", value: contracts.inSignature, href: "/imoveis" },
+    { icon: "edit", label: "Contratos em Assinatura", value: contracts.inSignature, href: "/imoveis" },
   ];
 
   return (

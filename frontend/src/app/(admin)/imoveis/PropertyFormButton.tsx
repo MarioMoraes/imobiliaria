@@ -617,8 +617,8 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
             <div className="stack" style={{ gap: 12 }}>
             <div className="grid grid-3" style={{ gap: 12 }}>
               <Text label="Quartos" value={form.bedrooms} onChange={(v) => set({ bedrooms: v })} inputMode="numeric" />
-              <Text label="Área construída (m²)" value={form.builtArea} onChange={(v) => set({ builtArea: v })} inputMode="decimal" />
-              <Text label="Área terreno (m²)" value={form.landArea} onChange={(v) => set({ landArea: v })} inputMode="decimal" />
+              <Text label="Área Construída (m²)" value={form.builtArea} onChange={(v) => set({ builtArea: v })} inputMode="decimal" />
+              <Text label="Área Terreno (m²)" value={form.landArea} onChange={(v) => set({ landArea: v })} inputMode="decimal" />
             </div>
             <div className="grid grid-2" style={{ gap: 12 }}>
               <Text label="Piso" value={form.floorInfo} onChange={(v) => set({ floorInfo: v })} />
@@ -626,15 +626,15 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
             </div>
             {!isSale && (
               <div className="grid grid-2" style={{ gap: 12 }}>
-                <Text label="Luz (instalação)" value={form.electricityMeter} onChange={(v) => set({ electricityMeter: v })} />
-                <Text label="Água (instalação)" value={form.waterMeter} onChange={(v) => set({ waterMeter: v })} />
+                <Text label="Luz (Instalação)" value={form.electricityMeter} onChange={(v) => set({ electricityMeter: v })} />
+                <Text label="Água (Instalação)" value={form.waterMeter} onChange={(v) => set({ waterMeter: v })} />
               </div>
             )}
             <Text label="Dependências" value={form.dependencies} onChange={(v) => set({ dependencies: v })} placeholder="Ex.: 2 vagas, área de serviço, sacada" />
             {!isSale && (
               <div className="row" style={{ gap: 20, paddingTop: 4 }}>
-                <Check label="Aceita animais" checked={form.allowPets} onChange={(v) => set({ allowPets: v })} />
-                <Check label="Aceita estudantes" checked={form.allowStudents} onChange={(v) => set({ allowStudents: v })} />
+                <Check label="Aceita Animais" checked={form.allowPets} onChange={(v) => set({ allowPets: v })} />
+                <Check label="Aceita Estudantes" checked={form.allowStudents} onChange={(v) => set({ allowStudents: v })} />
               </div>
             )}
 
@@ -670,7 +670,7 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
               <>
                 <div className="grid grid-3" style={{ gap: 12 }}>
                   <Text label="Preço / Aluguel (R$)" value={form.priceReais} onChange={(v) => set({ priceReais: v })} inputMode="decimal" placeholder="0,00" />
-                  <Text label="Valor condomínio (R$)" value={form.condoFeeReais} onChange={(v) => set({ condoFeeReais: v })} inputMode="decimal" placeholder="0,00" />
+                  <Text label="Valor Condomínio (R$)" value={form.condoFeeReais} onChange={(v) => set({ condoFeeReais: v })} inputMode="decimal" placeholder="0,00" />
                   <Text label="IPTU (R$)" value={form.iptuReais} onChange={(v) => set({ iptuReais: v })} inputMode="decimal" placeholder="0,00" />
                 </div>
                 <div className="grid grid-3" style={{ gap: 12 }}>
@@ -679,16 +679,16 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
                     <option value="LOCATARIO">Locatário</option>
                     <option value="LOCADOR">Locador</option>
                   </Select>
-                  <Text label="Nº parcelas IPTU" value={form.iptuInstallments} onChange={(v) => set({ iptuInstallments: v })} inputMode="numeric" />
-                  <Text label="Valor parcela IPTU (R$)" value={form.iptuInstallmentReais} onChange={(v) => set({ iptuInstallmentReais: v })} inputMode="decimal" placeholder="0,00" />
+                  <Text label="Nº Parcelas IPTU" value={form.iptuInstallments} onChange={(v) => set({ iptuInstallments: v })} inputMode="numeric" />
+                  <Text label="Valor Parcela IPTU (R$)" value={form.iptuInstallmentReais} onChange={(v) => set({ iptuInstallmentReais: v })} inputMode="decimal" placeholder="0,00" />
                 </div>
                 <div className="grid grid-2" style={{ gap: 12 }}>
-                  <Text label="Taxa de administração (%)" value={form.adminFeePercent} onChange={(v) => set({ adminFeePercent: v })} inputMode="decimal" placeholder="10" />
+                  <Text label="Taxa de Administração (%)" value={form.adminFeePercent} onChange={(v) => set({ adminFeePercent: v })} inputMode="decimal" placeholder="10" />
                   <div className="field">
                     <label>Encargos</label>
                     <div className="row" style={{ gap: 16, paddingTop: 6, flexWrap: "wrap" }}>
                       <Check label="Cobrar taxa adm." checked={form.chargeAdminFee} onChange={(v) => set({ chargeAdminFee: v })} />
-                      <Check label="Ressarcir locador (IPTU)" checked={form.iptuReimburseOwner} onChange={(v) => set({ iptuReimburseOwner: v })} />
+                      <Check label="Ressarcir Locador (IPTU)" checked={form.iptuReimburseOwner} onChange={(v) => set({ iptuReimburseOwner: v })} />
                       <Check label="Garantido" checked={form.isGuaranteed} onChange={(v) => set({ isGuaranteed: v })} />
                     </div>
                   </div>
@@ -706,16 +706,16 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
             {/* Entrada é leitura: quem a grava é o contrato ao entrar em
                 vigência (assinaturas confirmadas), junto com o ALUGADO. */}
             <div className="grid grid-2" style={{ gap: 12 }}>
-              <Text label="Prazo de locação (meses)" value={form.leaseTermMonths} onChange={(v) => set({ leaseTermMonths: v })} inputMode="numeric" />
+              <Text label="Prazo de Locação (Meses)" value={form.leaseTermMonths} onChange={(v) => set({ leaseTermMonths: v })} inputMode="numeric" />
               <ReadOnly label="Entrada" value={formatDay(form.entryDate || null)} />
             </div>
             <Text label="Multa" value={form.penaltyInfo} onChange={(v) => set({ penaltyInfo: v })} placeholder="Ex.: 3 aluguéis" />
             <div className="grid grid-2" style={{ gap: 12 }}>
-              <Text label="Tipo de comissão" value={form.commissionType} onChange={(v) => set({ commissionType: v })} placeholder="Ex.: 1º mês de aluguel" />
+              <Text label="Tipo de Comissão" value={form.commissionType} onChange={(v) => set({ commissionType: v })} placeholder="Ex.: 1º mês de aluguel" />
               <div className="field">
                 <label>Comissão</label>
                 <div className="row" style={{ paddingTop: 6 }}>
-                  <Check label="Cobra comissão" checked={form.hasCommission} onChange={(v) => set({ hasCommission: v })} />
+                  <Check label="Cobra Comissão" checked={form.hasCommission} onChange={(v) => set({ hasCommission: v })} />
                 </div>
               </div>
             </div>
@@ -797,7 +797,7 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
             <Text label="Dados" value={form.extraData} onChange={(v) => set({ extraData: v })} placeholder="Informação livre" />
             <div className="row" style={{ gap: 20, paddingTop: 2 }}>
               <Check label="Publicar / Internet" checked={form.publishWeb} onChange={(v) => set({ publishWeb: v })} />
-              <Check label="Com foto" checked={form.hasPhotos} onChange={(v) => set({ hasPhotos: v })} />
+              <Check label="Com Foto" checked={form.hasPhotos} onChange={(v) => set({ hasPhotos: v })} />
             </div>
             <div className="field">
               <label>Observações</label>
@@ -949,7 +949,7 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
                         <button
                           type="button"
                           className="icon-btn"
-                          aria-label="Remover foto"
+                          aria-label="Remover Foto"
                           disabled={photoBusy}
                           onClick={(e) => { e.stopPropagation(); void onRemovePhoto(ph.id); }}
                           style={{ position: "absolute", top: 6, right: 6, width: 28, height: 28, background: "rgba(0,0,0,.55)", color: "#fff", borderRadius: 8 }}
@@ -1055,7 +1055,7 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
         <button
           type="button"
           className="icon-btn"
-          aria-label="Foto anterior"
+          aria-label="Foto Anterior"
           onClick={(e) => { e.stopPropagation(); showPrev(); }}
           style={{ position: "absolute", left: 16, top: "50%", transform: "translateY(-50%)", width: 48, height: 48, background: "rgba(255,255,255,.12)", color: "#fff", borderRadius: "50%" }}
         >
@@ -1082,7 +1082,7 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
         <button
           type="button"
           className="icon-btn"
-          aria-label="Próxima foto"
+          aria-label="Próxima Foto"
           onClick={(e) => { e.stopPropagation(); showNext(); }}
           style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)", width: 48, height: 48, background: "rgba(255,255,255,.12)", color: "#fff", borderRadius: "50%" }}
         >

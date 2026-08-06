@@ -706,6 +706,135 @@ export interface PayableSummary {
   pendingCount: number;
 }
 
+/* ------------------------------------------- Comissões (MOD-FIN-05) */
+
+/**
+ * Uma PARTE da comissão. A da imobiliária (`IMOBILIARIA`) é receita; a do
+ * corretor (`CORRETOR`) é despesa. São dois lançamentos porque quitam em datas
+ * diferentes — guardar só o líquido apagaria a despesa e faria a margem da venda
+ * parecer o valor cheio.
+ */
+export interface Commission {
+  id: string;
+  kind: string;
+  party: "IMOBILIARIA" | "CORRETOR";
+  propertyId: string | null;
+  propertyCode: number | null;
+  contractId: string | null;
+  saleId: string | null;
+  brokerId: string | null;
+  brokerName: string | null;
+  description: string | null;
+  /** Valor da venda — base do percentual. */
+  baseCents: number;
+  /** Percentual congelado no fechamento. */
+  percentSnapshot: number;
+  amountCents: number;
+  dueDate: string;
+  status: string;
+  /** Data do CAIXA (quando entrou ou saiu), não a do vencimento. */
+  settledAt: string | null;
+  settledAmountCents: number | null;
+}
+
+export interface CommissionSummary {
+  month: string;
+  receivableOpenCents: number;
+  payableOpenCents: number;
+  receivedCents: number;
+  paidCents: number;
+  pendingCount: number;
+}
+
+/* -------------------------------------------- Fluxo de caixa (MOD-FIN) */
+
+/**
+ * Um movimento do extrato. As duas flags são o coração da tela: a taxa de
+ * administração **já está dentro** do aluguel recebido, então ela conta no
+ * resultado mas NÃO no caixa — somá-la ali contaria o mesmo dinheiro duas vezes.
+ */
+export interface CashFlowMovement {
+  key: string;
+  date: string;
+  source: "RECEBIMENTO" | "TAXA_ADM" | "JUROS_MULTA" | "REPASSE" | "COMISSAO" | "MANUAL";
+  direction: "ENTRADA" | "SAIDA";
+  label: string;
+  description: string | null;
+  amountCents: number;
+  /** Passou pelo banco. */
+  affectsCash: boolean;
+  /** É receita ou despesa da imobiliária. */
+  affectsResult: boolean;
+  categoryId: string | null;
+  categoryName: string | null;
+  sourceId: string | null;
+}
+
+export interface CashFlowTotals {
+  inflowCents: number;
+  outflowCents: number;
+  netCents: number;
+}
+
+export interface CashFlowSummary {
+  month: string;
+  /** Extrato do banco — dinheiro de terceiros incluído. */
+  cash: CashFlowTotals;
+  /** O que fica com a imobiliária. */
+  result: CashFlowTotals;
+  adminFeeCents: number;
+  lateFeeCents: number;
+  commissionEarnedCents: number;
+  commissionPaidCents: number;
+  manualIncomeCents: number;
+  manualExpenseCents: number;
+  /** Aluguel recebido e ainda não repassado — explica caixa > resultado. */
+  pendingPayoutCents: number;
+}
+
+export interface CashFlowByCategory {
+  categoryId: string | null;
+  categoryName: string;
+  direction: "ENTRADA" | "SAIDA";
+  amountCents: number;
+}
+
+export interface CashFlowStatement {
+  month: string;
+  movements: CashFlowMovement[];
+  summary: CashFlowSummary;
+  byCategory: CashFlowByCategory[];
+}
+
+export interface CashFlowSeriesPoint {
+  month: string;
+  cashInCents: number;
+  cashOutCents: number;
+  cashNetCents: number;
+  resultNetCents: number;
+}
+
+export interface CashFlowCategory {
+  id: string;
+  code: number;
+  name: string;
+  direction: "ENTRADA" | "SAIDA";
+  active: boolean;
+}
+
+export interface CashFlowEntry {
+  id: string;
+  entryDate: string;
+  direction: "ENTRADA" | "SAIDA";
+  categoryId: string | null;
+  categoryName: string | null;
+  bankId: string | null;
+  bankName: string | null;
+  amountCents: number;
+  description: string;
+  notes: string | null;
+}
+
 /* -------------------------------------------- Diagnóstico de falha (leitura) */
 
 /**
@@ -1172,6 +1301,68 @@ export function fetchPayableSummary(month?: string): Promise<PayableSummary | nu
   return get<PayableSummary>(`/v1/payables${month ? `/summary?month=${month}` : "/summary"}`);
 }
 
+/* ------------------------------------------- Fluxo de caixa e comissões */
+
+/**
+ * Extrato consolidado do mês (movimentos + os dois totais + resumo por
+ * categoria).
+ *
+ * NÃO confundir com `fetchCashFlow()` acima, que é `/v1/receivables/cash-flow`:
+ * aquele é a série "recebido × previsto" do gráfico do dashboard; este é o
+ * fluxo de caixa de verdade.
+ */
+export function fetchCashFlowStatement(month?: string): Promise<CashFlowStatement | null> {
+  return get<CashFlowStatement>(`/v1/cash-flow${month ? `?month=${month}` : ""}`);
+}
+
+export function fetchCashFlowSeries(months = 6): Promise<CashFlowSeriesPoint[] | null> {
+  return get<CashFlowSeriesPoint[]>(`/v1/cash-flow/series?months=${months}`);
+}
+
+export function fetchCashFlowCategories(): Promise<CashFlowCategory[] | null> {
+  return get<CashFlowCategory[]>("/v1/cash-flow/categories");
+}
+
+export function fetchCashFlowEntries(params?: {
+  month?: string;
+  direction?: string;
+  categoryId?: string;
+}): Promise<CashFlowEntry[] | null> {
+  const query = new URLSearchParams();
+  if (params?.month) query.set("month", params.month);
+  if (params?.direction) query.set("direction", params.direction);
+  if (params?.categoryId) query.set("categoryId", params.categoryId);
+  const qs = query.toString();
+  return get<CashFlowEntry[]>(`/v1/cash-flow/entries${qs ? `?${qs}` : ""}`);
+}
+
+export function fetchCommissions(params?: {
+  status?: string;
+  party?: string;
+  brokerId?: string;
+  /** Mês do VENCIMENTO. */
+  dueMonth?: string;
+  /** Mês da QUITAÇÃO — a visão de caixa. */
+  settledMonth?: string;
+  limit?: number;
+}): Promise<Commission[] | null> {
+  const query = new URLSearchParams();
+  if (params?.status) query.set("status", params.status);
+  if (params?.party) query.set("party", params.party);
+  if (params?.brokerId) query.set("brokerId", params.brokerId);
+  if (params?.dueMonth) query.set("dueMonth", params.dueMonth);
+  if (params?.settledMonth) query.set("settledMonth", params.settledMonth);
+  if (params?.limit) query.set("limit", String(params.limit));
+  const qs = query.toString();
+  return get<Commission[]>(`/v1/commissions${qs ? `?${qs}` : ""}`);
+}
+
+export function fetchCommissionSummary(month?: string): Promise<CommissionSummary | null> {
+  return get<CommissionSummary>(
+    `/v1/commissions/summary${month ? `?month=${month}` : ""}`,
+  );
+}
+
 /**
  * Relatório de repasses em PDF — devolve a `Response` CRUA, não JSON: quem chama
  * é o route handler que repassa os bytes ao navegador. É a única rota do backend
@@ -1424,7 +1615,7 @@ export function deleteJson(path: string): Promise<JsonResult> {
 /* ------------------------------------------------------------ Formatos */
 // Moram em lib/format.ts (sem `server-only`) para poderem ser usados também por
 // Client Components; reexportados aqui para não mexer nos callers existentes.
-export { formatDate, formatDay, formatPrice } from "./format";
+export { formatDate, formatDay, formatMonth, formatPrice } from "./format";
 
 export const propertyKindLabel: Record<string, string> = {
   sale: "Venda",

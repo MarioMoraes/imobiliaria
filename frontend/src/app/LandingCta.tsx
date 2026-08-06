@@ -37,7 +37,7 @@ export function EntrarButton({ className, children }: Props) {
   if (signedIn) {
     return (
       <Link href="/dashboard" className={className}>
-        Ir para o painel
+        Ir para o Painel
       </Link>
     );
   }

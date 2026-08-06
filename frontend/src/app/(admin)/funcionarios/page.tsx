@@ -70,15 +70,15 @@ export default async function FuncionariosPage() {
       />
 
       <div className="grid grid-5 mb-4">
-        <StatCard icon="users" label="Colaboradores ativos" value={String(active)} tone="blue" />
+        <StatCard icon="users" label="Colaboradores Ativos" value={String(active)} tone="blue" />
         <StatCard icon="shield" label="Administradores" value={String(admins)} tone="accent" />
         <StatCard icon="gauge" label="Gestores" value={String(gestores)} tone="accent" />
         <StatCard icon="wallet" label="Financeiro" value={String(financeiro)} tone="success" />
-        <StatCard icon="x" label="Acessos suspensos" value={String(suspended)} tone="warning" />
+        <StatCard icon="x" label="Acessos Suspensos" value={String(suspended)} tone="warning" />
       </div>
 
       <Section
-        title="Equipe interna"
+        title="Equipe Interna"
       >
         <div className="table-wrap">
           <table className="table">

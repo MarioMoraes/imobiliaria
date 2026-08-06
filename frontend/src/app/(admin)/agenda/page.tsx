@@ -22,13 +22,13 @@ export default function AgendaPage() {
       />
 
       <div className="grid grid-4 mb-4">
-        <StatCard icon="calendar" label="Eventos hoje" value="5" tone="blue" />
+        <StatCard icon="calendar" label="Eventos Hoje" value="5" tone="blue" />
         <StatCard icon="check" label="Confirmados" value="3" tone="success" />
-        <StatCard icon="clock" label="Aguardando confirmação" value="2" tone="warning" />
-        <StatCard icon="x" label="No-show (mês)" value="4%" tone="accent" />
+        <StatCard icon="clock" label="Aguardando Confirmação" value="2" tone="warning" />
+        <StatCard icon="x" label="No-show (Mês)" value="4%" tone="accent" />
       </div>
 
-      <Section title="Hoje · quinta, 10 de julho">
+      <Section title="Hoje · Quinta, 10 de Julho">
         <div className="card-pad timeline">
           {sampleAppointments.map((a, i) => (
             <div className="timeline-item" key={i}>

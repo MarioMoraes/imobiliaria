@@ -10,7 +10,7 @@ import { disconnectPaymentAction, savePaymentSettingsAction } from "./actions";
 /** Formas de recebimento — é o que o inquilino encontra ao abrir a cobrança. */
 const BILLING_TYPES: { value: string; label: string }[] = [
   { value: "UNDEFINED", label: "Boleto + PIX (o inquilino escolhe)" },
-  { value: "BOLETO", label: "Somente boleto" },
+  { value: "BOLETO", label: "Somente Boleto" },
   { value: "PIX", label: "Somente PIX" },
 ];
 
@@ -95,7 +95,7 @@ export function PaymentSettingsCard({
       </div>
 
       <div className="field">
-        <label>Forma de recebimento</label>
+        <label>Forma de Recebimento</label>
         <select className="input" value={billingType} onChange={(e) => setBillingType(e.target.value)}>
           {BILLING_TYPES.map((b) => (
             <option key={b.value} value={b.value}>
@@ -111,7 +111,7 @@ export function PaymentSettingsCard({
       </label>
 
       <div className="field">
-        <label>URL do webhook</label>
+        <label>URL do Webhook</label>
         <input className="input" readOnly value={settings?.webhookUrl ?? "—"} />
       </div>
 

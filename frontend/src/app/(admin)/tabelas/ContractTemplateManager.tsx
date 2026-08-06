@@ -197,7 +197,7 @@ export function ContractTemplateManager({
       <div className="card-pad stack" style={{ gap: 12 }}>
         <div className="grid grid-2" style={{ gap: 12 }}>
           <div className="field">
-            <label>Nome do modelo *</label>
+            <label>Nome do Modelo *</label>
             <input
               className="input input-soft"
               value={editing.form.name}
@@ -217,7 +217,7 @@ export function ContractTemplateManager({
         </div>
 
         <div className="field">
-          <label>Texto do contrato *</label>
+          <label>Texto do Contrato *</label>
 
           {/* Uma barra só, colada à área de escrita: os cinco dropdowns por
               grupo viraram um seletor com optgroup, e a pré-visualização entrou
@@ -236,7 +236,7 @@ export function ContractTemplateManager({
               }}
               style={{ maxWidth: 260 }}
             >
-              <option value="">Inserir campo…</option>
+              <option value="">Inserir Campo…</option>
               {groups.map(([group, fields]) => (
                 <optgroup key={group} label={group}>
                   {fields.map((f) => (
@@ -428,7 +428,7 @@ export function ContractTemplateManager({
           disabled={!live}
           onClick={() => openEditor(null, EMPTY)}
         >
-          <Icon name="plus" size={14} /> Novo modelo
+          <Icon name="plus" size={14} /> Novo Modelo
         </button>
       </div>
 

@@ -30,12 +30,12 @@ export default async function TenantsPage() {
       <PageHeader title="Tenants" />
 
       <div className="grid grid-4 mb-4">
-        <StatCard icon="building" label="Total de tenants" value={String(tenants.length)} tone="blue" />
+        <StatCard icon="building" label="Total de Tenants" value={String(tenants.length)} tone="blue" />
         <StatCard icon="check" label="Ativos" value={String(tenants.filter((t) => t.status === "active").length)} tone="success" />
-        <StatCard icon="sparkles" label="Em trial" value={String(tenants.filter((t) => t.status === "trial" as string).length)} tone="accent" />
+        <StatCard icon="sparkles" label="Em Trial" value={String(tenants.filter((t) => t.status === "trial" as string).length)} tone="accent" />
         <StatCard
           icon="wallet"
-          label="Sem créditos de IA"
+          label="Sem Créditos de IA"
           value={String(semCredito)}
           tone="warning"
         />

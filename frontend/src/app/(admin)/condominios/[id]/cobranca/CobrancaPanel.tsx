@@ -97,7 +97,7 @@ export function CobrancaPanel({
       message:
         `Competência ${preview.competence}, vencimento em ${formatDay(form.dueDate)}, ` +
         `no total de ${formatPrice(pendentes.reduce((s, l) => s + l.totalCents, 0))}. ` +
-        `As contas passam a aparecer na Gestão Financeira.`,
+        `As contas passam a aparecer na consulta de condôminos.`,
       confirmLabel: "Gerar",
       tone: "brand",
     });
@@ -134,11 +134,11 @@ export function CobrancaPanel({
 
   return (
     <>
-      <Section title="Período da cobrança">
+      <Section title="Período da Cobrança">
         <div className="card-pad stack" style={{ gap: 14 }}>
           <div className="grid grid-3" style={{ gap: 12 }}>
             <div className="field">
-              <label>Início do período</label>
+              <label>Início do Período</label>
               <input
                 className="input"
                 type="date"
@@ -147,7 +147,7 @@ export function CobrancaPanel({
               />
             </div>
             <div className="field">
-              <label>Fim do período</label>
+              <label>Fim do Período</label>
               <input
                 className="input"
                 type="date"
@@ -202,7 +202,7 @@ export function CobrancaPanel({
             />
             <StatCard
               icon="wallet"
-              label="Total a cobrar"
+              label="Total a Cobrar"
               value={formatPrice(preview.totalCents)}
               tone="success"
             />

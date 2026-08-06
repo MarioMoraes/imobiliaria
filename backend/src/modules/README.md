@@ -25,7 +25,10 @@ Regras de fronteira:
   regra de negócio. Somar seis indicadores pelos services daria seis chamadas
   e as somas em JS. Qualquer coisa além de agregação vai para o módulo dono.
   (`payable/` usa a mesma licença em `findPaidRentsWithoutPayout`, um SELECT em
-  `receivables` para achar o que reconciliar.)
+  `receivables` para achar o que reconciliar. `cashflow/` também: o extrato é a
+  união de `receivables`, `payables`, `commissions` e dos lançamentos manuais —
+  derivar na leitura é o que faz cancelar um repasse apagar a taxa de
+  administração junto, em vez de manter duas fontes de verdade.)
 - `audit/` é transversal: qualquer módulo pode importar o `record()` do service
   dele. Mas quase nunca precisa — a trilha nasce sozinha no gateway
   (`gateway/audit.hook.ts`), que registra toda mutação de `/v1`. Chame
@@ -78,7 +81,9 @@ muda — e aí vale reavaliar.
 | `receivable/`        | financial-service      | 2    | 🟡 contas a receber: aluguéis gerados na assinatura + baixa manual |
 | `payable/`           | financial-service      | 2    | 🟡 contas a pagar: repasse ao proprietário na baixa do aluguel |
 | `payment/`           | financial-service      | 2    | ✅ Asaas: boleto/PIX sob demanda, webhook idempotente |
-| `financial/`         | financial-service      | 2    | ⬜ comissões, DRE |
+| `commission/`        | financial-service      | 2    | 🟡 comissão de venda (uma linha por parte); a venda em si é módulo futuro |
+| `cashflow/`          | (leitura agregada)     | 2    | ✅ extrato consolidado + lançamento manual e categorias |
+| `financial/`         | financial-service      | 2    | ⬜ régua de cobrança |
 | `rental/`            | rental-service         | 2    | ⬜            |
 | `maintenance/`       | maintenance-service    | 2    | ⬜            |
 | `portal/`            | portal-service         | 2    | ⬜            |

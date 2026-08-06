@@ -26,8 +26,8 @@ import type { DocumentEntityType, DocumentRecord } from "../lib/api";
 export const DOCUMENT_KINDS: { value: string; label: string }[] = [
   { value: "RG", label: "RG / Identidade" },
   { value: "CPF", label: "CPF / CNPJ" },
-  { value: "RENDA", label: "Comprovante de renda" },
-  { value: "MATRICULA", label: "Matrícula do imóvel" },
+  { value: "RENDA", label: "Comprovante de Renda" },
+  { value: "MATRICULA", label: "Matrícula do Imóvel" },
   { value: "CONTRATO", label: "Contrato" },
   { value: "OUTRO", label: "Outro" },
 ];
@@ -316,7 +316,7 @@ export function DocumentsPanel({ entityType, entityId }: Props) {
                         style={{ width: 30, height: 30 }}
                         onClick={() => startVersion(doc.id)}
                         disabled={busy}
-                        aria-label="Enviar nova versão"
+                        aria-label="Enviar Nova Versão"
                         title="Enviar nova versão"
                       >
                         <Icon name="refresh" size={15} />

@@ -102,7 +102,7 @@ export function EmployeeInviteButton() {
         </span>
 
         <div className="field">
-          <label>Nome completo *</label>
+          <label>Nome Completo *</label>
           <input
             className="input"
             value={form.fullName}

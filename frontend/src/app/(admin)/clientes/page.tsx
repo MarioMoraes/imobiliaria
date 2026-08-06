@@ -86,9 +86,9 @@ export default async function ClientesPage({
       <FilterNotice term={q} count={rows.length} clearHref="/clientes" />
 
       <div className="grid grid-4 mb-4">
-        <StatCard icon="users" label="Total na base" value={String(rows.length)} tone="blue" />
+        <StatCard icon="users" label="Total na Base" value={String(rows.length)} tone="blue" />
         <StatCard icon="target" label="Leads" value={String(leads)} tone="accent" />
-        <StatCard icon="trendingUp" label="Locatários ativos" value={String(ativos)} tone="success" />
+        <StatCard icon="trendingUp" label="Locatários Ativos" value={String(ativos)} tone="success" />
         <StatCard icon="x" label="Inativos" value={String(inativos)} tone="warning" />
       </div>
 

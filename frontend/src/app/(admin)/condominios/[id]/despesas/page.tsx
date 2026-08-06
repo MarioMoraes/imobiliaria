@@ -54,7 +54,7 @@ export default async function DespesasPage({
 
       <div className="grid grid-2 mb-4">
         <StatCard icon="receipt" label="Lançamentos" value={String(expenses.length)} tone="blue" />
-        <StatCard icon="wallet" label="Total lançado" value={formatPrice(total)} tone="accent" />
+        <StatCard icon="wallet" label="Total Lançado" value={formatPrice(total)} tone="accent" />
       </div>
 
       <div className="mt-4">
@@ -77,7 +77,7 @@ export default async function DespesasPage({
               <table className="table">
                 <thead>
                   <tr>
-                    <th style={{ textAlign: "right" }}>Lancto nº</th>
+                    <th style={{ textAlign: "right" }}>Lancto Nº</th>
                     <th>Data</th>
                     <th>Evento</th>
                     <th>Histórico</th>

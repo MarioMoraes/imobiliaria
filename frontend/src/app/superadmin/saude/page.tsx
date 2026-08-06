@@ -14,7 +14,7 @@ export default function SaudePage() {
   return (
     <>
       <PageHeader
-        title="Saúde da plataforma"
+        title="Saúde da Plataforma"
         actions={
           allOk
             ? <span className="badge badge-green"><span className="dot" /> tudo operacional</span>
@@ -24,9 +24,9 @@ export default function SaudePage() {
 
       <div className="grid grid-4 mb-4">
         <StatCard icon="activity" label="Uptime (30d)" value="99,96%" tone="success" />
-        <StatCard icon="server" label="Componentes ok" value="5 / 6" tone="blue" />
+        <StatCard icon="server" label="Componentes OK" value="5 / 6" tone="blue" />
         <StatCard icon="gauge" label="Latência p95" value="180 ms" tone="accent" />
-        <StatCard icon="clock" label="Jobs com falha (24h)" value="1" tone="warning" />
+        <StatCard icon="clock" label="Jobs com Falha (24h)" value="1" tone="warning" />
       </div>
 
       <div className="grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
@@ -47,7 +47,7 @@ export default function SaudePage() {
           </div>
         </Section>
 
-        <Section title="Jobs agendados (cron)" pad>
+        <Section title="Jobs Agendados (Cron)" pad>
           <div className="stack" style={{ gap: 12 }}>
             {jobs.map((j) => (
               <div key={j.name} className="row-between" style={{ paddingBottom: 10, borderBottom: "1px solid var(--border)" }}>

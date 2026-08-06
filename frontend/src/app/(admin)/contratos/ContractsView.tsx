@@ -134,7 +134,7 @@ export function ContractsView({ contracts, properties, locatarios, fiadores, tem
         {/* Os indicadores usam a mesma cor que a situação tem na tabela. */}
         <StatCard icon="contract" label="Total" value={String(contracts.length)} tone="blue" />
         <StatCard icon="check" label="Vigentes" value={String(count("VIGENTE"))} tone="success" />
-        <StatCard icon="clock" label="Em assinatura" value={String(count("EM_ASSINATURA"))} tone="warning" />
+        <StatCard icon="clock" label="Em Assinatura" value={String(count("EM_ASSINATURA"))} tone="warning" />
         <StatCard icon="edit" label="Rascunhos" value={String(count("RASCUNHO"))} tone="accent" />
       </div>
 

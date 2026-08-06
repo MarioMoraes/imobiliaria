@@ -18,14 +18,14 @@ export default function AluguelPage() {
       />
 
       <div className="grid grid-4 mb-4">
-        <StatCard icon="key" label="Contratos ativos" value="312" tone="blue" />
-        <StatCard icon="wallet" label="A receber (jul)" value="R$ 486k" tone="accent" />
+        <StatCard icon="key" label="Contratos Ativos" value="312" tone="blue" />
+        <StatCard icon="wallet" label="A Receber (Jul)" value="R$ 486k" tone="accent" />
         <StatCard icon="trendingDown" label="Inadimplência" value="3,4%" trendDir="down" trend="-0,6pp" tone="success" />
-        <StatCard icon="calendar" label="Reajustes no mês" value="14" tone="warning" />
+        <StatCard icon="calendar" label="Reajustes no Mês" value="14" tone="warning" />
       </div>
 
       <div className="grid" style={{ gridTemplateColumns: "1.5fr 1fr" }}>
-        <Section title="Ciclos de locação · competência 07/2026">
+        <Section title="Ciclos de Locação · Competência 07/2026">
           <div className="table-wrap">
             <table className="table">
               <thead><tr><th>Imóvel</th><th>Inquilino</th><th>Valor</th><th>Status</th></tr></thead>
@@ -43,7 +43,7 @@ export default function AluguelPage() {
           </div>
         </Section>
 
-        <Section title="Régua de inadimplência" pad>
+        <Section title="Régua de Inadimplência" pad>
           <p className="text-sm subtle mb-4">Sequência automática de alertas ao vencer (WhatsApp &gt; e-mail &gt; in-app).</p>
           <div className="timeline">
             {[

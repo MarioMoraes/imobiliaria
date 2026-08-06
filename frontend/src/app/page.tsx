@@ -65,7 +65,7 @@ function Nav() {
 
         <nav className="lp-nav-links">
           <a href="#modulos">Módulos</a>
-          <a href="#como-funciona">Como funciona</a>
+          <a href="#como-funciona">Como Funciona</a>
           <a href="#ia">Agentes de IA</a>
           <a href="#seguranca">Segurança</a>
         </nav>

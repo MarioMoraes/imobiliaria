@@ -107,7 +107,7 @@ export function ClauseManager({
         <div className="row">
           <button className="btn btn-primary btn-sm" type="submit" disabled={pending || !live}>
             {pending ? <Icon name="loader" className="spin" size={14} /> : <Icon name="plus" size={14} />}
-            Adicionar cláusula
+            Adicionar Cláusula
           </button>
         </div>
       </form>

@@ -176,7 +176,7 @@ export function TenantProfileCard({
       </div>
 
       <div className="field">
-        <label>Nome fantasia</label>
+        <label>Nome Fantasia</label>
         <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
       </div>
 
@@ -192,7 +192,7 @@ export function TenantProfileCard({
           />
         </div>
         <div className="field">
-          <label>CRECI da imobiliária</label>
+          <label>CRECI da Imobiliária</label>
           <input className="input" value={creci} onChange={(e) => setCreci(e.target.value)} />
         </div>
       </div>

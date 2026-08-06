@@ -6,15 +6,15 @@ export default function PublicacaoPage() {
   return (
     <>
       <PageHeader
-        title="Publicação em portais"
+        title="Publicação em Portais"
         actions={<button className="btn btn-primary btn-sm"><Icon name="megaphone" /> Publicar Imóveis</button>}
       />
 
       <div className="grid grid-4 mb-4">
-        <StatCard icon="megaphone" label="Anúncios ativos" value="112" tone="blue" />
-        <StatCard icon="globe" label="Portais conectados" value="3 / 4" tone="accent" />
-        <StatCard icon="activity" label="Sincronizações hoje" value="86" tone="success" />
-        <StatCard icon="x" label="Falhas de sync" value="2" tone="warning" />
+        <StatCard icon="megaphone" label="Anúncios Ativos" value="112" tone="blue" />
+        <StatCard icon="globe" label="Portais Conectados" value="3 / 4" tone="accent" />
+        <StatCard icon="activity" label="Sincronizações Hoje" value="86" tone="success" />
+        <StatCard icon="x" label="Falhas de Sync" value="2" tone="warning" />
       </div>
 
       <div className="grid grid-2">

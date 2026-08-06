@@ -26,6 +26,8 @@ const ENTITIES: Record<string, string> = {
   "contract-templates": "contract_template",
   receivables: "receivable",
   payables: "payable",
+  commissions: "commission",
+  "cash-flow": "cash_flow",
   documents: "document",
   employees: "employee",
   users: "user",
@@ -61,6 +63,10 @@ const OVERRIDES: Record<string, AuditAction | null> = {
   "POST /v1/payables/:id/sync-transfer": { action: "transfer.synced", entity: "payable" },
   "POST /v1/payables/:id/cancel": { action: "payable.canceled", entity: "payable" },
   "POST /v1/payables/generate": { action: "payable.generated", entity: "payable" },
+  // Comissões: o derivado sairia "commission.settle_created" — o fato é a
+  // quitação (dinheiro entrando do cliente ou saindo para o corretor).
+  "POST /v1/commissions/:id/settle": { action: "commission.settled", entity: "commission" },
+  "POST /v1/commissions/:id/cancel": { action: "commission.canceled", entity: "commission" },
   // Emite as contas a receber do período — "billing_created" não diria o fato.
   "POST /v1/condominiums/:id/billing": {
     action: "condominium.charges_generated",
@@ -160,6 +166,7 @@ export const SENSITIVE_ACTIONS = [
   "document.purged",
   "payment.received",
   "transfer.executed",
+  "commission.settled",
   "contract.sent_to_sign",
   "contract.signed",
 ] as const;

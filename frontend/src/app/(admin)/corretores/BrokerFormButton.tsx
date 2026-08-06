@@ -201,7 +201,7 @@ export function BrokerFormButton({
                 style={{ padding: "2px 8px" }}
                 onClick={() => setLocked({})}
               >
-                <Icon name="edit" size={12} /> editar
+                <Icon name="edit" size={12} /> Editar
               </button>
             )}
           </div>

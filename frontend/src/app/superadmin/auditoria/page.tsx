@@ -52,7 +52,7 @@ export default async function AuditoriaPage({
 
   return (
     <>
-      <PageHeader title="Auditoria global" />
+      <PageHeader title="Auditoria Global" />
 
       <div className="grid grid-4 mb-4">
         <StatCard
@@ -63,7 +63,7 @@ export default async function AuditoriaPage({
         />
         <StatCard
           icon="shield"
-          label="Ações sensíveis (24h)"
+          label="Ações Sensíveis (24h)"
           value={String(summary?.sensitive24h ?? 0)}
           tone="accent"
         />
@@ -86,13 +86,13 @@ export default async function AuditoriaPage({
           href={hrefWith(1, "")}
           className={`btn btn-sm ${status ? "btn-ghost" : "btn-outline"}`}
         >
-          Todas as ações
+          Todas as Ações
         </Link>
         <Link
           href={hrefWith(1, "DENIED")}
           className={`btn btn-sm ${status ? "btn-outline" : "btn-ghost"}`}
         >
-          Só as recusadas
+          Só as Recusadas
         </Link>
       </div>
 

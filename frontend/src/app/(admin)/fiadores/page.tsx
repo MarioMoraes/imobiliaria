@@ -33,7 +33,7 @@ export default async function FiadoresPage({
       <FilterNotice term={q} count={guarantors.length} clearHref="/fiadores" />
 
       <div className="grid grid-4 mb-4">
-        <StatCard icon="shield" label="Fiadores cadastrados" value={String(guarantors.length)} tone="blue" />
+        <StatCard icon="shield" label="Fiadores Cadastrados" value={String(guarantors.length)} tone="blue" />
         <StatCard icon="check" label="Ativos" value={String(guarantors.filter((g) => g.status === "active").length)} tone="success" />
         <StatCard icon="user" label="Pessoa Física" value={String(guarantors.filter((g) => g.personType === "PF").length)} tone="accent" />
         <StatCard icon="building" label="Pessoa Jurídica" value={String(guarantors.filter((g) => g.personType === "PJ").length)} tone="warning" />

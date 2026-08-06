@@ -158,7 +158,7 @@ function Finalizar() {
           imobiliária. Peça ao administrador para reenviar o convite.
         </p>
         <Link href="/sign-in" className="btn btn-primary btn-sm" style={{ marginTop: 12 }}>
-          Ir para o login
+          Ir para o Login
         </Link>
       </Shell>
     );
@@ -175,7 +175,7 @@ function LinkInvalido() {
         convite ao administrador da imobiliária.
       </p>
       <Link href="/sign-in" className="btn btn-primary btn-sm" style={{ marginTop: 12 }}>
-        Ir para o login
+        Ir para o Login
       </Link>
     </Shell>
   );

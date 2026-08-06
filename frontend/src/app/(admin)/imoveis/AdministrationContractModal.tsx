@@ -75,7 +75,7 @@ export default function AdministrationContractModal({
 
         <div className="stack" style={{ gap: 12 }}>
           <div className="field">
-            <label>1ª testemunha</label>
+            <label>1ª Testemunha</label>
             <input
               className="input"
               autoFocus
@@ -85,7 +85,7 @@ export default function AdministrationContractModal({
             />
           </div>
           <div className="field">
-            <label>2ª testemunha</label>
+            <label>2ª Testemunha</label>
             <input
               className="input"
               value={second}
@@ -115,13 +115,13 @@ export default function AdministrationContractModal({
               rel="noopener"
               onClick={onClose}
             >
-              <Icon name="printer" size={14} /> Gerar contrato
+              <Icon name="printer" size={14} /> Gerar Contrato
             </a>
           ) : (
             // Sem os dois nomes vira um botão desabilitado de verdade: um `<a>`
             // "desabilitado" ainda navegaria ao ser clicado.
             <button className="btn btn-primary btn-sm" type="button" disabled>
-              <Icon name="printer" size={14} /> Gerar contrato
+              <Icon name="printer" size={14} /> Gerar Contrato
             </button>
           )}
         </div>

@@ -144,7 +144,7 @@ export function TenantsManager({ tenants }: { tenants: TenantRow[] }) {
     <>
       <div className="row" style={{ justifyContent: "flex-end", marginBottom: 14 }}>
         <button className="btn btn-primary btn-sm" onClick={openCreate} type="button">
-          <Icon name="plus" /> Novo tenant
+          <Icon name="plus" /> Novo Tenant
         </button>
       </div>
 
@@ -188,7 +188,7 @@ export function TenantsManager({ tenants }: { tenants: TenantRow[] }) {
           </div>
 
           <div className="field" style={{ maxWidth: 260 }}>
-            <label>Créditos a adicionar</label>
+            <label>Créditos a Adicionar</label>
             <input
               className="input"
               value={amount}
@@ -272,7 +272,7 @@ export function TenantsManager({ tenants }: { tenants: TenantRow[] }) {
 
           <div className="grid grid-2" style={{ gap: 12 }}>
             <div className="field">
-              <label>Nome da imobiliária *</label>
+              <label>Nome da Imobiliária *</label>
               <input
                 className="input"
                 value={form.name}
@@ -281,7 +281,7 @@ export function TenantsManager({ tenants }: { tenants: TenantRow[] }) {
               />
             </div>
             <div className="field">
-              <label>Slug (subdomínio) *</label>
+              <label>Slug (Subdomínio) *</label>
               <input
                 className="input"
                 value={form.slug}
@@ -302,7 +302,7 @@ export function TenantsManager({ tenants }: { tenants: TenantRow[] }) {
               </select>
             </div>
             <div className="field">
-              <label>Domínio próprio (opcional)</label>
+              <label>Domínio Próprio (Opcional)</label>
               <input
                 className="input"
                 value={form.domain}
@@ -421,7 +421,7 @@ export function TenantsManager({ tenants }: { tenants: TenantRow[] }) {
                       className="icon-btn"
                       style={{ width: 30, height: 30 }}
                       type="button"
-                      aria-label="Editar tenant"
+                      aria-label="Editar Tenant"
                       onClick={() => openEdit(t)}
                     >
                       <Icon name="edit" size={15} />

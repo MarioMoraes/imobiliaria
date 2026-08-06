@@ -32,7 +32,7 @@ export default async function ConfiguracoesPage() {
       <PageHeader title="Configurações" />
 
       <div className="grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
-        <Section title="Dados da imobiliária" pad>
+        <Section title="Dados da Imobiliária" pad>
           <TenantProfileCard tenant={tenant} notice={notice} />
         </Section>
 

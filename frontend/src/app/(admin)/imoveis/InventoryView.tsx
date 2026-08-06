@@ -100,7 +100,7 @@ export function InventoryView({
       <FilterNotice term={filterTerm} count={properties.length} clearHref={clearHref} />
 
       <div className="grid grid-4 mb-4">
-        <StatCard icon="building" label="Total no inventário" value={String(properties.length)} tone="blue" />
+        <StatCard icon="building" label="Total no Inventário" value={String(properties.length)} tone="blue" />
         <StatCard icon="check" label="Disponíveis" value={String(count("available"))} tone="success" />
         {isSale ? (
           <StatCard icon="banknote" label="Vendidos" value={String(soldCount)} tone="accent" />

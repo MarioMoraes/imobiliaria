@@ -54,7 +54,7 @@ export default async function ProprietariosPage({
             <table className="table">
               <thead>
                 <tr>
-                  <th>Nome / Razão social</th><th>Tipo</th><th>Celular</th>
+                  <th>Nome / Razão Social</th><th>Tipo</th><th>Celular</th>
                   <th>Contato</th><th>Status</th><th></th>
                 </tr>
               </thead>

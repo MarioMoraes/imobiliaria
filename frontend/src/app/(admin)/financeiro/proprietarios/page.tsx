@@ -112,25 +112,25 @@ export default async function PagamentoProprietariosPage({
       <div className="grid grid-4 mb-4">
         <StatCard
           icon="banknote"
-          label="A pagar no mês"
+          label="A Pagar no Mês"
           value={formatPrice(summary?.openCents ?? 0)}
           tone="accent"
         />
         <StatCard
           icon="wallet"
-          label="Repassado no mês"
+          label="Repassado no Mês"
           value={formatPrice(summary?.paidCents ?? 0)}
           feature
         />
         <StatCard
           icon="receipt"
-          label="Taxa de administração"
+          label="Taxa de Administração"
           value={formatPrice(summary?.adminFeeCents ?? 0)}
           tone="success"
         />
         <StatCard
           icon="trendingDown"
-          label="Em atraso"
+          label="Em Atraso"
           value={formatPrice(summary?.overdueCents ?? 0)}
           trend={
             summary?.overdueCount

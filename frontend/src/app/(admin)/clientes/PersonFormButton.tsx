@@ -328,7 +328,7 @@ export function PersonFormButton({
               </select>
             </div>
             <div className="field" style={{ gridColumn: "span 2" }}>
-              <label>Nome / Razão social *</label>
+              <label>Nome / Razão Social *</label>
               <input className="input" value={form.fullName} onChange={(e) => set({ fullName: e.target.value })} placeholder="Ana Lima" />
             </div>
           </div>
@@ -352,7 +352,7 @@ export function PersonFormButton({
               <input className="input" value={form.rg} onChange={(e) => set({ rg: e.target.value })} />
             </div>
             <div className="field">
-              <label>Órgão emissor</label>
+              <label>Órgão Emissor</label>
               <input className="input" value={form.rgIssuer} onChange={(e) => set({ rgIssuer: e.target.value })} placeholder="SSP/MG" />
             </div>
           </div>
@@ -379,14 +379,14 @@ export function PersonFormButton({
 
           <div className="grid grid-2" style={{ gap: 12 }}>
             <div className="field">
-              <label>Estado civil</label>
+              <label>Estado Civil</label>
               <select className="input" value={form.maritalStatus} onChange={(e) => set({ maritalStatus: e.target.value })}>
                 <option value="">—</option>
                 <option value="SOLTEIRO">Solteiro(a)</option>
                 <option value="CASADO">Casado(a)</option>
                 <option value="DIVORCIADO">Divorciado(a)</option>
                 <option value="VIUVO">Viúvo(a)</option>
-                <option value="UNIAO_ESTAVEL">União estável</option>
+                <option value="UNIAO_ESTAVEL">União Estável</option>
               </select>
             </div>
             <div className="field">
@@ -440,7 +440,7 @@ export function PersonFormButton({
               />
             </div>
             <div className="field">
-              <label>Tipo da chave</label>
+              <label>Tipo da Chave</label>
               <select
                 className="input"
                 value={form.pixKeyType}
@@ -468,7 +468,7 @@ export function PersonFormButton({
               <input className="input" value={form.agency} onChange={(e) => set({ agency: e.target.value })} />
             </div>
             <div className="field">
-              <label>Conta corrente</label>
+              <label>Conta Corrente</label>
               <input className="input" value={form.account} onChange={(e) => set({ account: e.target.value })} />
             </div>
           </div>
@@ -478,7 +478,7 @@ export function PersonFormButton({
               <input className="input" value={form.holderName} onChange={(e) => set({ holderName: e.target.value })} />
             </div>
             <div className="field">
-              <label>Autorização de recebimento</label>
+              <label>Autorização de Recebimento</label>
               <input className="input" value={form.paymentAuthorization} onChange={(e) => set({ paymentAuthorization: e.target.value })} placeholder="Autorização de depósito bancário" />
             </div>
           </div>
@@ -514,9 +514,9 @@ export function PersonFormButton({
           </div>
 
           <div className="field">
-            <label>Intenção de busca (opcional)</label>
+            <label>Intenção de Busca (Opcional)</label>
             <select className="input" value={form.intent} onChange={(e) => set({ intent: e.target.value as NewPersonInput["intent"] })}>
-              <option value="">— sem perfil de busca</option>
+              <option value="">— Sem Perfil de Busca</option>
               <option value="COMPRA">Compra</option>
               <option value="LOCACAO">Locação</option>
             </select>
@@ -525,11 +525,11 @@ export function PersonFormButton({
             <>
               <div className="grid grid-2" style={{ gap: 12 }}>
                 <div className="field">
-                  <label>Orçamento mín. (R$)</label>
+                  <label>Orçamento Mín. (R$)</label>
                   <input className="input" value={form.minPriceReais} onChange={(e) => set({ minPriceReais: e.target.value })} inputMode="numeric" />
                 </div>
                 <div className="field">
-                  <label>Orçamento máx. (R$)</label>
+                  <label>Orçamento Máx. (R$)</label>
                   <input className="input" value={form.maxPriceReais} onChange={(e) => set({ maxPriceReais: e.target.value })} inputMode="numeric" />
                 </div>
               </div>
@@ -539,7 +539,7 @@ export function PersonFormButton({
                   <input className="input" value={form.districts} onChange={(e) => set({ districts: e.target.value })} placeholder="Centro, Zona Sul" />
                 </div>
                 <div className="field">
-                  <label>Quartos (mín.)</label>
+                  <label>Quartos (Mín.)</label>
                   <input className="input" value={form.bedroomsMin} onChange={(e) => set({ bedroomsMin: e.target.value })} inputMode="numeric" />
                 </div>
               </div>
