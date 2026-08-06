@@ -46,6 +46,9 @@ export type Operation =
   | "broker:read"
   | "broker:write"
   | "broker:delete"
+  | "sale:read"
+  | "sale:write"
+  | "sale:delete"
   | "document:read"
   | "document:write"
   | "document:delete"
@@ -93,6 +96,12 @@ const MATRIX: Record<Operation, Role[]> = {
   "broker:read": ["SUPER_ADMIN", "ADMIN", "GESTOR", "FINANCEIRO", "CORRETOR", "AUXILIAR"],
   "broker:write": ["SUPER_ADMIN", "ADMIN", "GESTOR"],
   "broker:delete": ["SUPER_ADMIN", "ADMIN"],
+  // Venda do imóvel (MOD-VENDA) — o fechamento do negócio. Vizinhança de
+  // `contract:*`: quem fecha locação também fecha venda. O `delete` desfaz um
+  // negócio já registrado (devolve o imóvel à vitrine), por isso fica com ADMIN.
+  "sale:read": ["SUPER_ADMIN", "ADMIN", "GESTOR", "FINANCEIRO", "CORRETOR", "AUXILIAR"],
+  "sale:write": ["SUPER_ADMIN", "ADMIN", "GESTOR", "CORRETOR", "AUXILIAR"],
+  "sale:delete": ["SUPER_ADMIN", "ADMIN"],
   // Documentos (MOD-DOC) — RG, comprovante de renda, matrícula. FINANCEIRO lê
   // (precisa conferir o que sustenta um repasse) mas não anexa. O `delete` é o
   // expurgo LGPD: apaga o binário de todas as versões e não tem volta, por isso

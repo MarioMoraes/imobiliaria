@@ -164,6 +164,29 @@ export async function deleteDistrictAction(id: string): Promise<DeleteResult> {
   return { ok: true };
 }
 
+/* --------------------------------------------------- Formas de pagamento */
+export async function createPaymentMethodAction(
+  _prev: LookupFormState,
+  formData: FormData,
+): Promise<LookupFormState> {
+  const name = formData.get("name");
+  if (typeof name !== "string" || name.trim().length < 2) {
+    return { ok: false, error: "Informe a forma de pagamento." };
+  }
+  const res = await postJson("/v1/payment-methods", { name: name.trim() });
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath(PATH);
+  return { ok: true };
+}
+
+export async function deletePaymentMethodAction(id: string): Promise<DeleteResult> {
+  if (!id) return { ok: false, error: "ID inválido." };
+  const res = await deleteJson(`/v1/payment-methods/${id}`);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidatePath(PATH);
+  return { ok: true };
+}
+
 /* --------------------------------------------------------------- Eventos */
 /** Shape do formulário de evento no client (percentuais como string). */
 export interface EventFormInput {

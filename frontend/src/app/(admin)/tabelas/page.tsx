@@ -7,6 +7,7 @@ import {
   fetchEvents,
   fetchInspectionItems,
   fetchMergeFields,
+  fetchPaymentMethods,
   fetchPropertyTypes,
 } from "../../../lib/api";
 import { TabelasGrid } from "./TabelasGrid";
@@ -26,6 +27,7 @@ export default async function TabelasPage() {
     liveItems,
     liveDistricts,
     liveEvents,
+    livePaymentMethods,
   ] = await Promise.all([
     fetchPropertyTypes(),
     fetchClauses(),
@@ -35,6 +37,7 @@ export default async function TabelasPage() {
     fetchInspectionItems(),
     fetchDistricts(),
     fetchEvents(),
+    fetchPaymentMethods(),
   ]);
   // Depois das leituras: é delas que sai o diagnóstico exibido nos popups.
   const notice = backendNotice();
@@ -50,12 +53,14 @@ export default async function TabelasPage() {
         items={liveItems ?? []}
         districts={liveDistricts ?? []}
         events={liveEvents ?? []}
+        paymentMethods={livePaymentMethods ?? []}
         liveTypes={liveTypes !== null}
         liveClauses={liveClauses !== null}
         liveTemplates={liveTemplates !== null}
         liveItems={liveItems !== null}
         liveDistricts={liveDistricts !== null}
         liveEvents={liveEvents !== null}
+        livePaymentMethods={livePaymentMethods !== null}
         notice={notice}
       />
     </>

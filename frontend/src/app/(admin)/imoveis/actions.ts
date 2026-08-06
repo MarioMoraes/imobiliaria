@@ -3,14 +3,20 @@
 import { revalidatePath } from "next/cache";
 import {
   deleteJson,
+  fetchBrokers,
+  fetchPaymentMethods,
   fetchPropertyInspection,
   fetchPropertyPhotos,
+  fetchSalesByProperty,
   patchJson,
   postJson,
   sendJson,
+  type Broker,
   type InspectionCondition,
+  type PaymentMethod,
   type PropertyInspectionView,
   type PropertyPhoto,
+  type Sale,
 } from "../../../lib/api";
 
 /** Revalida o hub e as duas listas (alugar/vender) após uma mutação. */
@@ -403,5 +409,139 @@ export async function saveInspectionAction(
     notes,
   });
   if (!res.ok) return { ok: false, error: res.error };
+  return { ok: true };
+}
+
+/* ---------------------------------------------------- Venda do imóvel */
+
+/**
+ * Shape do formulário de venda no client: tudo string, como no cadastro do
+ * imóvel. A conversão para o payload da API (centavos, percentual, data) é
+ * feita aqui, no servidor.
+ */
+export interface SaleFormInput {
+  soldAt: string;
+  buyerName: string;
+  buyerNationality: string;
+  buyerMaritalStatus: string;
+  buyerOccupation: string;
+  buyerAddress: string;
+  buyerDistrict: string;
+  buyerCity: string;
+  buyerState: string;
+  buyerZip: string;
+  buyerCpf: string;
+  buyerRg: string;
+  spouseName: string;
+  spouseNationality: string;
+  spouseOccupation: string;
+  spouseCpf: string;
+  spouseRg: string;
+  marriageRegime: string;
+  paymentMethodId: string;
+  paymentNotes: string;
+  /** Comissão em % sobre o valor da venda ("6" ou "6,00"). */
+  commissionPercent: string;
+  /** Valor da venda em reais, como digitado ("500.000,00"). */
+  valueReais: string;
+  brokerId: string;
+}
+
+/** "" → null: campo em branco não vira string vazia no banco. */
+const orNull = (v: string): string | null => (v.trim() ? v.trim() : null);
+
+/**
+ * Valor e comissão são obrigatórios no payload da venda (o backend os usa para
+ * apurar a comissão), então o `null` dos conversores do cadastro do imóvel vira
+ * zero aqui: uma venda pode ser registrada antes de o valor estar fechado.
+ */
+function toSalePayload(form: SaleFormInput) {
+  return {
+    soldAt: orNull(form.soldAt),
+    buyerName: form.buyerName.trim(),
+    buyerNationality: orNull(form.buyerNationality),
+    buyerMaritalStatus: orNull(form.buyerMaritalStatus),
+    buyerOccupation: orNull(form.buyerOccupation),
+    buyerAddress: orNull(form.buyerAddress),
+    buyerDistrict: orNull(form.buyerDistrict),
+    buyerCity: orNull(form.buyerCity),
+    buyerState: orNull(form.buyerState),
+    buyerZip: orNull(form.buyerZip),
+    buyerCpf: orNull(form.buyerCpf),
+    buyerRg: orNull(form.buyerRg),
+    spouseName: orNull(form.spouseName),
+    spouseNationality: orNull(form.spouseNationality),
+    spouseOccupation: orNull(form.spouseOccupation),
+    spouseCpf: orNull(form.spouseCpf),
+    spouseRg: orNull(form.spouseRg),
+    marriageRegime: orNull(form.marriageRegime),
+    paymentMethodId: orNull(form.paymentMethodId),
+    paymentNotes: orNull(form.paymentNotes),
+    commissionPercent: toPercent(form.commissionPercent) ?? 0,
+    valueCents: reaisToCents(form.valueReais) ?? 0,
+    brokerId: orNull(form.brokerId),
+  };
+}
+
+/**
+ * Carrega o cadastro da venda do imóvel e as tabelas que a tela precisa
+ * (formas de pagamento e corretores) numa chamada só — abrir o modal não deve
+ * custar três idas ao servidor.
+ *
+ * `sale: null` com `ok: true` é o imóvel ainda não vendido; `ok: false` é falha
+ * de verdade. Distinguir os dois é o que evita a tela em branco sem explicação.
+ */
+export async function loadSaleAction(propertyId: string): Promise<{
+  ok: boolean;
+  sale?: Sale | null;
+  paymentMethods?: PaymentMethod[];
+  brokers?: Broker[];
+  error?: string;
+}> {
+  if (!propertyId) return { ok: false, error: "ID inválido." };
+  const [sales, paymentMethods, brokers] = await Promise.all([
+    fetchSalesByProperty(propertyId),
+    fetchPaymentMethods(),
+    fetchBrokers(),
+  ]);
+  if (sales === null) {
+    return { ok: false, error: "Não foi possível carregar a venda deste imóvel." };
+  }
+  return {
+    ok: true,
+    sale: sales[0] ?? null,
+    paymentMethods: paymentMethods ?? [],
+    brokers: brokers ?? [],
+  };
+}
+
+/**
+ * Salva a venda: cria na primeira vez, atualiza depois. É o POST que dispara o
+ * fechamento no backend (imóvel vira Vendido, comissões nascem).
+ */
+export async function saveSaleAction(
+  propertyId: string,
+  saleId: string | null,
+  form: SaleFormInput,
+): Promise<ActionResult> {
+  if (!propertyId) return { ok: false, error: "ID inválido." };
+  if (!form.buyerName.trim()) return { ok: false, error: "Informe o nome do comprador." };
+
+  const payload = toSalePayload(form);
+  const res = saleId
+    ? await patchJson(`/v1/sales/${saleId}`, payload)
+    : await postJson("/v1/sales", { propertyId, ...payload });
+
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidateLists();
+  return { ok: true };
+}
+
+/** Desfaz a venda: o imóvel volta a Disponível (as comissões permanecem). */
+export async function deleteSaleAction(saleId: string): Promise<ActionResult> {
+  if (!saleId) return { ok: false, error: "ID inválido." };
+  const res = await deleteJson(`/v1/sales/${saleId}`);
+  if (!res.ok) return { ok: false, error: res.error };
+  revalidateLists();
   return { ok: true };
 }

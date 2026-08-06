@@ -10,6 +10,7 @@ import type {
   Event,
   InspectionItem,
   MergeField,
+  PaymentMethod,
   PropertyType,
 } from "../../../lib/api";
 import { SingleFieldManager } from "./SingleFieldManager";
@@ -19,13 +20,22 @@ import { EventManager } from "./EventManager";
 import {
   createDistrictAction,
   createItemAction,
+  createPaymentMethodAction,
   createTypeAction,
   deleteDistrictAction,
   deleteItemAction,
+  deletePaymentMethodAction,
   deleteTypeAction,
 } from "./actions";
 
-type CardKey = "types" | "clauses" | "templates" | "items" | "districts" | "events";
+type CardKey =
+  | "types"
+  | "clauses"
+  | "templates"
+  | "items"
+  | "districts"
+  | "events"
+  | "paymentMethods";
 
 interface CardMeta {
   key: CardKey;
@@ -50,12 +60,14 @@ export function TabelasGrid({
   items,
   districts,
   events,
+  paymentMethods,
   liveTypes,
   liveClauses,
   liveTemplates,
   liveItems,
   liveDistricts,
   liveEvents,
+  livePaymentMethods,
   notice,
 }: {
   types: PropertyType[];
@@ -65,12 +77,14 @@ export function TabelasGrid({
   items: InspectionItem[];
   districts: District[];
   events: Event[];
+  paymentMethods: PaymentMethod[];
   liveTypes: boolean;
   liveClauses: boolean;
   liveTemplates: boolean;
   liveItems: boolean;
   liveDistricts: boolean;
   liveEvents: boolean;
+  livePaymentMethods: boolean;
   /** Diagnóstico da falha de carga, repassado aos gerenciadores. */
   notice?: string | null;
 }) {
@@ -130,6 +144,15 @@ export function TabelasGrid({
       description: "Eventos financeiros de cobrança (juros/multa).",
       count: events.length,
       live: liveEvents,
+    },
+    {
+      key: "paymentMethods",
+      title: "Formas de Pagamento",
+      icon: "creci",
+      tone: "success",
+      description: "Formas usadas no cadastro da venda do imóvel.",
+      count: paymentMethods.length,
+      live: livePaymentMethods,
     },
   ];
 
@@ -219,6 +242,18 @@ export function TabelasGrid({
         )}
         {active?.key === "events" && (
           <EventManager events={events} live={liveEvents} notice={notice} />
+        )}
+        {active?.key === "paymentMethods" && (
+          <SingleFieldManager
+            rows={paymentMethods.map((m) => ({ id: m.id, label: `${m.code} — ${m.name}` }))}
+            fieldName="name"
+            placeholder="Nova forma (ex.: Financiado)"
+            emptyLabel="Nenhuma forma de pagamento cadastrada."
+            live={livePaymentMethods}
+            notice={notice}
+            createAction={createPaymentMethodAction}
+            deleteAction={deletePaymentMethodAction}
+          />
         )}
       </Modal>
     </>

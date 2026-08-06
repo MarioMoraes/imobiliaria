@@ -143,6 +143,31 @@ export async function propertyContractRoutes(app: FastifyInstance): Promise<void
       return reply.send(pdf);
     },
   );
+
+  /**
+   * Documentos de venda do imóvel: Autorização de Venda e Compromisso de Compra
+   * e Venda. Também respondem os BYTES, mas sem query nenhuma — não há
+   * testemunhas a informar, o botão do cadastro é um `<a>` direto.
+   */
+  const saleDocuments = [
+    { path: "/:id/sale-authorization", generate: service.generateSaleAuthorizationDocument },
+    { path: "/:id/purchase-commitment", generate: service.generatePurchaseCommitmentDocument },
+  ] as const;
+
+  for (const doc of saleDocuments) {
+    app.get<{ Params: { id: string } }>(
+      doc.path,
+      { preHandler: requirePermission("contract:read") },
+      async (req, reply) => {
+        const { pdf, fileName } = await doc.generate(getTenantId(), req.params.id);
+
+        reply
+          .header("Content-Type", "application/pdf")
+          .header("Content-Disposition", `inline; filename="${fileName}"`);
+        return reply.send(pdf);
+      },
+    );
+  }
 }
 
 /**

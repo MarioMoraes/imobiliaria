@@ -1,6 +1,7 @@
 import { moneyToWords } from "../../shared/extenso.js";
 import type { Person, PersonAddress } from "../person/person.schema.js";
 import type { Property } from "../property/property.schema.js";
+import type { Sale } from "../sale/sale.schema.js";
 import type { Contract } from "./contract.schema.js";
 
 /**
@@ -233,6 +234,97 @@ const PROPERTY_FIELDS = [
 
 type PropertySuffix = (typeof PROPERTY_FIELDS)[number]["suffix"];
 
+/* ------------------------------ Campos da venda e do comprador */
+
+/**
+ * O comprador NÃO é uma `Person`: a venda guarda os dados dele como texto
+ * livre, porque o que vai para a escritura é o que foi digitado no dia do
+ * fechamento (ver `sale.schema.ts`). Por isso estes campos têm lista própria em
+ * vez de reaproveitar `PERSON_FIELDS`.
+ *
+ * Documento emitido antes de a venda existir sai com tudo em branco — é o mesmo
+ * comportamento de um contrato ainda incompleto.
+ */
+interface SaleFieldDef {
+  suffix: string;
+  label: string;
+  example: string;
+  value: (s: Sale | null) => string;
+}
+
+const BUYER_FIELDS = [
+  { suffix: "nome", label: "Nome do comprador", example: "João da Silva", value: (s) => text(s?.buyerName) },
+  { suffix: "cpf", label: "CPF do comprador", example: "123.456.789-00", value: (s) => text(s?.buyerCpf) },
+  { suffix: "rg", label: "RG do comprador", example: "12.345.678-9", value: (s) => text(s?.buyerRg) },
+  { suffix: "nacionalidade", label: "Nacionalidade", example: "brasileira", value: (s) => text(s?.buyerNationality) },
+  {
+    suffix: "estado_civil",
+    label: "Estado civil",
+    example: "casado(a)",
+    value: (s) =>
+      s?.buyerMaritalStatus
+        ? MARITAL_STATUS[s.buyerMaritalStatus] ?? esc(s.buyerMaritalStatus)
+        : BLANK,
+  },
+  { suffix: "profissao", label: "Profissão", example: "engenheiro", value: (s) => text(s?.buyerOccupation) },
+  { suffix: "endereco", label: "Endereço", example: "Rua das Flores, 100", value: (s) => text(s?.buyerAddress) },
+  { suffix: "bairro", label: "Bairro", example: "Centro", value: (s) => text(s?.buyerDistrict) },
+  { suffix: "cidade", label: "Cidade", example: "São Paulo", value: (s) => text(s?.buyerCity) },
+  { suffix: "uf", label: "UF", example: "SP", value: (s) => text(s?.buyerState) },
+  { suffix: "cep", label: "CEP", example: "01234-567", value: (s) => text(s?.buyerZip) },
+  { suffix: "conjuge_nome", label: "Nome do cônjuge", example: "Maria da Silva", value: (s) => text(s?.spouseName) },
+  { suffix: "conjuge_cpf", label: "CPF do cônjuge", example: "987.654.321-00", value: (s) => text(s?.spouseCpf) },
+  { suffix: "conjuge_rg", label: "RG do cônjuge", example: "98.765.432-1", value: (s) => text(s?.spouseRg) },
+  {
+    suffix: "conjuge_nacionalidade",
+    label: "Nacionalidade do cônjuge",
+    example: "brasileira",
+    value: (s) => text(s?.spouseNationality),
+  },
+  {
+    suffix: "conjuge_profissao",
+    label: "Profissão do cônjuge",
+    example: "professora",
+    value: (s) => text(s?.spouseOccupation),
+  },
+  {
+    suffix: "regime_casamento",
+    label: "Regime de casamento",
+    example: "comunhão parcial de bens",
+    value: (s) => text(s?.marriageRegime),
+  },
+] as const satisfies readonly SaleFieldDef[];
+
+type BuyerSuffix = (typeof BUYER_FIELDS)[number]["suffix"];
+
+const SALE_FIELDS = [
+  { suffix: "numero", label: "Número da venda", example: "10986", value: (s) => num(s?.code) },
+  { suffix: "data", label: "Data da venda", example: "10/08/2026", value: (s) => dateBr(s?.soldAt) },
+  { suffix: "valor", label: "Valor da venda", example: "500.000,00", value: (s) => brl(s?.valueCents) },
+  {
+    suffix: "valor_extenso",
+    label: "Valor da venda (por extenso)",
+    example: "quinhentos mil reais",
+    value: (s) => brlWords(s?.valueCents),
+  },
+  { suffix: "comissao", label: "Comissão (%)", example: "6", value: (s) => num(s?.commissionPercent) },
+  {
+    suffix: "forma_pagamento",
+    label: "Forma de pagamento",
+    example: "Financiado",
+    value: (s) => text(s?.paymentMethodName),
+  },
+  {
+    suffix: "forma_pagamento_detalhe",
+    label: "Detalhamento do pagamento",
+    example: "Sinal de 50.000,00 e o saldo financiado em 360 meses",
+    value: (s) => (s?.paymentNotes ? esc(s.paymentNotes) : BLANK),
+  },
+  { suffix: "corretor", label: "Corretor da venda", example: "Ana Souza", value: (s) => text(s?.brokerName) },
+] as const satisfies readonly SaleFieldDef[];
+
+type SaleSuffix = (typeof SALE_FIELDS)[number]["suffix"];
+
 /* ------------------------------------------------ Campos do contrato */
 
 interface ContractFieldDef {
@@ -349,8 +441,10 @@ export type MergeFieldGroup =
   | "Locador"
   | "Locatário"
   | "Fiador"
+  | "Comprador"
   | "Imóvel"
   | "Contrato"
+  | "Venda"
   | "Testemunhas";
 
 export interface MergeField {
@@ -371,8 +465,10 @@ export interface MergeField {
  */
 export type MergeFieldKey =
   | `${PersonPrefix}.${PersonSuffix}`
+  | `comprador.${BuyerSuffix}`
   | `imovel.${PropertySuffix}`
   | `contrato.${ContractSuffix}`
+  | `venda.${SaleSuffix}`
   | ListKey
   | WitnessKey;
 
@@ -392,6 +488,12 @@ export const MERGE_FIELDS: readonly MergeField[] = [
       example: l.example,
     })),
   ]),
+  ...BUYER_FIELDS.map((f) => ({
+    key: `comprador.${f.suffix}`,
+    label: f.label,
+    group: "Comprador" as MergeFieldGroup,
+    example: f.example,
+  })),
   ...PROPERTY_FIELDS.map((f) => ({
     key: `imovel.${f.suffix}`,
     label: f.label,
@@ -402,6 +504,12 @@ export const MERGE_FIELDS: readonly MergeField[] = [
     key: `contrato.${f.suffix}`,
     label: f.label,
     group: "Contrato" as MergeFieldGroup,
+    example: f.example,
+  })),
+  ...SALE_FIELDS.map((f) => ({
+    key: `venda.${f.suffix}`,
+    label: f.label,
+    group: "Venda" as MergeFieldGroup,
     example: f.example,
   })),
   ...WITNESS_FIELDS.map((f) => ({
@@ -450,6 +558,12 @@ export interface MergeSources {
   names: Record<PersonPrefix, string>;
   /** Testemunhas digitadas na emissão (ausentes = campo em branco). */
   witnesses?: WitnessNames;
+  /**
+   * Venda do imóvel, quando já registrada. Ausente nos documentos emitidos
+   * antes do fechamento (a autorização de venda, por exemplo): os campos de
+   * comprador e de venda saem em branco, para preencher no papel.
+   */
+  sale?: Sale | null;
 }
 
 /**
@@ -474,8 +588,16 @@ export function buildMergeContext(src: MergeSources): Record<MergeFieldKey, stri
     ctx[`imovel.${field.suffix}`] = field.value(src.property);
   }
 
+  for (const field of BUYER_FIELDS) {
+    ctx[`comprador.${field.suffix}`] = field.value(src.sale ?? null);
+  }
+
   for (const field of CONTRACT_FIELDS) {
     ctx[`contrato.${field.suffix}`] = field.value(src.contract, src.property);
+  }
+
+  for (const field of SALE_FIELDS) {
+    ctx[`venda.${field.suffix}`] = field.value(src.sale ?? null);
   }
 
   ctx["testemunha1.nome"] = text(src.witnesses?.first);

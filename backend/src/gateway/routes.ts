@@ -36,6 +36,8 @@ import { brokerRoutes } from "../modules/broker/broker.routes.js";
 import { documentRoutes } from "../modules/document/document.routes.js";
 import { districtRoutes } from "../modules/district/district.routes.js";
 import { eventRoutes } from "../modules/event/event.routes.js";
+import { paymentMethodRoutes } from "../modules/payment-method/payment-method.routes.js";
+import { saleRoutes } from "../modules/sale/sale.routes.js";
 import { bankRoutes } from "../modules/bank/bank.routes.js";
 import { dashboardRoutes } from "../modules/dashboard/dashboard.routes.js";
 import { aiPlatformRoutes, aiRoutes } from "../modules/ai/ai.routes.js";
@@ -111,6 +113,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       await v1.register(inspectionItemRoutes, { prefix: "/inspection-items" });
       await v1.register(districtRoutes, { prefix: "/districts" });
       await v1.register(eventRoutes, { prefix: "/events" });
+      await v1.register(paymentMethodRoutes, { prefix: "/payment-methods" });
       // Bancos (contas bancárias da imobiliária) — MOD-FIN.
       await v1.register(bankRoutes, { prefix: "/banks" });
       // Painel inicial: leitura agregada dos demais módulos.
@@ -145,6 +148,9 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       // Comissões (MOD-FIN-05): a de venda do imóvel e, no futuro, a de locação.
       // Uma linha por parte — a da imobiliária é receita, a do corretor é despesa.
       await v1.register(commissionRoutes, { prefix: "/commissions" });
+      // Venda do imóvel (MOD-VENDA): registrar a venda marca o imóvel como
+      // vendido e é o que alimenta `commissions` por `sale_id`.
+      await v1.register(saleRoutes, { prefix: "/sales" });
       // Fluxo de caixa consolidado. NÃO confundir com /v1/receivables/cash-flow,
       // que é a série "recebido × previsto" do gráfico — este aqui é o extrato
       // (entradas, saídas, resultado da imobiliária).

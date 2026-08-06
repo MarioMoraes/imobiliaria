@@ -10,6 +10,7 @@ import { formatCep } from "../../../lib/br-doc";
 import { formatDay } from "../../../lib/format";
 import AdministrationContractModal from "./AdministrationContractModal";
 import InspectionModal from "./InspectionModal";
+import SaleFormModal from "./SaleFormModal";
 import type { Property, PropertyPhoto } from "../../../lib/api";
 import {
   addOwnerAction,
@@ -310,6 +311,8 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
   const [inspectionOpen, setInspectionOpen] = useState(false);
   // Popup das testemunhas do contrato de administração (idem).
   const [adminContractOpen, setAdminContractOpen] = useState(false);
+  // Cadastro da venda (só no modo edição de um imóvel a vender).
+  const [saleOpen, setSaleOpen] = useState(false);
 
   useEffect(() => setMounted(true), []);
 
@@ -540,22 +543,25 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
               <ReadOnly label="Situação" value={STATUS_LABEL[form.status] ?? form.status} />
             </div>
             </FieldBlock>
-            <FieldBlock tone="tone-azul" icon="folder" title="Vínculos">
-              <div className="grid grid-3" style={{ gap: 12 }}>
-                <Select label="Condomínio" value={form.condominiumId} onChange={(v) => set({ condominiumId: v })}>
-                  <option value="">—</option>
-                  {condominiums.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-                </Select>
-                {/* Contrato é leitura: o número só existe depois que o
-                    contrato entra em vigência e o imóvel vira Alugado. */}
-                <ReadOnly label="Contrato" value={form.contractNumber || "—"} />
-                {!isSale && (
+            {/* Vínculos é bloco de LOCAÇÃO: o número de contrato nasce da
+                vigência do aluguel, e condomínio/comércio pertencem à gestão do
+                imóvel administrado. Nada disso descreve um imóvel à venda. */}
+            {!isSale && (
+              <FieldBlock tone="tone-azul" icon="folder" title="Vínculos">
+                <div className="grid grid-3" style={{ gap: 12 }}>
+                  <Select label="Condomínio" value={form.condominiumId} onChange={(v) => set({ condominiumId: v })}>
+                    <option value="">—</option>
+                    {condominiums.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                  </Select>
+                  {/* Contrato é leitura: o número só existe depois que o
+                      contrato entra em vigência e o imóvel vira Alugado. */}
+                  <ReadOnly label="Contrato" value={form.contractNumber || "—"} />
                   <div className="field" style={{ justifyContent: "flex-end", paddingBottom: 8 }}>
                     <Check label="Comércio" checked={form.isCommercial} onChange={(v) => set({ isCommercial: v })} />
                   </div>
-                )}
-              </div>
-            </FieldBlock>
+                </div>
+              </FieldBlock>
+            )}
           </div>
         )}
 
@@ -985,7 +991,7 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
         {error && <span className="text-sm" style={{ color: "var(--danger, #dc2626)" }}>{error}</span>}
 
         <div className="row" style={{ justifyContent: "space-between", gap: 8, borderTop: "1px solid var(--border)", paddingTop: 12 }}>
-          <div className="row" style={{ gap: 8 }}>
+          <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
             {/* Vistoria é sub-recurso do imóvel: precisa de um imóvel salvo para
                 existir, como as abas Proprietários e Fotos. */}
             <button
@@ -1009,6 +1015,45 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
                 title={isEdit ? undefined : "Salve o imóvel primeiro"}
               >
                 <Icon name="contract" size={14} /> Contrato de Administração
+              </button>
+            )}
+            {/* O ciclo da venda, na ordem em que acontece: autorizar → firmar o
+                compromisso → registrar a venda. Os dois documentos são `<a>` e
+                não `window.open` — o resultado é um arquivo, e assim o PDF abre
+                no visualizador nativo sem esbarrar no bloqueador de pop-up. */}
+            {isSale && isEdit && property && (
+              <>
+                <a
+                  className="btn btn-outline btn-sm"
+                  href={`/imoveis/${property.id}/autorizacao-venda`}
+                  target="_blank"
+                  rel="noopener"
+                >
+                  <Icon name="contract" size={14} /> Autorização de Venda
+                </a>
+                <a
+                  className="btn btn-outline btn-sm"
+                  href={`/imoveis/${property.id}/compromisso-compra-venda`}
+                  target="_blank"
+                  rel="noopener"
+                >
+                  <Icon name="contract" size={14} /> Compromisso de Compra e Venda
+                </a>
+                <button
+                  className="btn btn-outline btn-sm"
+                  type="button"
+                  onClick={() => setSaleOpen(true)}
+                  disabled={pending}
+                >
+                  <Icon name="creci" size={14} /> Venda do Imóvel
+                </button>
+              </>
+            )}
+            {/* Sem imóvel salvo os três não têm de onde tirar o cadastro: um
+                botão desabilitado explica melhor que a ausência deles. */}
+            {isSale && !isEdit && (
+              <button className="btn btn-outline btn-sm" type="button" disabled title="Salve o imóvel primeiro">
+                <Icon name="creci" size={14} /> Documentos e Venda
               </button>
             )}
           </div>
@@ -1122,6 +1167,9 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
           propertyId={property.id}
           onClose={() => setAdminContractOpen(false)}
         />
+      )}
+      {open && mounted && saleOpen && property && (
+        <SaleFormModal property={property} onClose={() => setSaleOpen(false)} />
       )}
     </>
   );

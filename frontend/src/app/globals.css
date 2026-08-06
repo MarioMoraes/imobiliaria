@@ -1856,6 +1856,15 @@ select.input {
 .modal-sheet {
   max-height: 88vh;
 }
+/**
+ * Quem encolhe é SÓ a área de rolagem. Sem isto, um miolo alto (o cadastro de
+ * venda) faz o flexbox espremer também o cabeçalho e a faixa de identificação —
+ * e como a faixa tem `overflow: hidden`, ela não cede espaço: colide com o
+ * conteúdo, dando a impressão de que um está por cima do outro.
+ */
+.modal-sheet > *:not(.modal-scroll) {
+  flex-shrink: 0;
+}
 .modal-scroll {
   flex: 1 1 auto;
   min-height: 0;

@@ -33,6 +33,8 @@ const ENTITIES: Record<string, string> = {
   users: "user",
   brokers: "broker",
   banks: "bank",
+  sales: "sale",
+  "payment-methods": "payment_method",
   condominiums: "condominium",
   districts: "district",
   clauses: "clause",

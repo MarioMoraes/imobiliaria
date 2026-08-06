@@ -270,6 +270,56 @@ export interface District {
   active: boolean;
 }
 
+/** Forma de pagamento (lookup) — tela "Tabelas". Usada no cadastro da venda. */
+export interface PaymentMethod {
+  id: string;
+  code: number;
+  name: string;
+  active: boolean;
+}
+
+/**
+ * Venda de um imóvel (MOD-VENDA). Os dados do comprador são texto livre da
+ * própria venda — o que foi para a escritura não muda quando alguém edita a
+ * ficha de uma pessoa depois. `commissionPercent` é % sobre `valueCents`.
+ */
+export interface Sale {
+  id: string;
+  code: number;
+  propertyId: string;
+  soldAt: string | null;
+
+  buyerName: string;
+  buyerNationality: string | null;
+  buyerMaritalStatus: string | null;
+  buyerOccupation: string | null;
+  buyerAddress: string | null;
+  buyerDistrict: string | null;
+  buyerCity: string | null;
+  buyerState: string | null;
+  buyerZip: string | null;
+  buyerCpf: string | null;
+  buyerRg: string | null;
+
+  spouseName: string | null;
+  spouseNationality: string | null;
+  spouseOccupation: string | null;
+  spouseCpf: string | null;
+  spouseRg: string | null;
+  marriageRegime: string | null;
+
+  paymentMethodId: string | null;
+  paymentMethodName: string | null;
+  paymentNotes: string | null;
+  commissionPercent: number;
+  valueCents: number;
+  brokerId: string | null;
+  brokerName: string | null;
+
+  createdAt: string;
+  updatedAt: string;
+}
+
 /** Evento financeiro (lookup) — tela "Tabelas". */
 export interface Event {
   id: string;
@@ -1060,6 +1110,39 @@ export async function fetchAdministrationContract(
     `${BACKEND_URL}/v1/properties/${propertyId}/administration-contract?${qs}`,
     { headers: await authHeaders(), cache: "no-store" },
   );
+}
+
+/**
+ * Autorização de Venda e Compromisso de Compra e Venda em PDF — `Response`
+ * crua, como o contrato de administração. Sem parâmetro nenhum: não há
+ * testemunhas a informar, o botão do cadastro é um `<a>` direto.
+ */
+export async function fetchSaleAuthorization(propertyId: string): Promise<Response> {
+  return fetch(`${BACKEND_URL}/v1/properties/${propertyId}/sale-authorization`, {
+    headers: await authHeaders(),
+    cache: "no-store",
+  });
+}
+
+export async function fetchPurchaseCommitment(propertyId: string): Promise<Response> {
+  return fetch(`${BACKEND_URL}/v1/properties/${propertyId}/purchase-commitment`, {
+    headers: await authHeaders(),
+    cache: "no-store",
+  });
+}
+
+/**
+ * Vendas de um imóvel — lista, e não a venda direto, para preservar a convenção
+ * do `get`: `null` significa FALHA. Um imóvel ainda não vendido devolve `[]`, e
+ * a tela precisa distinguir uma coisa da outra.
+ */
+export function fetchSalesByProperty(propertyId: string): Promise<Sale[] | null> {
+  return get<Sale[]>(`/v1/sales?propertyId=${propertyId}`);
+}
+
+/** Formas de pagamento (lookup) do tenant da sessão. */
+export function fetchPaymentMethods(): Promise<PaymentMethod[] | null> {
+  return get<PaymentMethod[]>("/v1/payment-methods");
 }
 
 /** Bairros (lookup) do tenant da sessão. */

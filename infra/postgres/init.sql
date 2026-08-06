@@ -1833,3 +1833,96 @@ CREATE POLICY tenant_isolation ON cash_flow_entries
   USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
   WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
 GRANT SELECT, INSERT, UPDATE, DELETE ON cash_flow_entries TO app_user;
+
+-- ═════════════════════════════════════════════════════════════════
+-- VENDA DE IMÓVEL (MOD-VENDA)
+-- ═════════════════════════════════════════════════════════════════
+
+-- ── Formas de pagamento (lookup) ─────────────────────────────────
+-- "À vista", "Financiado pela Caixa", "Parcelado direto". É o "Cód + Forma de
+-- Pagamento" da tela legada de vendas: o QUE se escolhe fica aqui, o COMO
+-- (sinal, número de parcelas, banco) é texto livre na própria venda.
+CREATE TABLE IF NOT EXISTS payment_methods (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  code        INTEGER NOT NULL DEFAULT 0,   -- Cód (sequencial por tenant)
+  name        TEXT NOT NULL,
+  active      BOOLEAN NOT NULL DEFAULT true,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_payment_methods_tenant ON payment_methods (tenant_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_payment_methods_tenant_code
+  ON payment_methods (tenant_id, code);
+
+ALTER TABLE payment_methods ENABLE ROW LEVEL SECURITY;
+ALTER TABLE payment_methods FORCE  ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON payment_methods;
+CREATE POLICY tenant_isolation ON payment_methods
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON payment_methods TO app_user;
+
+-- ── Vendas ───────────────────────────────────────────────────────
+-- Fechamento da venda de um imóvel (tela legada "Vendas"). Registrá-la marca o
+-- imóvel como VENDIDO e alimenta `commissions` por `sale_id` — o id desta
+-- tabela é a chave de idempotência que `commissions` já esperava.
+--
+-- Os dados do COMPRADOR são texto livre, e não FK para `persons`: o que vai
+-- para a escritura é o que foi digitado no dia do fechamento. Editar a pessoa
+-- meses depois não pode reescrever o que já foi lavrado em cartório.
+--
+-- `broker_id` aponta para `brokers` (corretores parceiros), NÃO para
+-- `properties.broker_id` (que é `employees`): quem divide a comissão é o
+-- `brokers.commission_percent` (ver commission/commission-split.ts).
+CREATE TABLE IF NOT EXISTS sales (
+  id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id            UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  code                 INTEGER NOT NULL DEFAULT 0,  -- Nro/Cód (sequencial por tenant)
+  property_id          UUID NOT NULL,               -- FK lógica → properties
+  sold_at              DATE,                        -- data do fechamento
+  -- Comprador
+  buyer_name           TEXT NOT NULL,
+  buyer_nationality    TEXT,
+  buyer_marital_status TEXT,                        -- SOLTEIRO|CASADO|DIVORCIADO|VIUVO|UNIAO_ESTAVEL
+  buyer_occupation     TEXT,                        -- Profissão
+  buyer_address        TEXT,
+  buyer_district       TEXT,
+  buyer_city           TEXT,
+  buyer_state          TEXT,
+  buyer_zip            TEXT,
+  buyer_cpf            TEXT,
+  buyer_rg             TEXT,
+  -- Cônjuge
+  spouse_name          TEXT,
+  spouse_nationality   TEXT,
+  spouse_occupation    TEXT,
+  spouse_cpf           TEXT,
+  spouse_rg            TEXT,
+  marriage_regime      TEXT,                        -- Regime de casamento (texto livre)
+  -- Negócio
+  payment_method_id    UUID,                        -- FK lógica → payment_methods
+  payment_notes        TEXT,                        -- detalhamento (sinal, parcelas, banco)
+  commission_percent   NUMERIC(5,2) NOT NULL DEFAULT 0, -- % sobre o valor da venda
+  value_cents          BIGINT NOT NULL DEFAULT 0,   -- valor da venda
+  broker_id            UUID,                        -- FK lógica → brokers
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_sales_tenant_property ON sales (tenant_id, property_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_sales_tenant_code ON sales (tenant_id, code);
+
+ALTER TABLE sales ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sales FORCE  ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS tenant_isolation ON sales;
+CREATE POLICY tenant_isolation ON sales
+  USING       (tenant_id = current_setting('app.tenant_id', true)::uuid)
+  WITH CHECK  (tenant_id = current_setting('app.tenant_id', true)::uuid);
+GRANT SELECT, INSERT, UPDATE, DELETE ON sales TO app_user;
+
+INSERT INTO payment_methods (tenant_id, code, name)
+VALUES
+  ('00000000-0000-0000-0000-000000000001', 1, 'À vista'),
+  ('00000000-0000-0000-0000-000000000001', 2, 'Financiado'),
+  ('00000000-0000-0000-0000-000000000001', 3, 'Parcelado direto com o proprietário')
+ON CONFLICT DO NOTHING;

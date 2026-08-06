@@ -38,6 +38,7 @@ test("AUXILIAR escreve o operacional inteiro", () => {
     "crm:write",
     "condominium:write",
     "document:write",
+    "sale:write",
   ] as const) {
     assert.equal(can(["AUXILIAR"], op), true, `AUXILIAR deveria poder ${op}`);
   }
@@ -55,6 +56,7 @@ test("AUXILIAR não apaga NADA, e não mexe em usuário, configuração nem dinh
     "condominium:delete",
     "broker:delete",
     "document:delete",
+    "sale:delete",
   ] as const) {
     assert.equal(can(["AUXILIAR"], op), false, `AUXILIAR não pode ${op}`);
   }

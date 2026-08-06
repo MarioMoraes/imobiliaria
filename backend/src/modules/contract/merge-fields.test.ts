@@ -9,6 +9,7 @@ import {
 } from "./merge-fields.js";
 import type { Person } from "../person/person.schema.js";
 import type { Property } from "../property/property.schema.js";
+import type { Sale } from "../sale/sale.schema.js";
 import type { Contract } from "./contract.schema.js";
 
 /** Puro (sem infra): parsing das variáveis dinâmicas dos templates. */
@@ -221,10 +222,75 @@ test("os grupos da paleta são exatamente os dropdowns da tela", () => {
     "Locador",
     "Locatário",
     "Fiador",
+    "Comprador",
     "Imóvel",
     "Contrato",
+    "Venda",
     "Testemunhas",
   ]);
+});
+
+/* --------------------------------------------- Comprador e venda */
+
+const venda = {
+  code: 10986,
+  soldAt: "2026-08-10",
+  buyerName: "Maria Compradora",
+  buyerCpf: "111.222.333-44",
+  buyerRg: "22.333.444-5",
+  buyerNationality: "brasileira",
+  buyerMaritalStatus: "CASADO",
+  buyerOccupation: "médica",
+  buyerAddress: "Rua do Comprador, 45",
+  buyerDistrict: "Vila Nova",
+  buyerCity: "Campinas",
+  buyerState: "SP",
+  buyerZip: "13000-000",
+  spouseName: "Pedro Comprador",
+  spouseCpf: "555.666.777-88",
+  spouseRg: "33.444.555-6",
+  spouseNationality: "portuguesa",
+  spouseOccupation: "arquiteto",
+  marriageRegime: "comunhão parcial de bens",
+  paymentMethodName: "Financiado",
+  paymentNotes: "Sinal de 50.000,00 e o saldo em 360 meses",
+  commissionPercent: 6,
+  valueCents: 500_000_00,
+  brokerName: "Ana Souza",
+} as unknown as Sale;
+
+const comVenda = buildMergeContext({
+  contract,
+  property,
+  persons: { locador: person, locatario: null, fiador: null },
+  names: { locador: "João da Silva", locatario: "x", fiador: "x" },
+  sale: venda,
+});
+
+test("o comprador sai da VENDA, não de um cadastro de pessoa", () => {
+  assert.equal(comVenda["comprador.nome"], "Maria Compradora");
+  assert.equal(comVenda["comprador.estado_civil"], "casado(a)", "o enum vira texto legível");
+  assert.equal(comVenda["comprador.cidade"], "Campinas");
+  assert.equal(comVenda["comprador.conjuge_profissao"], "arquiteto");
+  assert.equal(comVenda["comprador.regime_casamento"], "comunhão parcial de bens");
+});
+
+test("os dados do negócio entram formatados como o documento pede", () => {
+  assert.equal(comVenda["venda.numero"], "10986");
+  assert.equal(comVenda["venda.data"], "10/08/2026");
+  assert.equal(comVenda["venda.valor"], "500.000,00");
+  assert.equal(comVenda["venda.valor_extenso"], "quinhentos mil reais");
+  assert.equal(comVenda["venda.comissao"], "6");
+  assert.equal(comVenda["venda.forma_pagamento"], "Financiado");
+  assert.equal(comVenda["venda.corretor"], "Ana Souza");
+});
+
+test("documento emitido antes da venda sai com o comprador em branco", () => {
+  // É o caso da autorização de venda, e do compromisso impresso para preencher
+  // à mão: sem venda registrada, os campos viram lacuna como qualquer outro.
+  assert.equal(ctx["comprador.nome"], "____________");
+  assert.equal(ctx["venda.valor"], "____________");
+  assert.equal(ctx["venda.data"], "__/__/____");
 });
 
 test("as testemunhas vêm da emissão, não do cadastro", () => {

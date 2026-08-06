@@ -8,6 +8,7 @@ import * as repo from "./contract.repository.js";
 import * as propertyService from "../property/property.service.js";
 import * as personService from "../person/person.service.js";
 import * as receivableService from "../receivable/receivable.service.js";
+import * as saleService from "../sale/sale.service.js";
 import {
   MERGE_FIELDS,
   buildMergeContext,
@@ -20,6 +21,7 @@ import {
 import { appendWitnessBlock, hasWitnessPlaceholder, toDocumentHtml } from "./document.js";
 import type { ActiveTenantRow } from "./contract.repository.js";
 import type { Property } from "../property/property.schema.js";
+import type { Sale } from "../sale/sale.schema.js";
 import type {
   Contract,
   ContractParty,
@@ -387,6 +389,7 @@ async function buildContext(
   tenantId: string,
   contract: Contract,
   witnesses?: WitnessNames,
+  sale?: Sale | null,
 ): Promise<Record<MergeFieldKey, string>> {
   const property = contract.propertyId
     ? await propertyService.getById(tenantId, contract.propertyId).catch(() => null)
@@ -422,6 +425,7 @@ async function buildContext(
       fiador: nameList(fiadores),
     },
     witnesses,
+    sale,
   });
 }
 
@@ -476,39 +480,48 @@ export async function generateDocument(
   return { url, version };
 }
 
-/* ------------------------------- Contrato de administração (imóvel) */
+/* --------------------- Documentos emitidos do cadastro do imóvel */
 
 /** Minúsculas sem acento — para casar o nome do modelo como o usuário digitou. */
 const fold = (s: string): string =>
   s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 /**
- * Localiza o modelo do contrato de administração entre os modelos ATIVOS do
- * tenant. O nome é escolhido por quem cadastra ("Administração Com Garantia",
- * "Contrato de Administração de Imóvel"…), então a busca é por palavra-chave:
- * primeiro o modelo COM garantia, e só na falta dele um de administração
- * qualquer — melhor emitir o documento de administração disponível do que
- * recusar por diferença de nome.
+ * Localiza um modelo ATIVO pelo nome. O nome é escolhido por quem cadastra
+ * ("Administração Com Garantia", "Autorização de Venda de Imóvel"…), então a
+ * busca é por palavra-chave e não por igualdade: melhor emitir o documento
+ * disponível do que recusar por diferença de redação.
+ *
+ * `preferred` desempata quando há mais de um candidato — é o que põe o modelo
+ * de administração COM garantia na frente do genérico.
  */
-async function findAdministrationTemplate(tenantId: string): Promise<ContractTemplate | null> {
+async function findTemplateByKeyword(
+  tenantId: string,
+  keyword: string,
+  preferred?: string,
+): Promise<ContractTemplate | null> {
   const templates = await repo.listTemplates(tenantId);
-  const administration = templates.filter((t) => fold(t.name).includes("administra"));
-  return administration.find((t) => fold(t.name).includes("garantia")) ?? administration[0] ?? null;
+  const matching = templates.filter((t) => fold(t.name).includes(keyword));
+  if (!preferred) return matching[0] ?? null;
+  return matching.find((t) => fold(t.name).includes(preferred)) ?? matching[0] ?? null;
 }
 
 /**
- * Contrato "de papel" para o contrato de ADMINISTRAÇÃO: ele é firmado entre a
- * imobiliária e o proprietário ANTES de existir locação, então não há registro
- * em `contracts` para pendurar o documento — nem faria sentido criar um.
+ * Contrato "de papel" dos documentos emitidos do CADASTRO DO IMÓVEL (contrato
+ * de administração, autorização de venda, compromisso de compra e venda): todos
+ * são firmados antes de existir locação ou venda registrada em `contracts`, e
+ * não há a que pendurar o documento — nem faria sentido criar um contrato só
+ * para isso.
  *
  * Os campos que o modelo aproveita saem do cadastro do imóvel (aluguel, taxa de
  * administração); o resto fica nulo e o catálogo renderiza o placeholder, do
  * mesmo jeito que num contrato ainda incompleto.
  */
-function administrationDraft(
+function propertyDraft(
   tenantId: string,
   property: Property,
   templateId: string,
+  isAdministration = false,
 ): Contract {
   const now = new Date().toISOString();
   return {
@@ -535,7 +548,7 @@ function administrationDraft(
     interestPercent: null,
     penaltyPercent: null,
     adminFeePercent: property.adminFeePercent,
-    isAdministration: true,
+    isAdministration,
     incomeTaxDeclaration: false,
     iptuChargedTo: null,
     commissionType: null,
@@ -578,14 +591,14 @@ export async function generateAdministrationDocument(
 ): Promise<{ pdf: Buffer; fileName: string }> {
   const property = await propertyService.getById(tenantId, propertyId);
 
-  const template = await findAdministrationTemplate(tenantId);
+  const template = await findTemplateByKeyword(tenantId, "administra", "garantia");
   if (!template) {
     throw AppError.badRequest(
       'Nenhum modelo de contrato de administração ativo. Cadastre-o em Tabelas › Modelos de Contrato (com "administração" no nome).',
     );
   }
 
-  const draft = administrationDraft(tenantId, property, template.id);
+  const draft = propertyDraft(tenantId, property, template.id, true);
   const ctx = await buildContext(tenantId, draft, witnesses);
 
   let html = render(toDocumentHtml(template.content), ctx);
@@ -595,6 +608,65 @@ export async function generateAdministrationDocument(
 
   const pdf = await htmlToPdf(html);
   return { pdf, fileName: `contrato-administracao-${property.code ?? "imovel"}.pdf` };
+}
+
+/* ------------------------------------- Documentos de venda (imóvel) */
+
+/**
+ * Autorização de Venda e Compromisso de Compra e Venda em PDF, emitidos direto
+ * do cadastro do imóvel a vender. Respondem os BYTES, como o contrato de
+ * administração, e também não guardam versão.
+ *
+ * **Sem testemunhas.** Ao contrário da administração, estes dois saem em um
+ * clique: quem assina a autorização é o proprietário no balcão, e o bloco de
+ * testemunhas — quando o documento o exige — faz parte do próprio modelo.
+ *
+ * A VENDA entra no contexto quando já existe: o compromisso emitido depois do
+ * fechamento sai com comprador, valor e forma de pagamento preenchidos; emitido
+ * antes, sai com esses campos em branco, para preencher à mão. É a mesma
+ * tolerância do contrato ainda incompleto.
+ */
+async function generatePropertySaleDocument(
+  tenantId: string,
+  propertyId: string,
+  doc: { keyword: string; missing: string; fileBase: string },
+): Promise<{ pdf: Buffer; fileName: string }> {
+  const property = await propertyService.getById(tenantId, propertyId);
+
+  const template = await findTemplateByKeyword(tenantId, doc.keyword);
+  if (!template) throw AppError.badRequest(doc.missing);
+
+  const sale = await saleService.findByProperty(tenantId, propertyId).catch(() => null);
+
+  const draft = propertyDraft(tenantId, property, template.id);
+  const ctx = await buildContext(tenantId, draft, undefined, sale);
+
+  const pdf = await htmlToPdf(render(toDocumentHtml(template.content), ctx));
+  return { pdf, fileName: `${doc.fileBase}-${property.code ?? "imovel"}.pdf` };
+}
+
+export function generateSaleAuthorizationDocument(
+  tenantId: string,
+  propertyId: string,
+): Promise<{ pdf: Buffer; fileName: string }> {
+  return generatePropertySaleDocument(tenantId, propertyId, {
+    keyword: "autoriza",
+    missing:
+      'Nenhum modelo de autorização de venda ativo. Cadastre-o em Tabelas › Modelos de Contrato (com "autorização" no nome).',
+    fileBase: "autorizacao-venda",
+  });
+}
+
+export function generatePurchaseCommitmentDocument(
+  tenantId: string,
+  propertyId: string,
+): Promise<{ pdf: Buffer; fileName: string }> {
+  return generatePropertySaleDocument(tenantId, propertyId, {
+    keyword: "compromisso",
+    missing:
+      'Nenhum modelo de compromisso de compra e venda ativo. Cadastre-o em Tabelas › Modelos de Contrato (com "compromisso" no nome).',
+    fileBase: "compromisso-compra-venda",
+  });
 }
 
 /**
