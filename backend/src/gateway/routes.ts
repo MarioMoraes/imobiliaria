@@ -16,6 +16,8 @@ import {
 } from "../modules/signature/signature.routes.js";
 import { receivableRoutes } from "../modules/receivable/receivable.routes.js";
 import { payableRoutes } from "../modules/payable/payable.routes.js";
+import { commissionRoutes } from "../modules/commission/commission.routes.js";
+import { cashFlowRoutes } from "../modules/cashflow/cashflow.routes.js";
 import { searchRoutes } from "../modules/search/search.routes.js";
 import {
   paymentRoutes,
@@ -140,6 +142,13 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       // Contas a pagar (MOD-FIN): o repasse ao proprietário nasce aqui quando um
       // aluguel é baixado, já com a taxa de administração deduzida.
       await v1.register(payableRoutes, { prefix: "/payables" });
+      // Comissões (MOD-FIN-05): a de venda do imóvel e, no futuro, a de locação.
+      // Uma linha por parte — a da imobiliária é receita, a do corretor é despesa.
+      await v1.register(commissionRoutes, { prefix: "/commissions" });
+      // Fluxo de caixa consolidado. NÃO confundir com /v1/receivables/cash-flow,
+      // que é a série "recebido × previsto" do gráfico — este aqui é o extrato
+      // (entradas, saídas, resultado da imobiliária).
+      await v1.register(cashFlowRoutes, { prefix: "/cash-flow" });
       // Envio do repasse por PIX (Asaas). Compartilha o prefixo /payables — os
       // paths não colidem (transfer, sync-transfer).
       await v1.register(payoutRoutes, { prefix: "/payables" });
