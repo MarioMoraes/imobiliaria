@@ -99,7 +99,24 @@ gunzip -c /root/backup-AAAA-MM-DD-HHMM.sql.gz \
 **Nunca** rode `docker compose down -v` na VPS: o `-v` apaga os volumes, e com
 eles o banco.
 
-## 5. Armadilhas já pagas
+## 5. Levar dados de um tenant para a VPS
+
+Cadastros de demonstração feitos no local:
+
+```bash
+bash scripts/exportar-tenant.sh <tenant-id>
+```
+
+Gera um `.sql` com as tabelas de domínio daquele tenant e imprime as duas linhas
+seguintes (validar carregando de volta no local, depois `scp` + `psql` na VPS).
+Ficam de fora identidade, credenciais cifradas, trilha de auditoria e histórico
+do copiloto — o cabeçalho do script lista o motivo de cada exclusão.
+
+**Só funciona se o tenant tiver o mesmo UUID nos dois bancos.** O arquivo
+preserva o `tenant_id` das linhas; num banco onde esse id não existe, os dados
+entram órfãos e nenhuma tela os mostra.
+
+## 6. Armadilhas já pagas
 
 - **Project name.** Sem `-p offices-ai`, o compose não reconhece os containers e
   sobe uma stack paralela com banco vazio. As duas anunciam o mesmo domínio ao
