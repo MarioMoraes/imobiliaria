@@ -13,10 +13,10 @@ import type {
  * Leitura do fluxo de caixa.
  *
  * **Exceção de fronteira autorizada:** este repositório faz SELECT direto em
- * `receivables`, `payables` e `commissions` — tabelas de outros módulos. É a
- * mesma licença dada ao módulo `dashboard`, e pelo mesmo motivo: um read model
- * que consolida N domínios não cabe atrás dos services sem transformar uma tela
- * em N+1 chamadas.
+ * `receivables`, `payables`, `commissions` e `condominium_expenses` — tabelas de
+ * outros módulos. É a mesma licença dada ao módulo `dashboard`, e pelo mesmo
+ * motivo: um read model que consolida N domínios não cabe atrás dos services sem
+ * transformar uma tela em N+1 chamadas.
  *
  * O que ele NÃO faz é copiar. O movimento automático é derivado na hora, nunca
  * gravado: `init.sql` já decidiu que a taxa de administração vive em
@@ -40,7 +40,7 @@ interface MovementRow {
 }
 
 /**
- * As seis origens do extrato, em um UNION ALL. Cada ramo declara as duas flags
+ * As sete origens do extrato, em um UNION ALL. Cada ramo declara as duas flags
  * — ver o cabeçalho de `cashflow.schema.ts` para o porquê de a taxa de
  * administração entrar no resultado e não no caixa.
  *
@@ -142,7 +142,36 @@ const MOVEMENTS_SQL = `
 
   UNION ALL
 
-  -- 5. Comissões: dinheiro próprio dos dois lados — a da imobiliária entra, a do
+  -- 5. Despesa do condomínio: paga com o que os condôminos recolheram em (1), e
+  --    portanto o OUTRO LADO daquela entrada — exatamente o papel que (4) tem
+  --    para o aluguel. Sai do banco e não é despesa nossa.
+  --
+  --    Sem este ramo o caixa inflava para sempre pelo total arrecadado: a cota
+  --    entrava e nada saía. O saldo do condomínio (arrecadado − gasto) é o que
+  --    fica retido, e pendingPayouts() abaixo o soma ao repasse em aberto.
+  --
+  --    entry_date é anulável no cadastro; a janela já descarta esses nulos, e é
+  --    o correto — um lançamento sem data não pertence a mês nenhum.
+  SELECT 'DESPESA_CONDOMINIO:' || x.id,
+         x.entry_date,
+         'DESPESA_CONDOMINIO',
+         'SAIDA',
+         NULL,
+         NULLIF(concat_ws(' · ', cd.name, ev.name, x.notes), ''),
+         x.amount_cents::bigint,
+         true,
+         false,
+         NULL::uuid,
+         NULL::text,
+         x.id
+    FROM condominium_expenses x
+    LEFT JOIN condominiums cd ON cd.id = x.condominium_id
+    LEFT JOIN events ev       ON ev.id = x.event_id
+   WHERE x.entry_date >= $1::date AND x.entry_date < $2::date
+
+  UNION ALL
+
+  -- 6. Comissões: dinheiro próprio dos dois lados — a da imobiliária entra, a do
   --    corretor sai. Conta no caixa E no resultado.
   SELECT 'COMISSAO:' || c.id,
          c.settled_at,
@@ -163,7 +192,7 @@ const MOVEMENTS_SQL = `
 
   UNION ALL
 
-  -- 6. Lançamento manual: despesa do escritório, receita avulsa.
+  -- 7. Lançamento manual: despesa do escritório, receita avulsa.
   SELECT 'MANUAL:' || e.id,
          e.entry_date,
          'MANUAL',
@@ -215,6 +244,8 @@ function labelFor(source: CashFlowSource, ref: string | null): string {
       return "Juros e Multa de Atraso";
     case "REPASSE":
       return "Repasse ao Proprietário";
+    case "DESPESA_CONDOMINIO":
+      return "Despesa de Condomínio";
     case "COMISSAO":
       return ref === "CORRETOR" ? "Comissão de Corretor" : "Comissão de Venda";
     case "MANUAL":
@@ -249,16 +280,33 @@ function monthWindow(month: string): [string, string] {
 }
 
 /**
- * Dinheiro de terceiros ainda retido — repasses em aberto ou em trânsito, de
- * QUALQUER mês. É o que explica o saldo de caixa ser maior que o resultado, e
- * por isso não é filtrado pela janela: um aluguel recebido em julho e ainda não
- * repassado em agosto continua sendo dinheiro que não é nosso.
+ * Dinheiro de terceiros ainda retido, de QUALQUER mês. É o que explica o saldo
+ * de caixa ser maior que o resultado, e por isso não é filtrado pela janela: um
+ * aluguel recebido em julho e ainda não repassado em agosto continua sendo
+ * dinheiro que não é nosso.
+ *
+ * São DUAS retenções, uma por tipo de terceiro:
+ *
+ * 1. **Proprietário** — repasses em aberto ou em trânsito.
+ * 2. **Condomínio** — o arrecadado dos condôminos menos o já gasto. É o mesmo
+ *    saldo derivado que `condominium.service` mostra na tela do condomínio, e
+ *    calculá-lo aqui de novo é deliberado: uma chamada ao outro service por
+ *    condomínio seria N+1 dentro de um read model que existe para evitar isso.
+ *
+ * A parcela do condomínio entra com sinal — ver o comentário de
+ * `pendingPayoutCents` em `cashflow.schema.ts` para o porquê de não truncar.
  */
 async function pendingPayouts(client: pg.PoolClient): Promise<number> {
   const { rows } = await client.query<{ total: string }>(
-    `SELECT COALESCE(sum(amount_cents), 0) AS total
-       FROM payables
-      WHERE status IN ('ABERTO', 'VENCIDO', 'PROCESSANDO')`,
+    `SELECT
+       (SELECT COALESCE(sum(amount_cents), 0)
+          FROM payables
+         WHERE status IN ('ABERTO', 'VENCIDO', 'PROCESSANDO'))
+     + (SELECT COALESCE(sum(paid_amount_cents), 0)
+          FROM receivables
+         WHERE kind = 'CONDOMINIO' AND status = 'PAGO')
+     - (SELECT COALESCE(sum(amount_cents), 0)
+          FROM condominium_expenses) AS total`,
   );
   return Number(rows[0]?.total ?? 0);
 }
@@ -274,6 +322,23 @@ export async function statementData(
   month: string,
 ): Promise<StatementData> {
   const [start, end] = monthWindow(month);
+  return windowData(tenantId, start, end);
+}
+
+/**
+ * O mesmo extrato sobre uma janela livre `[start, end)` — a base dos relatórios
+ * de período.
+ *
+ * Compartilha o `MOVEMENTS_SQL` com o extrato do mês e com a série de propósito:
+ * as três visões respondem à mesma pergunta em recortes diferentes, e uma
+ * consulta própria para o relatório significaria descobrir a divergência só
+ * quando alguém comparasse o PDF com a tela.
+ */
+export async function windowData(
+  tenantId: string,
+  start: string,
+  end: string,
+): Promise<StatementData> {
   return withTenant(tenantId, async (client) => {
     const { rows } = await client.query<MovementRow>(
       `${MOVEMENTS_SQL} ORDER BY date ASC, source ASC`,

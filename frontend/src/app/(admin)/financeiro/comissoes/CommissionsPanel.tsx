@@ -136,8 +136,7 @@ export function CommissionsPanel({
             <tr>
               <th>Parte</th>
               <th>Descrição</th>
-              <th>Imóvel</th>
-              <th>Venda / %</th>
+              <th>Venda</th>
               <th>Venc.</th>
               <th style={{ textAlign: "right" }}>Valor</th>
               <th>Status</th>
@@ -168,12 +167,7 @@ export function CommissionsPanel({
                   )}
                 </td>
                 <td className="text-sm subtle">
-                  {c.propertyCode ? `Imóvel ${c.propertyCode}` : "—"}
-                </td>
-                <td className="text-sm subtle">
-                  {c.baseCents > 0
-                    ? `${formatPrice(c.baseCents)} · ${c.percentSnapshot}%`
-                    : "—"}
+                  {c.baseCents > 0 ? formatPrice(c.baseCents) : "—"}
                 </td>
                 <td className="text-sm subtle">{formatDay(c.dueDate)}</td>
                 <td className="strong num" style={{ textAlign: "right" }}>
@@ -232,7 +226,7 @@ export function CommissionsPanel({
             ))}
             {commissions.length === 0 && (
               <tr>
-                <td colSpan={8} className="text-sm subtle">
+                <td colSpan={7} className="text-sm subtle">
                   Nenhuma comissão lançada. Uma venda gera duas linhas: a comissão
                   que a imobiliária recebe e a parte do corretor.
                 </td>

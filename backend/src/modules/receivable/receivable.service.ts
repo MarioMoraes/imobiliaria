@@ -2,7 +2,11 @@ import { randomUUID } from "node:crypto";
 import { AppError } from "../../shared/errors.js";
 import { publish } from "../../shared/events.js";
 import { logger } from "../../shared/logger.js";
+import { htmlToPdf } from "../../shared/pdf.js";
+import type { Period } from "../../shared/period.js";
+import * as tenantService from "../tenant/tenant.service.js";
 import * as repo from "./receivable.repository.js";
+import { toRevenueReportHtml } from "./receivable.report.js";
 import { buildRentSchedule } from "./rent-schedule.js";
 import type {
   CashFlowPoint,
@@ -75,6 +79,30 @@ export function cashFlow(
   query: CashFlowQuery,
 ): Promise<CashFlowPoint[]> {
   return repo.cashFlowSeries(tenantId, query.months);
+}
+
+/**
+ * Relatório de Receitas do período, em PDF.
+ *
+ * Como o relatório de repasses (`payable.service.report`), não é guardado no
+ * storage: relatório é efêmero e derivado — versionar produziria cópias que
+ * envelhecem enquanto as cobranças mudam. E não passa pela listagem da tela,
+ * que tem limite: um relatório truncado não fecha com o total.
+ */
+export async function periodReport(tenantId: string, period: Period): Promise<Buffer> {
+  const [receivables, tenant] = await Promise.all([
+    repo.listReceivablesByDueRange(tenantId, period.from, period.to),
+    tenantService.getById(tenantId),
+  ]);
+
+  return htmlToPdf(
+    toRevenueReportHtml({
+      tenantName: tenant.name,
+      period,
+      receivables,
+      generatedAt: new Date(),
+    }),
+  );
 }
 
 export async function getById(tenantId: string, id: string): Promise<Receivable> {

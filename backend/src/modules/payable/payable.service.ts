@@ -3,12 +3,14 @@ import { AppError } from "../../shared/errors.js";
 import { publish } from "../../shared/events.js";
 import { logger } from "../../shared/logger.js";
 import { htmlToPdf } from "../../shared/pdf.js";
+import type { Period } from "../../shared/period.js";
 import * as contractService from "../contract/contract.service.js";
 import * as personService from "../person/person.service.js";
 import * as propertyService from "../property/property.service.js";
 import * as tenantService from "../tenant/tenant.service.js";
 import * as repo from "./payable.repository.js";
 import { buildOwnerPayouts } from "./owner-payout.js";
+import { toPayablePeriodReportHtml } from "./period-report.js";
 import { toPayoutReceiptHtml } from "./receipt.js";
 import { toPayoutReportHtml } from "./report.js";
 import { listPayablesQuerySchema } from "./payable.schema.js";
@@ -65,6 +67,29 @@ export async function report(tenantId: string, month?: string): Promise<Buffer> 
       month: dueMonth,
       payables,
       summary: summaryData,
+      generatedAt: new Date(),
+    }),
+  );
+}
+
+/**
+ * Relatório de Contas a Pagar do período, em PDF.
+ *
+ * Documento diferente do `report()` acima — ver o cabeçalho de
+ * `period-report.ts`: aquele é a prestação de contas por proprietário de um mês;
+ * este é a agenda de pagamentos de um período livre.
+ */
+export async function periodReport(tenantId: string, period: Period): Promise<Buffer> {
+  const [payables, tenant] = await Promise.all([
+    repo.listPayablesByDueRange(tenantId, period.from, period.to),
+    tenantService.getById(tenantId),
+  ]);
+
+  return htmlToPdf(
+    toPayablePeriodReportHtml({
+      tenantName: tenant.name,
+      period,
+      payables,
       generatedAt: new Date(),
     }),
   );

@@ -118,6 +118,25 @@ export function FinanceiroGrid({
             </span>
           </div>
         </Link>
+
+        <Link href="/financeiro/relatorios" className="lookup-card reveal">
+          <span className="stat-icon blue">
+            <Icon name="printer" />
+          </span>
+          <div className="stack" style={{ gap: 4 }}>
+            <span className="lookup-card-title">Relatórios</span>
+            <span className="subtle text-sm">
+              Movimento do caixa, resultados, receitas e contas a pagar, em PDF,
+              pelo período que escolher.
+            </span>
+          </div>
+          <div className="lookup-card-foot">
+            <span className="badge badge-slate">4 relatórios</span>
+            <span className="row gap-8 text-sm strong">
+              Abrir <Icon name="arrowRight" size={15} />
+            </span>
+          </div>
+        </Link>
       </div>
 
       <Modal

@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { getTenantId } from "../../shared/tenant-context.js";
 import { AppError } from "../../shared/errors.js";
+import { periodQuerySchema } from "../../shared/period.js";
 import { requirePermission } from "../rbac/authorize.js";
 import {
   cashFlowQuerySchema,
@@ -32,6 +33,29 @@ export async function receivableRoutes(app: FastifyInstance): Promise<void> {
       throw AppError.badRequest("Janela inválida", parsed.error.flatten());
     }
     return { data: await service.cashFlow(getTenantId(), parsed.data) };
+  });
+
+  /**
+   * Relatório de Receitas do período (`?from=&to=`) em PDF. Responde os BYTES
+   * (application/pdf), e não o envelope `{ data }` das demais rotas — quem chama
+   * abre/imprime o arquivo.
+   */
+  app.get("/report", { preHandler: requirePermission("finance:read") }, async (req, reply) => {
+    const parsed = periodQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      throw AppError.badRequest("Período inválido", parsed.error.flatten());
+    }
+    const pdf = await service.periodReport(getTenantId(), parsed.data);
+
+    // `inline` abre no visualizador do navegador; o nome é o que o "salvar como"
+    // sugere — sem ele o arquivo herdaria o nome da rota ("report.pdf").
+    reply
+      .header("Content-Type", "application/pdf")
+      .header(
+        "Content-Disposition",
+        `inline; filename="receitas-${parsed.data.from}-a-${parsed.data.to}.pdf"`,
+      );
+    return reply.send(pdf);
   });
 
   app.get<{ Params: { id: string } }>(

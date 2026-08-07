@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { AppError } from "../../shared/errors.js";
 import { publish } from "../../shared/events.js";
+import { htmlToPdf } from "../../shared/pdf.js";
+import { exclusiveEnd, type Period } from "../../shared/period.js";
+import * as tenantService from "../tenant/tenant.service.js";
 import * as repo from "./cashflow.repository.js";
+import { toCashMovementReportHtml, toResultReportHtml } from "./cashflow.report.js";
 import * as entriesRepo from "./entries.repository.js";
 import type {
   CashFlowCategory,
@@ -117,6 +121,44 @@ function summarize(
 
 export function series(tenantId: string, months: number): Promise<CashFlowSeriesPoint[]> {
   return repo.series(tenantId, months);
+}
+
+/* ------------------------------------------------- Relatórios em PDF */
+
+/**
+ * Movimento do Caixa e Resultados, em PDF, sobre um período livre.
+ *
+ * Os dois saem da MESMA leitura (`repo.windowData`) e só divergem na moldura: é
+ * o mesmo extrato visto pelas duas flags de cada movimento. Duas consultas
+ * separadas abririam a porta para o caixa de um PDF não bater com o resultado do
+ * outro emitido no minuto seguinte.
+ *
+ * Como o relatório de repasses, o PDF não é guardado no storage: é derivado e
+ * efêmero — versionar produziria cópias que envelhecem enquanto os lançamentos
+ * mudam. E não tem limite de linhas: um relatório que corta no meio não fecha
+ * com o total, e é para conferir o total que ele existe.
+ */
+export async function periodReport(
+  tenantId: string,
+  period: Period,
+  kind: "MOVIMENTO" | "RESULTADO",
+): Promise<Buffer> {
+  const [{ movements, pendingPayoutCents }, tenant] = await Promise.all([
+    repo.windowData(tenantId, period.from, exclusiveEnd(period.to)),
+    tenantService.getById(tenantId),
+  ]);
+
+  const input = {
+    tenantName: tenant.name,
+    period,
+    movements,
+    pendingPayoutCents,
+    generatedAt: new Date(),
+  };
+
+  return htmlToPdf(
+    kind === "MOVIMENTO" ? toCashMovementReportHtml(input) : toResultReportHtml(input),
+  );
 }
 
 /* ------------------------------------------------------------ Categorias */

@@ -157,12 +157,10 @@ export function BankFormButton({ bank, disabled }: { bank?: Bank; disabled?: boo
           <Icon name="star" size={14} /> Favorito
         </label>
 
-        <div className="grid grid-2" style={{ gap: 12 }}>
-          <ReadonlyMoney label="Saldo" cents={bank?.balanceCents ?? 0} />
-          <ReadonlyMoney label="Cofre" cents={bank?.vaultCents ?? 0} />
-          <ReadonlyMoney label="Em Trânsito" cents={bank?.inTransitCents ?? 0} />
-          <ReadonlyMoney label="Provável Saldo" cents={bank?.probableBalanceCents ?? 0} />
-        </div>
+        {/* Só o Saldo: é o único número com fonte de dado (os lançamentos
+            manuais desta conta). Cofre, Em Trânsito e Provável Saldo eram R$ 0,00
+            fixo — ver o cabeçalho de `bank.schema.ts` no backend. */}
+        {isEdit && <ReadonlyMoney label="Saldo" cents={bank?.balanceCents ?? 0} />}
 
         {error && <span className="text-sm" style={{ color: "var(--danger, #dc2626)" }}>{error}</span>}
 

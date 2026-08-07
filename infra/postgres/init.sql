@@ -466,11 +466,16 @@ ON CONFLICT DO NOTHING;
 
 -- ─────────────────────────────────────────────────────────────
 -- Bancos (MOD-FIN) — contas bancárias da imobiliária (tela legada "Bancos").
--- Identificação (código, nome, agência, conta) + favorito. Os saldos (Saldo,
--- Cofre, Em Trânsito) são DERIVADOS da movimentação financeira (lançamentos/
--- boletos — rotinas futuras); nascem em 0 e são somente-leitura na tela. O
--- "Provável Saldo" NÃO é coluna: é calculado (Saldo + Em Trânsito). Tabela de
--- domínio, protegida por RLS.
+-- Identificação (código, nome, agência, conta) + favorito. Tabela de domínio,
+-- protegida por RLS.
+--
+-- AS TRÊS COLUNAS DE SALDO ABAIXO NÃO SÃO LIDAS POR NINGUÉM. Nasceram marcadas
+-- como "derivadas da movimentação financeira (rotinas futuras)", e a rotina
+-- nunca veio: ficaram em 0 e a tela exibia esse 0 como se fosse saldo real.
+-- Hoje o Saldo é derivado na leitura (`bank.repository.ts` soma os
+-- `cash_flow_entries` da conta) e Cofre/Em Trânsito saíram da tela por não ter
+-- de onde derivar. As colunas continuam aqui só para não exigir DDL num banco
+-- já criado — não escreva nelas, e não volte a lê-las.
 -- ─────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS banks (
   id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),

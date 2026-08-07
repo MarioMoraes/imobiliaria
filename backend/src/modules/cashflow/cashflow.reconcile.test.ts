@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { test } from "node:test";
+import * as condominiumRepo from "../condominium/condominium.repository.js";
+import { createCondominiumSchema } from "../condominium/condominium.schema.js";
 import * as receivableRepo from "../receivable/receivable.repository.js";
+import { listReceivablesQuerySchema } from "../receivable/receivable.schema.js";
 import * as payableRepo from "../payable/payable.repository.js";
 import { buildOwnerPayouts } from "../payable/owner-payout.js";
 import { listPayablesQuerySchema, type Payable } from "../payable/payable.schema.js";
@@ -18,6 +22,11 @@ import * as service from "./cashflow.service.js";
  *   caixa retido (recebido − repassado) == taxa de administração + juros e multa
  *
  * Se alguém "consertar" o read model somando a taxa no caixa, este arquivo quebra.
+ *
+ * O último teste estende a mesma identidade ao CONDOMÍNIO, que é o caso em que
+ * ela já esteve errada em produção: a cota do condômino entrava no caixa e a
+ * despesa paga com ela não saía de lugar nenhum, então o saldo inflava para
+ * sempre pelo total arrecadado.
  *
  * Depende da infra de pé: `npm run infra:up`.
  */
@@ -214,5 +223,92 @@ test("repasse cancelado apaga a taxa junto — a fonte de verdade é uma só", a
     depois.summary.adminFeeCents,
     0,
     "a taxa é derivada do repasse: cancelar um tem que apagar a outra",
+  );
+});
+
+/**
+ * A mesma identidade, agora no condomínio — a regressão que este teste tranca.
+ *
+ * A cota do condômino é dinheiro de terceiro exatamente como o aluguel: entra
+ * inteira e sai inteira, sem passar pelo resultado. O que fica retido é o saldo
+ * do condomínio (arrecadado − gasto), e é ele que o indicador "A Repassar" tem
+ * que somar ao repasse em aberto.
+ *
+ * Tenant próprio porque `pendingPayoutCents` é de TODOS os meses: os repasses
+ * criados pelos testes acima entrariam na conta e mascarariam a asserção.
+ */
+test("condomínio: a cota entra, a despesa sai e o retido é o saldo do condomínio", async () => {
+  const tenant = (await createTestTenant("cashflow-condominio")).id;
+  const mes = "2026-06";
+  const COTA = 143_750; // R$ 1.437,50 por unidade
+  const DESPESA = 227_500; // R$ 2.275,00 pagos no mês
+
+  const condominio = await condominiumRepo.insertCondominium(
+    tenant,
+    createCondominiumSchema.parse({ name: "Residencial do Teste" }),
+  );
+
+  // Duas unidades pelo caminho real do módulo (`insertCondoCharges`), e não por
+  // um INSERT de conveniência: é a rota que a tela de cobrança usa.
+  await receivableRepo.insertCondoCharges(
+    tenant,
+    condominio.id,
+    [1, 2].map(() => ({
+      propertyId: randomUUID(),
+      payerPersonId: randomUUID(),
+      description: "Condomínio",
+      competence: mes,
+      amountCents: COTA,
+      dueDate: `${mes}-10`,
+    })),
+  );
+
+  const cobrancas = await receivableRepo.listReceivables(
+    tenant,
+    listReceivablesQuerySchema.parse({ kind: "CONDOMINIO" }),
+  );
+  assert.equal(cobrancas.length, 2, "o cenário precisa das duas cotas");
+
+  for (const cobranca of cobrancas) {
+    await receivableRepo.updateReceivable(tenant, cobranca.id, {
+      status: "PAGO",
+      paidAt: `${mes}-05`,
+      paidAmountCents: COTA,
+    });
+  }
+
+  await condominiumRepo.insertExpense(tenant, condominio.id, {
+    entryDate: `${mes}-06`,
+    amountCents: DESPESA,
+  });
+
+  const { movements, summary } = await service.statement(tenant, mes);
+
+  const despesa = movements.find((m) => m.source === "DESPESA_CONDOMINIO");
+  assert.ok(despesa, "a despesa do condomínio precisa aparecer no extrato");
+  assert.equal(despesa.amountCents, DESPESA);
+  assert.equal(despesa.direction, "SAIDA");
+  assert.equal(despesa.affectsCash, true, "o dinheiro sai da conta de verdade");
+  assert.equal(despesa.affectsResult, false, "mas não é despesa da imobiliária");
+
+  const arrecadado = COTA * 2;
+  assert.equal(summary.cash.inflowCents, arrecadado);
+  assert.equal(summary.cash.outflowCents, DESPESA);
+  assert.equal(summary.result.netCents, 0, "condomínio não é receita nem despesa nossa");
+
+  // O ponto do arquivo: o que sobra no caixa é EXATAMENTE o saldo do condomínio.
+  // Sem o ramo da despesa, `cash.netCents` ficaria com o arrecadado inteiro.
+  const retido = arrecadado - DESPESA;
+  assert.equal(summary.cash.netCents, retido);
+  assert.equal(
+    summary.pendingPayoutCents,
+    retido,
+    "o saldo do condomínio é dinheiro de terceiro em mãos, como o repasse em aberto",
+  );
+
+  // E a identidade que a tela promete volta a fechar.
+  assert.equal(
+    summary.cash.netCents - summary.result.netCents,
+    summary.pendingPayoutCents,
   );
 });

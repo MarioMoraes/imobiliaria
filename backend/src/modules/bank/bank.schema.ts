@@ -2,11 +2,23 @@ import { z } from "zod";
 
 /**
  * Banco — conta bancária da imobiliária (tela legada "Bancos"). Identificação
- * (código, nome, agência, conta) + favorito são editáveis. Saldo, Cofre e Em
- * Trânsito são DERIVADOS da movimentação financeira (rotinas futuras) e por isso
- * NÃO entram nos schemas de escrita: nascem em 0 e são somente-leitura na tela.
- * `probableBalanceCents` (Provável Saldo) é calculado no repositório: Saldo + Em
- * Trânsito (não é coluna).
+ * (código, nome, agência, conta) + favorito são editáveis.
+ *
+ * **Saldo é DERIVADO na leitura** dos lançamentos manuais vinculados à conta
+ * (`cash_flow_entries.bank_id`), e não da coluna `banks.balance_cents`. A coluna
+ * existe desde o início marcada como "derivada", mas a rotina que a alimentaria
+ * nunca foi escrita: toda conta mostrava R$ 0,00 como se fosse saldo real.
+ * Derivando, o número se conserta sozinho quando um lançamento é editado ou
+ * apagado — a mesma escolha de `condominium.service` para o saldo do condomínio.
+ *
+ * **Cofre, Em Trânsito e Provável Saldo saíram.** Não há fonte de dado para eles
+ * (nem coluna alimentada, nem tabela de origem), e campo monetário zerado numa
+ * tela financeira é lido como saldo, não como ausência. Voltam quando houver de
+ * onde derivá-los. As colunas continuam no banco, sem leitor.
+ *
+ * Escopo do saldo: só o lançamento manual carrega `bank_id` hoje. Aluguel,
+ * repasse e comissão não escolhem conta, então não entram — ver o extrato do
+ * Fluxo de Caixa para o movimento completo.
  */
 
 export const createBankSchema = z.object({
@@ -33,10 +45,8 @@ export interface Bank {
   agency: string | null;
   accountNumber: string | null;
   favorite: boolean;
+  /** Derivado: entradas − saídas dos lançamentos manuais desta conta. */
   balanceCents: number;
-  vaultCents: number;
-  inTransitCents: number;
-  probableBalanceCents: number;
   active: boolean;
   createdAt: string;
   updatedAt: string;

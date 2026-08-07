@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { getTenantId } from "../../shared/tenant-context.js";
 import { AppError } from "../../shared/errors.js";
+import { periodQuerySchema } from "../../shared/period.js";
 import { requirePermission } from "../rbac/authorize.js";
 import {
   createPayableSchema,
@@ -52,6 +53,27 @@ export async function payableRoutes(app: FastifyInstance): Promise<void> {
     reply
       .header("Content-Type", "application/pdf")
       .header("Content-Disposition", `inline; filename="repasses-${month}.pdf"`);
+    return reply.send(pdf);
+  });
+
+  /**
+   * Relatório de Contas a Pagar do período (`?from=&to=`) em PDF. Documento
+   * diferente do `/report` acima — ver `period-report.ts`. Rota mais específica
+   * registrada primeiro por clareza; o find-my-way já daria precedência a ela.
+   */
+  app.get("/report/period", { preHandler: requirePermission("finance:read") }, async (req, reply) => {
+    const parsed = periodQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      throw AppError.badRequest("Período inválido", parsed.error.flatten());
+    }
+    const pdf = await service.periodReport(getTenantId(), parsed.data);
+
+    reply
+      .header("Content-Type", "application/pdf")
+      .header(
+        "Content-Disposition",
+        `inline; filename="contas-a-pagar-${parsed.data.from}-a-${parsed.data.to}.pdf"`,
+      );
     return reply.send(pdf);
   });
 

@@ -334,9 +334,12 @@ export interface Event {
 
 /**
  * Banco (conta bancária da imobiliária) — tela "Financeiro". Código, nome,
- * agência, conta e favorito são editáveis; Saldo/Cofre/Em Trânsito são derivados
- * da movimentação financeira (rotinas futuras) e somente-leitura. `probableBalanceCents`
- * (Provável Saldo) é calculado pelo backend: Saldo + Em Trânsito.
+ * agência, conta e favorito são editáveis; `balanceCents` é derivado pelo
+ * backend dos lançamentos manuais vinculados à conta e é somente-leitura.
+ *
+ * Cofre, Em Trânsito e Provável Saldo não existem mais: não havia fonte de dado
+ * para eles e a tela exibia R$ 0,00 fixo como se fosse saldo. Ver o cabeçalho de
+ * `bank.schema.ts` no backend.
  */
 export interface Bank {
   id: string;
@@ -346,9 +349,6 @@ export interface Bank {
   accountNumber: string | null;
   favorite: boolean;
   balanceCents: number;
-  vaultCents: number;
-  inTransitCents: number;
-  probableBalanceCents: number;
   active: boolean;
 }
 
@@ -806,7 +806,14 @@ export interface CommissionSummary {
 export interface CashFlowMovement {
   key: string;
   date: string;
-  source: "RECEBIMENTO" | "TAXA_ADM" | "JUROS_MULTA" | "REPASSE" | "COMISSAO" | "MANUAL";
+  source:
+    | "RECEBIMENTO"
+    | "TAXA_ADM"
+    | "JUROS_MULTA"
+    | "REPASSE"
+    | "DESPESA_CONDOMINIO"
+    | "COMISSAO"
+    | "MANUAL";
   direction: "ENTRADA" | "SAIDA";
   label: string;
   description: string | null;
@@ -1465,6 +1472,37 @@ export async function fetchPayoutReport(month: string): Promise<Response> {
  */
 export async function fetchPayoutReceipt(ids: string[]): Promise<Response> {
   return fetch(`${BACKEND_URL}/v1/payables/receipt?ids=${encodeURIComponent(ids.join(","))}`, {
+    headers: await authHeaders(),
+    cache: "no-store",
+  });
+}
+
+/**
+ * Os quatro relatórios do financeiro, recortados por um período livre. Cada um
+ * mora no módulo dono do dado — não há um "módulo de relatórios" no backend,
+ * porque cada documento é a leitura de um domínio já existente.
+ *
+ * O tipo é uma chave fechada (e não a rota crua) para o route handler não virar
+ * um proxy aberto: sem isso, `?rota=/v1/users` sairia pela mesma porta com o
+ * token da sessão.
+ */
+export const FINANCE_REPORTS = {
+  "movimento-do-caixa": "/v1/cash-flow/report/movements",
+  resultados: "/v1/cash-flow/report/result",
+  receitas: "/v1/receivables/report",
+  "contas-a-pagar": "/v1/payables/report/period",
+} as const;
+
+export type FinanceReportKind = keyof typeof FINANCE_REPORTS;
+
+/** `Response` CRUA (os bytes do PDF), como os demais relatórios. */
+export async function fetchFinanceReport(
+  kind: FinanceReportKind,
+  from: string,
+  to: string,
+): Promise<Response> {
+  const qs = new URLSearchParams({ from, to });
+  return fetch(`${BACKEND_URL}${FINANCE_REPORTS[kind]}?${qs}`, {
     headers: await authHeaders(),
     cache: "no-store",
   });

@@ -64,6 +64,7 @@ const ORIGEM: Record<CashFlowMovement["source"], string> = {
   TAXA_ADM: "Repasse ao Proprietário",
   JUROS_MULTA: "Baixa de Conta a Receber",
   REPASSE: "Repasse ao Proprietário",
+  DESPESA_CONDOMINIO: "Despesa de Condomínio",
   COMISSAO: "Comissão",
   MANUAL: "Lançamento Manual",
 };

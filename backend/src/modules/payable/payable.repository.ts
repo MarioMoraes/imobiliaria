@@ -119,6 +119,32 @@ export async function listPayables(
 }
 
 /**
+ * Todos os lançamentos que VENCEM no período — a base do Relatório de Contas a
+ * Pagar.
+ *
+ * Sem `LIMIT`, ao contrário de `listPayables`: a listagem da tela corta em 500
+ * porque é filtrada na prática, mas um relatório que corta não fecha com o
+ * total, e é para conferir o total que ele existe. CANCELADO/ESTORNADO ficam
+ * fora — não são obrigação a pagar nem pagamento feito.
+ */
+export async function listPayablesByDueRange(
+  tenantId: string,
+  from: string,
+  to: string,
+): Promise<Payable[]> {
+  return withTenant(tenantId, async (client) => {
+    const { rows } = await client.query<Row>(
+      `${SELECT}
+        WHERE p.due_date >= $1::date AND p.due_date <= $2::date
+          AND p.status NOT IN ('CANCELADO', 'ESTORNADO')
+        ORDER BY p.due_date ASC, ps.full_name ASC`,
+      [from, to],
+    );
+    return rows.map(toPayable);
+  });
+}
+
+/**
  * Indicadores do mês, somados no banco.
  *
  * Tudo é filtrado pelo mês de **VENCIMENTO** — a mesma chave da listagem. O que

@@ -1,6 +1,7 @@
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { getTenantId } from "../../shared/tenant-context.js";
 import { AppError } from "../../shared/errors.js";
+import { periodQuerySchema } from "../../shared/period.js";
 import { requirePermission } from "../rbac/authorize.js";
 import {
   cashFlowQuerySchema,
@@ -41,6 +42,44 @@ export async function cashFlowRoutes(app: FastifyInstance): Promise<void> {
     }
     return { data: await service.series(getTenantId(), parsed.data.months) };
   });
+
+  /* -------------------------------------------------------- Relatórios */
+
+  /**
+   * Movimento do Caixa e Resultados em PDF, sobre um período livre
+   * (`?from=&to=`). Respondem os BYTES (application/pdf), e não o envelope
+   * `{ data }` das demais rotas — quem chama abre/imprime o arquivo.
+   */
+  const relatorio = (kind: "MOVIMENTO" | "RESULTADO", nome: string) =>
+    async (req: FastifyRequest, reply: FastifyReply) => {
+      const parsed = periodQuerySchema.safeParse(req.query);
+      if (!parsed.success) {
+        throw AppError.badRequest("Período inválido", parsed.error.flatten());
+      }
+      const pdf = await service.periodReport(getTenantId(), parsed.data, kind);
+
+      // `inline` abre no visualizador do navegador; o nome é o que o "salvar
+      // como" sugere — sem ele o arquivo herdaria o nome da rota.
+      reply
+        .header("Content-Type", "application/pdf")
+        .header(
+          "Content-Disposition",
+          `inline; filename="${nome}-${parsed.data.from}-a-${parsed.data.to}.pdf"`,
+        );
+      return reply.send(pdf);
+    };
+
+  app.get(
+    "/report/movements",
+    { preHandler: requirePermission("finance:read") },
+    relatorio("MOVIMENTO", "movimento-do-caixa"),
+  );
+
+  app.get(
+    "/report/result",
+    { preHandler: requirePermission("finance:read") },
+    relatorio("RESULTADO", "resultados"),
+  );
 
   /* ------------------------------------------------------- Categorias */
 

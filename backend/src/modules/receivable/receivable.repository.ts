@@ -108,6 +108,36 @@ export async function listReceivables(
 }
 
 /**
+ * Todas as cobranças que VENCEM no período — a base do Relatório de Receitas.
+ *
+ * Sem `LIMIT`, ao contrário de `listReceivables`: a listagem da tela corta em
+ * 500 porque é paginada na prática (o operador filtra), mas um relatório que
+ * corta não fecha com o total, e é para conferir o total que ele existe. Um
+ * trimestre de uma carteira média já passa dos 500.
+ *
+ * O recorte é o VENCIMENTO, e não a baixa: "as receitas de agosto" é o que
+ * deveria entrar em agosto — a diferença para o que entrou é justamente a
+ * inadimplência que o relatório precisa mostrar. CANCELADO/ESTORNADO ficam
+ * fora: não são receita esperada nem realizada.
+ */
+export async function listReceivablesByDueRange(
+  tenantId: string,
+  from: string,
+  to: string,
+): Promise<Receivable[]> {
+  return withTenant(tenantId, async (client) => {
+    const { rows } = await client.query<Row>(
+      `${SELECT}
+        WHERE r.due_date >= $1::date AND r.due_date <= $2::date
+          AND r.status NOT IN ('CANCELADO', 'ESTORNADO')
+        ORDER BY r.due_date ASC, r.installment ASC`,
+      [from, to],
+    );
+    return rows.map(toReceivable);
+  });
+}
+
+/**
  * Série mensal do fluxo de caixa, do mês mais antigo ao corrente.
  *
  * `generate_series` monta os meses primeiro e as somas entram por subconsulta:

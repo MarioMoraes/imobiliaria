@@ -21,6 +21,13 @@ import { z } from "zod";
  * e não sobre o pago (ver `payable/owner-payout.ts`). Quando divergem é por
  * tempo — aluguel recebido num mês e repassado no seguinte —, e é justamente o
  * que o indicador "a repassar" mede.
+ *
+ * **O condomínio segue a MESMA simetria do aluguel**, e por muito tempo não
+ * seguiu: a cota entrava pelo `RECEBIMENTO` e a despesa paga com ela não saía de
+ * lugar nenhum. O caixa inflava para sempre pelo total arrecadado, e a
+ * identidade acima não fechava por exatamente esse valor. `DESPESA_CONDOMINIO`
+ * é o outro lado dessa entrada, como `REPASSE` é o do aluguel — dinheiro de
+ * terceiro que sai, sem tocar o resultado.
  */
 
 export const cashFlowDirection = z.enum(["ENTRADA", "SAIDA"]);
@@ -32,6 +39,7 @@ export const cashFlowSource = z.enum([
   "TAXA_ADM", // payables.admin_fee_cents — receita da administração
   "JUROS_MULTA", // receivables: pago − devido
   "REPASSE", // payables PAGO — saída ao proprietário
+  "DESPESA_CONDOMINIO", // condominium_expenses — saída do arrecadado dos condôminos
   "COMISSAO", // commissions QUITADO
   "MANUAL", // cash_flow_entries
 ]);
@@ -96,8 +104,14 @@ export interface CashFlowSummary {
   manualIncomeCents: number;
   manualExpenseCents: number;
   /**
-   * Dinheiro de terceiros ainda retido: repasses em aberto ou em trânsito, de
-   * qualquer mês. É o que explica o saldo de caixa ser maior que o resultado.
+   * Dinheiro de terceiros ainda retido, de qualquer mês: repasses em aberto ou
+   * em trânsito **mais** o saldo dos condomínios (arrecadado − gasto). É o que
+   * explica o saldo de caixa ser maior que o resultado.
+   *
+   * A parcela do condomínio pode ser negativa — despesa lançada antes de os
+   * condôminos pagarem —, e é somada assim mesmo: aí a imobiliária adiantou do
+   * próprio bolso, e o dinheiro de terceiros em mãos é de fato menor. Truncar em
+   * zero deixaria o indicador de pé e a reconciliação errada.
    */
   pendingPayoutCents: number;
 }
