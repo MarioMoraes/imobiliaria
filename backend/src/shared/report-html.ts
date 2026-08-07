@@ -11,6 +11,11 @@
  * Funções **puras** (sem banco, sem tenant): o layout pode ser testado sozinho,
  * como já acontece em `payable/report.ts`. O `htmlToPdf` (Gotenberg/Chromium)
  * converte o resultado — por isso é CSS de impressão, não a folha do app.
+ *
+ * **Padrão de todo relatório em PDF: nada de nota explicativa no fim.** O
+ * documento termina na última linha de dado. Explicar no rodapé como o número
+ * foi apurado é texto para quem programa, não para quem imprime — por isso não
+ * existe campo `footer` aqui, e um relatório novo não deve inventar o seu.
  */
 
 /**
@@ -62,8 +67,6 @@ export interface ReportPageInput {
   boxes: ReportBox[];
   /** HTML do miolo (uma ou mais tabelas já montadas). */
   body: string;
-  /** Nota de rodapé explicando como os números foram apurados. */
-  footer?: string;
   /** Retrato é o padrão; paisagem para as tabelas de muitas colunas. */
   landscape?: boolean;
 }
@@ -127,9 +130,6 @@ export function reportPage(input: ReportPageInput): string {
                    border-bottom: 1px solid #cbd5e1; }
   tfoot td { border-top: 2px solid #0f172a; padding-top: 6px; font-weight: 700; }
   .vazio { color: #64748b; padding: 14px 6px; }
-
-  footer { margin-top: 14px; padding-top: 6px; border-top: 1px solid #e2e8f0;
-           color: #94a3b8; font-size: 8px; }
 </style>
 </head>
 <body>
@@ -142,8 +142,6 @@ export function reportPage(input: ReportPageInput): string {
   ${input.boxes.length ? `<div class="resumo">${boxes}</div>` : ""}
 
   ${input.body}
-
-  ${input.footer ? `<footer>${input.footer}</footer>` : ""}
 </body>
 </html>`;
 }

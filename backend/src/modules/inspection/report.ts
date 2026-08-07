@@ -110,7 +110,6 @@ export function toInspectionReportHtml(input: InspectionReportInput): string {
   .assinaturas { display: flex; gap: 40px; margin-top: 40px; break-inside: avoid; }
   .assinaturas div { flex: 1; border-top: 1px solid #0f172a; padding-top: 4px;
                      text-align: center; color: #475569; font-size: 9px; }
-  footer { margin-top: 14px; color: #94a3b8; font-size: 8px; }
 </style>
 </head>
 <body>
@@ -155,11 +154,6 @@ export function toInspectionReportHtml(input: InspectionReportInput): string {
     <div>Locatário</div>
     <div>Locador</div>
   </div>
-
-  <footer>
-    Documento gerado pelo sistema. O estado de cada item reflete a conferência
-    feita na data de emissão.
-  </footer>
 </body>
 </html>`;
 }

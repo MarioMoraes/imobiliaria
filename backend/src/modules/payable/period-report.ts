@@ -178,11 +178,5 @@ export function toPayablePeriodReportHtml(input: PayablePeriodReportInput): stri
     boxes,
     body,
     landscape: true,
-    footer: `Recorte pelo VENCIMENTO: é o que deve ser pago no período,
-      independentemente de já ter saído. "Atrasado" é o que continua em aberto com
-      o vencimento passado — inclui o que está em transferência e ainda não
-      compensou. Lançamentos cancelados e estornados não entram. O valor do repasse
-      já vem líquido da taxa de administração; a memória de cálculo (bruto, taxa e
-      participação de cada dono) está no Relatório de Repasses.`,
   });
 }

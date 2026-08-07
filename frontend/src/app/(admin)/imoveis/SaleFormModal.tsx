@@ -421,15 +421,20 @@ export default function SaleFormModal({
             paddingTop: 12,
           }}
         >
-          <div className="row" style={{ gap: 8 }}>
+          {/* Ferramenta do rodapé (`.btn-tool`): desfazer a venda não é concluir
+              nem abandonar o formulário — reverte o registro que está aberto.
+              Leva o tom de perigo, mas continua com a forma e o peso das demais
+              ferramentas: quem clica ainda passa pela confirmação. */}
+          <div className="form-tools">
             {sale && (
               <button
-                className="btn btn-outline btn-sm"
+                className="btn-tool tone-danger"
                 type="button"
                 onClick={() => void handleDelete()}
                 disabled={pending}
               >
-                <Icon name="trash" size={14} /> Desfazer Venda
+                <span className="btn-tool-ico"><Icon name="trash" size={15} /></span>
+                Desfazer Venda
               </button>
             )}
           </div>

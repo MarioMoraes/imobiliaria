@@ -221,10 +221,7 @@ export function toPayoutReceiptHtml(input: PayoutReceiptInput): string {
     ${input.payeeCpfCnpj ? `<div class="doc">CPF/CNPJ ${doc(input.payeeCpfCnpj)}</div>` : ""}
   </div>
 
-  <footer>
-    Emitido em ${dia(input.generatedAt.toISOString())}. O valor líquido é o
-    aluguel que cabe ao proprietário menos a taxa de administração do contrato.
-  </footer>
+  <footer>Emitido em ${dia(input.generatedAt.toISOString())}.</footer>
 </body>
 </html>`;
 }

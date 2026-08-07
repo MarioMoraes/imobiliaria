@@ -287,16 +287,22 @@ export default function InspectionModal({
             paddingTop: 12,
           }}
         >
-          {/* `<a>` e não `window.open`: o resultado é um arquivo, e assim o PDF
+          {/* Ferramenta do rodapé (`.btn-tool`): abre um documento, não conclui
+              o formulário. Teal é o tom da vistoria — o mesmo do botão que abre
+              este modal, no cadastro do imóvel.
+              `<a>` e não `window.open`: o resultado é um arquivo, e assim o PDF
               abre no visualizador nativo sem esbarrar no bloqueador de pop-up. */}
-          <a
-            className="btn btn-outline btn-sm"
-            href={`/imoveis/${propertyId}/vistoria`}
-            target="_blank"
-            rel="noopener"
-          >
-            <Icon name="printer" size={14} /> Imprimir
-          </a>
+          <div className="form-tools">
+            <a
+              className="btn-tool tone-teal"
+              href={`/imoveis/${propertyId}/vistoria`}
+              target="_blank"
+              rel="noopener"
+            >
+              <span className="btn-tool-ico"><Icon name="printer" size={15} /></span>
+              Imprimir
+            </a>
+          </div>
           <div className="row" style={{ gap: 8 }}>
             <button className="btn btn-ghost btn-sm" type="button" onClick={onClose}>
               Fechar

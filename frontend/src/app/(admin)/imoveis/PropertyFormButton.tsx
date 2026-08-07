@@ -991,69 +991,82 @@ export function PropertyFormButton({ property, mode = "rent", types, condominium
         {error && <span className="text-sm" style={{ color: "var(--danger, #dc2626)" }}>{error}</span>}
 
         <div className="row" style={{ justifyContent: "space-between", gap: 8, borderTop: "1px solid var(--border)", paddingTop: 12 }}>
-          <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+          {/* Ferramentas do imóvel (`.btn-tool`, globals.css): documento e
+              sub-cadastro do registro aberto — outra natureza que o Salvar/
+              Cancelar da direita, e por isso outra forma. Cada uma leva o tom
+              do seu assunto no ícone; o rótulo fica neutro. */}
+          <div className="form-tools">
             {/* Vistoria é sub-recurso do imóvel: precisa de um imóvel salvo para
                 existir, como as abas Proprietários e Fotos. */}
             <button
-              className="btn btn-outline btn-sm"
+              className="btn-tool tone-teal"
               type="button"
               onClick={() => setInspectionOpen(true)}
               disabled={!isEdit || pending}
               title={isEdit ? undefined : "Salve o imóvel primeiro"}
             >
-              <Icon name="list" size={14} /> Vistoria
+              <span className="btn-tool-ico"><Icon name="list" size={15} /></span>
+              Vistoria
             </button>
             {/* Contrato de administração: firmado com o PROPRIETÁRIO, não com o
                 inquilino — por isso nasce no cadastro do imóvel a alugar, e não
                 em Contratos. Só faz sentido na locação. */}
             {!isSale && (
               <button
-                className="btn btn-outline btn-sm"
+                className="btn-tool tone-indigo"
                 type="button"
                 onClick={() => setAdminContractOpen(true)}
                 disabled={!isEdit || pending}
                 title={isEdit ? undefined : "Salve o imóvel primeiro"}
               >
-                <Icon name="contract" size={14} /> Contrato de Administração
+                <span className="btn-tool-ico"><Icon name="contract" size={15} /></span>
+                Contrato de Administração
               </button>
             )}
             {/* O ciclo da venda, na ordem em que acontece: autorizar → firmar o
-                compromisso → registrar a venda. Os dois documentos são `<a>` e
-                não `window.open` — o resultado é um arquivo, e assim o PDF abre
-                no visualizador nativo sem esbarrar no bloqueador de pop-up. */}
+                compromisso → registrar a venda. Os três tons seguem essa ordem
+                (âmbar → violeta → esmeralda), e os ícones não se repetem: numa
+                fileira, dois documentos com o mesmo desenho obrigam a ler o
+                rótulo para distingui-los. Os dois documentos são `<a>` e não
+                `window.open` — o resultado é um arquivo, e assim o PDF abre no
+                visualizador nativo sem esbarrar no bloqueador de pop-up. */}
             {isSale && isEdit && property && (
               <>
                 <a
-                  className="btn btn-outline btn-sm"
+                  className="btn-tool tone-ambar"
                   href={`/imoveis/${property.id}/autorizacao-venda`}
                   target="_blank"
                   rel="noopener"
                 >
-                  <Icon name="contract" size={14} /> Autorização de Venda
+                  <span className="btn-tool-ico"><Icon name="contract" size={15} /></span>
+                  Autorização de Venda
                 </a>
                 <a
-                  className="btn btn-outline btn-sm"
+                  className="btn-tool tone-violeta"
                   href={`/imoveis/${property.id}/compromisso-compra-venda`}
                   target="_blank"
                   rel="noopener"
                 >
-                  <Icon name="contract" size={14} /> Compromisso de Compra e Venda
+                  <span className="btn-tool-ico"><Icon name="receipt" size={15} /></span>
+                  Compromisso de Compra e Venda
                 </a>
                 <button
-                  className="btn btn-outline btn-sm"
+                  className="btn-tool tone-esmeralda"
                   type="button"
                   onClick={() => setSaleOpen(true)}
                   disabled={pending}
                 >
-                  <Icon name="creci" size={14} /> Venda do Imóvel
+                  <span className="btn-tool-ico"><Icon name="key" size={15} /></span>
+                  Venda do Imóvel
                 </button>
               </>
             )}
             {/* Sem imóvel salvo os três não têm de onde tirar o cadastro: um
                 botão desabilitado explica melhor que a ausência deles. */}
             {isSale && !isEdit && (
-              <button className="btn btn-outline btn-sm" type="button" disabled title="Salve o imóvel primeiro">
-                <Icon name="creci" size={14} /> Documentos e Venda
+              <button className="btn-tool" type="button" disabled title="Salve o imóvel primeiro">
+                <span className="btn-tool-ico"><Icon name="key" size={15} /></span>
+                Documentos e Venda
               </button>
             )}
           </div>

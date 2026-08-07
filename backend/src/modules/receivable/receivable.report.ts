@@ -175,11 +175,5 @@ export function toRevenueReportHtml(input: RevenueReportInput): string {
     boxes,
     body,
     landscape: true,
-    footer: `Recorte pelo VENCIMENTO: é o que deveria entrar no período,
-      independentemente de ter sido pago. "Recebido" é o valor da baixa (pode
-      superar o previsto quando há juros e multa); "vencido" é o que continua em
-      aberto com o vencimento já passado. Cobranças canceladas e estornadas não
-      entram. Este é o bruto cobrado do inquilino — a parte que fica com a
-      imobiliária está no Relatório de Resultados.`,
   });
 }

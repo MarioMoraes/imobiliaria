@@ -151,6 +151,12 @@ tenant demo `00000000-0000-0000-0000-000000000001` com imóveis de exemplo.
   `gateway/routes.ts` e adicione as tabelas (com `tenant_id` + RLS ativado). O
   schema hoje vive em `infra/postgres/init.sql`; escolher uma ferramenta de
   migração (ex.: node-pg-migrate/Drizzle) é um TODO de Fundação (SPEC seção 17).
+- **Relatório em PDF não leva nota explicativa no fim.** O documento termina na
+  última linha de dado — sem rodapé contando como o número foi apurado, o que
+  entra no recorte ou onde ver a memória de cálculo. Por isso `reportPage`
+  (`shared/report-html.ts`) não tem campo `footer`; relatório que monta o próprio
+  HTML segue a mesma regra (o `<footer>` do recibo de repasse só carrega a data
+  de emissão, que é dado, não explicação).
 - **Auditoria é automática** (MOD-AUTH-07): toda mutação de `/v1` vira linha em
   `audit_logs` pelo hook do gateway (`gateway/audit.hook.ts`) — módulo novo já
   nasce auditado, sem escrever nada. Ajuste o nome da ação em

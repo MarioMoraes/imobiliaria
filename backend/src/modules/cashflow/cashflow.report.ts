@@ -124,11 +124,6 @@ export function toCashMovementReportHtml(input: CashFlowReportInput): string {
            ${movements.length} movimento(s)`,
     boxes,
     body,
-    footer: `Extrato de caixa: inclui o dinheiro de terceiros que passa pela conta
-      (aluguel recebido e repassado, cota e despesa de condomínio). O saldo é o do
-      período, acumulado a partir de zero — não é o saldo da conta bancária.
-      "Retido de terceiros" é o que já entrou e ainda não foi devolvido, de qualquer
-      período, e é o que explica o caixa ser maior que o resultado.`,
   });
 }
 
@@ -268,9 +263,5 @@ export function toResultReportHtml(input: CashFlowReportInput): string {
            ${movements.length} lançamento(s)`,
     boxes,
     body,
-    footer: `Resultado da imobiliária: taxa de administração, juros e multa de
-      atraso, comissões e lançamentos próprios. O aluguel recebido e o repasse ao
-      proprietário ficam de fora por serem dinheiro de terceiros — eles aparecem no
-      Relatório de Movimento do Caixa. Margem = resultado ÷ receitas.`,
   });
 }

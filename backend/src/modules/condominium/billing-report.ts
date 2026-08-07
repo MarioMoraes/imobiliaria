@@ -151,7 +151,6 @@ export function toBillingReportHtml(input: BillingReportInput): string {
   .neutro { color: #94a3b8; }
   tfoot td { border-top: 2px solid #0f172a; padding-top: 6px; font-weight: 700; }
   .vazio { color: #64748b; padding: 14px 6px; }
-  footer { margin-top: 14px; color: #94a3b8; font-size: 8px; }
 </style>
 </head>
 <body>
@@ -226,14 +225,6 @@ export function toBillingReportHtml(input: BillingReportInput): string {
       </tfoot>
     </table>
   </section>
-
-  <footer>
-    Condomínio = valor cadastrado no imóvel multiplicado pelos ${preview.months} mês(es)
-    do período. Rateio = despesas lançadas no período divididas igualmente entre as
-    ${preview.unitCount} unidade(s); a sobra em centavos fica na primeira, para a soma
-    fechar com o total lançado. A conta é cobrada do inquilino quando há contrato de
-    locação vigente e do proprietário quando não há.
-  </footer>
 </body>
 </html>`;
 }

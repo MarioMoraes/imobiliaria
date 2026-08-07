@@ -714,6 +714,110 @@ a {
   display: none;
 }
 
+/* ------------------------------------------------- Ferramentas do rodapé */
+/**
+ * As ações extras à ESQUERDA do rodapé de um formulário (Vistoria, Autorização
+ * de Venda, Venda do Imóvel…). Elas não são "mais um botão secundário": não
+ * concluem nem abandonam o formulário — abrem um documento ou um sub-cadastro
+ * do registro que está na tela. Quando eram `.btn-outline`, três pílulas cinzas
+ * à esquerda liam como variação fraca do Salvar/Cancelar da direita, e a lista
+ * inteira virava uma parede sem hierarquia.
+ *
+ * A distinção é de FORMA, não de peso: canto `--r-md` contra a pílula
+ * `--r-full` das ações de conclusão. Lado a lado, a silhueta já separa os dois
+ * grupos antes de qualquer leitura.
+ *
+ * A cor entra pelo ícone, dentro de um chip tingido pelo `--tone` do assunto —
+ * a mesma regra do menu lateral (`.nav-item svg`): o ícone carrega a matiz, o
+ * rótulo fica neutro. É o que impede a fileira de virar arco-íris: o olho lê
+ * uma coluna de rótulos iguais com marcadores coloridos, não botões coloridos.
+ */
+.form-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.btn-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 14px 5px 5px;
+  /* Degradê cinza fraco, do branco ao cinza entre `--surface` e `--border`: dá
+     volume de tecla sem virar mais uma cor na tela. Parar em `--surface` puro
+     era indistinguível do fundo chapado — o degradê precisa de um passo a mais
+     para existir. No hover ele se apaga para o branco: a superfície "sobe"
+     junto com a translação, em vez de só mudar de borda. */
+  background: linear-gradient(
+    180deg,
+    var(--white) 0%,
+    color-mix(in srgb, var(--surface) 45%, var(--border)) 100%
+  );
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  color: var(--dark-text);
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.btn-tool-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--tone, var(--primary)) 10%, transparent);
+  color: var(--tone, var(--primary));
+  transition: all 0.18s ease;
+}
+.btn-tool-ico svg {
+  width: 15px;
+  height: 15px;
+}
+/* No hover a borda e a sombra tomam o tom do assunto — a mesma "dose de cor"
+   dos cards, sem pintar o fundo do botão. */
+.btn-tool:hover {
+  background: var(--white);
+  border-color: color-mix(in srgb, var(--tone, var(--primary)) 42%, var(--border));
+  box-shadow: 0 6px 14px -8px color-mix(in srgb, var(--tone, var(--primary)) 80%, transparent);
+  transform: translateY(-1px);
+}
+.btn-tool:hover .btn-tool-ico {
+  background: color-mix(in srgb, var(--tone, var(--primary)) 17%, transparent);
+}
+.btn-tool:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+.btn-tool:focus-visible {
+  outline: 2px solid var(--tone, var(--primary));
+  outline-offset: 2px;
+}
+/* Desabilitado ("Salve o imóvel primeiro"): a cor sai por completo do chip. O
+   botão continua legível — ele explica que a ação existe e ainda não é
+   possível, o que a simples ausência do botão não diria. */
+.btn-tool:disabled,
+.btn-tool[disabled] {
+  cursor: not-allowed;
+  color: var(--muted);
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: none;
+  transform: none;
+}
+.btn-tool:disabled .btn-tool-ico,
+.btn-tool[disabled] .btn-tool-ico {
+  background: color-mix(in srgb, var(--muted-2) 14%, transparent);
+  color: var(--muted-2);
+}
+
 /* ----------------------------------------------------------------- Cards */
 .card {
   background: var(--white);

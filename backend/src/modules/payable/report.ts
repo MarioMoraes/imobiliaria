@@ -177,7 +177,6 @@ export function toPayoutReportHtml(input: PayoutReportInput): string {
                    border-bottom: 1px solid #cbd5e1; }
   tfoot td { border-top: 2px solid #0f172a; padding-top: 6px; font-weight: 700; }
   .vazio { color: #64748b; padding: 14px 6px; }
-  footer { margin-top: 14px; color: #94a3b8; font-size: 8px; }
 </style>
 </head>
 <body>
@@ -224,11 +223,6 @@ export function toPayoutReportHtml(input: PayoutReportInput): string {
       </tr>
     </tfoot>
   </table>
-
-  <footer>
-    Bruto = parte do aluguel que cabe ao proprietário (rateada pela participação).
-    Líquido = bruto menos a taxa de administração do contrato.
-  </footer>
 </body>
 </html>`;
 }
